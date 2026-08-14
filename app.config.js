@@ -22,11 +22,12 @@ module.exports = function (_config) {
   const IS_PRODUCTION = process.env.EXPO_PUBLIC_ENV === 'production'
   const IS_DEV = !IS_TESTFLIGHT && !IS_PRODUCTION
 
+  // TODO(sunnahsky-rebrand): dropped the staging/appclips entries rather
+  // than invent domains that don't exist yet - Sunnahsky has no staging
+  // subdomain and no App Clip target. Add them back if/when those become
+  // real.
   const ASSOCIATED_DOMAINS = [
-    'applinks:bsky.app',
-    'applinks:staging.bsky.app',
-    'appclips:bsky.app',
-    'appclips:go.bsky.app', // Allows App Clip to work when scanning QR codes
+    'applinks:sunnahsky.com',
     // When testing local services, enter an ngrok (et al) domain here. It must use a standard HTTP/HTTPS port.
     ...(IS_DEV || IS_TESTFLIGHT ? [] : []),
   ]
@@ -45,7 +46,10 @@ module.exports = function (_config) {
   return {
     expo: {
       version: VERSION,
-      name: 'Bluesky',
+      // TODO(sunnahsky-rebrand): slug/scheme/owner are still Bluesky's -
+      // these tie to EAS/App Store/Play Store registrations that don't yet
+      // exist for Sunnahsky. Left untouched pending real account details.
+      name: 'Sunnahsky',
       slug: 'bluesky',
       scheme: 'bluesky',
       owner: 'blueskysocial',
@@ -204,7 +208,7 @@ module.exports = function (_config) {
             data: [
               {
                 scheme: 'https',
-                host: 'bsky.app',
+                host: 'sunnahsky.com',
               },
               ...(IS_DEV
                 ? [

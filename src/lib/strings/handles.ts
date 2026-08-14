@@ -28,6 +28,22 @@ export function isInvalidHandle(handle: string): boolean {
   return handle === 'handle.invalid'
 }
 
+/**
+ * Whether `handle` belongs to a Sunnahsky Catcher (reply-only) account.
+ *
+ * The PDS guarantees server-side that every Catcher handle contains a
+ * ".guest." label immediately before the base domain (e.g.
+ * "alex.guest.sunnahsky.com", or ".guest.test" in local dev) and that no
+ * Striker handle ever does - see `ensureHandleMatchesRole` in the atproto
+ * fork. This is therefore a reliable signal for any account actually hosted
+ * on a Sunnahsky PDS. A handle from an unrelated PDS (this app can sign in
+ * to any ATproto server, not just ours) will simply never match, which is
+ * correct: Sunnahsky's role system does not apply to it.
+ */
+export function isCatcherHandle(handle: string): boolean {
+  return handle.includes('.guest.')
+}
+
 export function sanitizeHandle(
   handle: string,
   prefix = '',
