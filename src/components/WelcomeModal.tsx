@@ -139,11 +139,15 @@ export function WelcomeModal({control}: WelcomeModalProps) {
                       letterSpacing: -0.5,
                     }),
                   ]}>
-                  <Trans>Real people.</Trans>
+                  <Trans>Sit down with a book and a cup of tea.</Trans>
                   {'\n'}
-                  <Trans>Real conversations.</Trans>
+                  <Trans>
+                    But if you do need to go online; sunnahsky is here:
+                  </Trans>
                   {'\n'}
-                  <Trans>Social media you control.</Trans>
+                  <Trans>
+                    Real people. Real Marakiz. Real benefits. No manipulation.
+                  </Trans>
                 </Text>
               </View>
               <View style={[a.gap_md, a.align_center]}>

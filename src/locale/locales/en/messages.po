@@ -2431,6 +2431,10 @@ msgstr ""
 msgid "Business"
 msgstr ""
 
+#: src/components/WelcomeModal.tsx:144
+msgid "But if you do need to go online; sunnahsky is here:"
+msgstr "But if you do need to go online; sunnahsky is here:"
+
 #: src/screens/Bookmarks.tsx:293
 msgid "Button to go back to the home timeline"
 msgstr ""
@@ -9780,13 +9784,9 @@ msgstr ""
 msgid "Read the Bluesky Terms of Service"
 msgstr ""
 
-#: src/components/WelcomeModal.tsx:144
-msgid "Real conversations."
-msgstr ""
-
-#: src/components/WelcomeModal.tsx:142
-msgid "Real people."
-msgstr ""
+#: src/components/WelcomeModal.tsx:146
+msgid "Real people. Real Marakiz. Real benefits. No manipulation."
+msgstr "Real people. Real Marakiz. Real benefits. No manipulation."
 
 #: src/screens/Takendown.tsx:156
 #: src/screens/Takendown.tsx:164
@@ -11583,6 +11583,10 @@ msgstr ""
 msgid "Since"
 msgstr "Since"
 
+#: src/components/WelcomeModal.tsx:142
+msgid "Sit down with a book and a cup of tea."
+msgstr "Sit down with a book and a cup of tea."
+
 #: src/components/contacts/screens/PhoneInput.tsx:163
 #: src/components/contacts/screens/VerifyNumber.tsx:208
 #: src/screens/Onboarding/StepFindContactsIntro/index.tsx:86
@@ -11628,10 +11632,6 @@ msgstr ""
 
 #: src/view/com/composer/drafts/DraftsListDialog.tsx:155
 msgid "So many thoughts, you should post one"
-msgstr ""
-
-#: src/components/WelcomeModal.tsx:146
-msgid "Social media you control."
 msgstr ""
 
 #: src/lib/interests.ts:58
