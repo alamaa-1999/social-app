@@ -2,6 +2,15 @@
 <html>
   <head>
     <meta charset="utf-8">
+    <!--
+      Without this, the auto-injected entry script tags (relative paths, from
+      webpack's output.publicPath = 'auto') resolve against the current route
+      instead of the site root on any non-root page load - e.g. reloading
+      /profile/handle requests /profile/static/js/main.js, which the SPA
+      fallback answers with index.html itself, and the browser then fails to
+      parse that HTML as the JS it expected.
+    -->
+    <base href="/">
     <meta name="theme-color">
     <!--
       This viewport works for phones with notches.
