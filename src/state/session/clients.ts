@@ -5,6 +5,7 @@ import {
   BLUESKY_PROXY_HEADER,
   CHAT_PROXY_SERVICE,
   PUBLIC_BSKY_SERVICE,
+  SUNNAHSKY_SERVICE,
 } from '#/lib/constants'
 import {createLexClient} from '#/lib/lexClient'
 import {networkAwareFetch} from './network'
@@ -149,6 +150,25 @@ let publicLexClient: Client | undefined
 export function getPublicAppviewClient(): Client {
   return (publicLexClient ??= createLexClient({
     service: PUBLIC_BSKY_SERVICE,
+    fetch: networkAwareFetch,
+  }))
+}
+
+let sunnahskyPdsClient: Client | undefined
+
+/**
+ * The unauthenticated {@link Client} for public reads against Sunnahsky's own
+ * PDS, pointed at {@link SUNNAHSKY_SERVICE}.
+ *
+ * Same shape as {@link getPublicAppviewClient}, for the same reasons: a single
+ * module-level instance, requests through {@link networkAwareFetch}. Used by
+ * the login flow's Sunnahsky-domain fast path (`pds-detection.ts`) so
+ * resolving a Sunnahsky handle never depends on Bluesky's public
+ * infrastructure being reachable.
+ */
+export function getSunnahskyPublicPdsClient(): Client {
+  return (sunnahskyPdsClient ??= createLexClient({
+    service: SUNNAHSKY_SERVICE,
     fetch: networkAwareFetch,
   }))
 }
