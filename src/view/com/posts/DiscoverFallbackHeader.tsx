@@ -3,7 +3,6 @@ import {Trans} from '@lingui/react/macro'
 
 import {usePalette} from '#/lib/hooks/usePalette'
 import {InfoCircleIcon} from '#/lib/icons'
-import {TextLink} from '../util/Link'
 import {Text} from '../util/text/Text'
 
 export function DiscoverFallbackHeader() {
@@ -27,14 +26,8 @@ export function DiscoverFallbackHeader() {
       <View style={{flex: 1}}>
         <Text type="md" style={pal.text}>
           <Trans>
-            We ran out of posts from your follows. Here's the latest from{' '}
-            <TextLink
-              type="md-medium"
-              href="/profile/bsky.app/feed/whats-hot"
-              text="Discover"
-              style={pal.link}
-            />
-            .
+            We ran out of posts from your follows. Here's the latest from
+            Discover.
           </Trans>
         </Text>
       </View>

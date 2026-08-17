@@ -1,10 +1,8 @@
 import {type Client} from '@atproto/lex'
-import {type AtUriString} from '@atproto/syntax'
 
-import {PROD_DEFAULT_FEED} from '#/lib/constants'
 import {type app} from '#/lexicons'
-import {CustomFeedAPI} from './custom'
 import {FollowingFeedAPI} from './following'
+import {StrikerFeedAPI} from './strikers'
 import {type FeedAPI, type FeedAPIResponse} from './types'
 
 // HACK
@@ -36,33 +34,33 @@ export const FALLBACK_MARKER_POST = {
 export class HomeFeedAPI implements FeedAPI {
   client: Client
   following: FollowingFeedAPI
-  discover: CustomFeedAPI
+  discover: StrikerFeedAPI
   usingDiscover = false
   itemCursor = 0
   userInterests?: string
+  strikerDids: string[]
 
   constructor({
     userInterests,
     client,
+    strikerDids,
   }: {
     userInterests?: string
     client: Client
+    strikerDids: string[]
   }) {
     this.client = client
+    this.strikerDids = strikerDids
     this.following = new FollowingFeedAPI({client})
-    this.discover = new CustomFeedAPI({
-      client,
-      feedParams: {feed: PROD_DEFAULT_FEED('whats-hot') as AtUriString},
-    })
+    this.discover = new StrikerFeedAPI({client, strikerDids})
     this.userInterests = userInterests
   }
 
   reset() {
     this.following = new FollowingFeedAPI({client: this.client})
-    this.discover = new CustomFeedAPI({
+    this.discover = new StrikerFeedAPI({
       client: this.client,
-      feedParams: {feed: PROD_DEFAULT_FEED('whats-hot') as AtUriString},
-      userInterests: this.userInterests,
+      strikerDids: this.strikerDids,
     })
     this.usingDiscover = false
     this.itemCursor = 0

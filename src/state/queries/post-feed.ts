@@ -23,6 +23,7 @@ import {LikesFeedAPI} from '#/lib/api/feed/likes'
 import {ListFeedAPI} from '#/lib/api/feed/list'
 import {MergeFeedAPI} from '#/lib/api/feed/merge'
 import {PostListFeedAPI} from '#/lib/api/feed/posts'
+import {StrikerFeedAPI} from '#/lib/api/feed/strikers'
 import {type FeedAPI, type ReasonFeedSource} from '#/lib/api/feed/types'
 import {aggregateUserInterests} from '#/lib/api/feed/utils'
 import {FeedTuner, type FeedTunerFn} from '#/lib/api/feed-manip'
@@ -38,6 +39,7 @@ import * as bsky from '#/types/bsky'
 import {useFeedTuners} from '../preferences/feed-tuners'
 import {useModerationOpts} from '../preferences/moderation-opts'
 import {usePreferencesQuery} from './preferences'
+import {useStrikersQuery} from './strikers'
 import {
   didOrHandleUriMatches,
   embedViewRecordToPostView,
@@ -149,6 +151,7 @@ export function usePostFeedQuery(
   const enableFollowingToDiscoverFallback = followingPinnedIndex === 0
   const {hasSession} = useSession()
   const client = useAppviewClient()
+  const {data: strikerDids} = useStrikersQuery()
   const lastRun = useRef<{
     data: InfiniteData<FeedPageUnselected>
     args: typeof selectArgs
@@ -198,6 +201,7 @@ export function usePostFeedQuery(
               userInterests,
               // Not in the query key. Reacting to it switching isn't important:
               enableFollowingToDiscoverFallback,
+              strikerDids: strikerDids ?? [],
             }),
             cursor: undefined,
           }
@@ -445,6 +449,7 @@ function createApi({
   userInterests,
   client,
   enableFollowingToDiscoverFallback,
+  strikerDids,
 }: {
   feedDesc: FeedDescriptor
   feedParams: FeedParams
@@ -452,6 +457,7 @@ function createApi({
   userInterests?: string
   client: Client
   enableFollowingToDiscoverFallback: boolean
+  strikerDids: string[]
 }) {
   if (feedDesc === 'following') {
     if (feedParams.mergeFeedEnabled) {
@@ -463,7 +469,7 @@ function createApi({
       })
     } else {
       if (enableFollowingToDiscoverFallback) {
-        return new HomeFeedAPI({client, userInterests})
+        return new HomeFeedAPI({client, userInterests, strikerDids})
       } else {
         return new FollowingFeedAPI({client})
       }
@@ -486,6 +492,9 @@ function createApi({
     })
   } else if (feedDesc.startsWith('feedgen')) {
     const [__, feed] = feedDesc.split('|')
+    if (feed === DISCOVER_FEED_URI) {
+      return new StrikerFeedAPI({client, strikerDids})
+    }
     return new CustomFeedAPI({
       client,
       feedParams: {feed: feed as AtUriString},

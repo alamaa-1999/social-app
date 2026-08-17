@@ -253,11 +253,6 @@ let PostFeed = ({
   const {gtMobile} = useBreakpoints()
   const {rightNavVisible} = useLayoutBreakpoints()
 
-  const {accounts: trendingAccountsIndex} = ax.features.getValue(
-    ax.features.TrendingDiscoverValues,
-    {accounts: 15},
-  )
-
   const [hasPressedShowLessUris, setHasPressedShowLessUris] = useState(
     () => new Set<string>(),
   )
@@ -535,10 +530,16 @@ let PostFeed = ({
                         })
                       }
                     }
-                    arr.push({
-                      type: 'liveEventFeedsAndTrendingBanner',
-                      key: 'liveEventFeedsAndTrendingBanner-' + sliceIndex,
-                    })
+                    /*
+                     * Discover is Sunnahsky's own synthetic Striker feed
+                     * (StrikerFeedAPI) - deliberately not showing
+                     * liveEventFeedsAndTrendingBanner (pulls Bluesky's own
+                     * curated live-event config) or interstitialFollows
+                     * (suggests real Bluesky accounts via
+                     * useGetSuggestedUsersForDiscoverQuery). Suggesting
+                     * Sunnahsky accounts to follow is Phase D's job, not
+                     * this one's.
+                     */
                     // Show composer prompt for Discover and Following feeds
                     if (
                       hasSession &&
@@ -550,11 +551,6 @@ let PostFeed = ({
                         key: 'composerPrompt-' + sliceIndex,
                       })
                     }
-                  } else if (sliceIndex === trendingAccountsIndex) {
-                    arr.push({
-                      type: 'interstitialFollows',
-                      key: 'interstitial-' + sliceIndex + '-' + lastFetchedAt,
-                    })
                   }
                 } else if (feedKind === 'following') {
                   if (sliceIndex === 0) {
@@ -701,7 +697,6 @@ let PostFeed = ({
     ageAssuranceBannerState,
     isCurrentFeedAtStartupSelected,
     blockedOrMutedAuthors,
-    trendingAccountsIndex,
   ])
 
   // events

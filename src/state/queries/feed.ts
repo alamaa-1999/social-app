@@ -408,6 +408,13 @@ export type SavedFeedSourceInfo = FeedSourceInfo & {
   savedFeed: app.bsky.actor.defs.SavedFeed
 }
 
+/**
+ * Sunnahsky's synthetic Discover feed has no real `app.bsky.feed.generator`
+ * record behind it (it's `StrikerFeedAPI`, not a feedgen), so this
+ * logged-out stub - and the equivalent logged-in branch synthesized in
+ * {@link usePinnedFeedsInfos} below - is fabricated locally rather than
+ * fetched via `getFeedGenerators`.
+ */
 const PWI_DISCOVER_FEED_STUB: SavedFeedSourceInfo = {
   type: 'feed',
   displayName: 'Discover',
@@ -420,7 +427,9 @@ const PWI_DISCOVER_FEED_STUB: SavedFeedSourceInfo = {
   },
   cid: '',
   avatar: '',
-  description: new RichText({text: ''}),
+  description: new RichText({
+    text: 'Posts from Sunnahsky Strikers, newest first.',
+  }),
   creatorDid: '',
   creatorHandle: '',
   likeCount: 0,
@@ -471,8 +480,14 @@ export function usePinnedFeedsInfos() {
 
       let resolved = new Map<string, FeedSourceInfo>()
 
-      // Get all feeds. We can do this in a batch.
-      const pinnedFeeds = pinnedItems.filter(feed => feed.type === 'feed')
+      /*
+       * Discover has no real feedgen record behind it - it's synthesized
+       * below - so it's excluded from the batch here or `getFeedGenerators`
+       * would 404 on it.
+       */
+      const pinnedFeeds = pinnedItems.filter(
+        feed => feed.type === 'feed' && feed.value !== DISCOVER_FEED_URI,
+      )
       let feedsPromise = Promise.resolve()
       if (pinnedFeeds.length > 0) {
         feedsPromise = client
@@ -527,6 +542,32 @@ export function usePinnedFeedsInfos() {
             cid: '',
             avatar: '',
             description: new RichText({text: ''}),
+            creatorDid: '',
+            creatorHandle: '',
+            likeCount: 0,
+            likeUri: '',
+            savedFeed: pinnedItem,
+            contentMode: undefined,
+          })
+        } else if (
+          pinnedItem.type === 'feed' &&
+          pinnedItem.value === DISCOVER_FEED_URI
+        ) {
+          result.push({
+            type: 'feed',
+            displayName: 'Discover',
+            uri: DISCOVER_FEED_URI,
+            feedDescriptor: `feedgen|${DISCOVER_FEED_URI}`,
+            route: {
+              href: '/',
+              name: 'Home',
+              params: {},
+            },
+            cid: '',
+            avatar: '',
+            description: new RichText({
+              text: 'Posts from Sunnahsky Strikers, newest first.',
+            }),
             creatorDid: '',
             creatorHandle: '',
             likeCount: 0,
