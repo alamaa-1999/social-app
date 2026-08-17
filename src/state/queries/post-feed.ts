@@ -469,7 +469,7 @@ function createApi({
       })
     } else {
       if (enableFollowingToDiscoverFallback) {
-        return new HomeFeedAPI({client, userInterests, strikerDids})
+        return new HomeFeedAPI({client, strikerDids})
       } else {
         return new FollowingFeedAPI({client})
       }

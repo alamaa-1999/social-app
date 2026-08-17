@@ -37,23 +37,13 @@ export class HomeFeedAPI implements FeedAPI {
   discover: StrikerFeedAPI
   usingDiscover = false
   itemCursor = 0
-  userInterests?: string
   strikerDids: string[]
 
-  constructor({
-    userInterests,
-    client,
-    strikerDids,
-  }: {
-    userInterests?: string
-    client: Client
-    strikerDids: string[]
-  }) {
+  constructor({client, strikerDids}: {client: Client; strikerDids: string[]}) {
     this.client = client
     this.strikerDids = strikerDids
     this.following = new FollowingFeedAPI({client})
     this.discover = new StrikerFeedAPI({client, strikerDids})
-    this.userInterests = userInterests
   }
 
   reset() {
