@@ -651,13 +651,6 @@ msgstr ""
 msgid "{following} following"
 msgstr ""
 
-#. '{postCount} {posts}', e.g., '1.2K posts'
-#. '{postCount} {posts}', e.g., '1.2K posts'
-#: src/components/interstitials/FeedTrendingTopics.tsx:246
-#: src/screens/Search/modules/ExploreTrendingTopics.tsx:190
-msgid "{formattedPostCount} {postCount, plural, one {post} other {posts}}"
-msgstr "{formattedPostCount} {postCount, plural, one {post} other {posts}}"
-
 #: src/components/dms/components/GroupChatProfileCard.tsx:62
 #: src/components/dms/InitiateChatFlow.tsx:1158
 msgid "{handle} can’t be added"
@@ -759,13 +752,6 @@ msgstr ""
 msgid "{profileName} joined Bluesky using a starter pack {timeAgoString} ago"
 msgstr ""
 
-#. The trending topic rank, i.e. "1. March Madness", "2. The Bachelor"
-#. The trending topic rank, i.e. "1. March Madness", "2. The Bachelor"
-#: src/components/interstitials/FeedTrendingTopics.tsx:231
-#: src/screens/Search/modules/ExploreTrendingTopics.tsx:165
-msgid "{rank}."
-msgstr ""
-
 #: src/screens/Settings/components/BetaFeaturesFeedbackDialog.tsx:106
 msgid "{remaining, plural, one {# character remaining} other {# characters remaining}}"
 msgstr "{remaining, plural, one {# character remaining} other {# characters remaining}}"
@@ -812,11 +798,6 @@ msgstr ""
 #: src/view/com/composer/ComposerReplyTo.tsx:273
 msgid "+{0}"
 msgstr "+{0}"
-
-#. Indicates the number of additional profiles are in the Starter Pack e.g. +12
-#: src/screens/Search/components/StarterPackCard.tsx:250
-msgid "+{computedTotal}"
-msgstr ""
 
 #. placeholder {0}: getName(items[0])
 #. placeholder {1}: getName(items[1])
@@ -897,7 +878,7 @@ msgid "<0>{displayName}</0><1/><2> added you</2>"
 msgstr "<0>{displayName}</0><1/><2> added you</2>"
 
 #: src/screens/Hashtag.tsx:232
-#: src/screens/Search/SearchResults.tsx:412
+#: src/screens/Search/SearchResults.tsx:379
 msgid "<0>Sign in</0><1> or </1><2>create an account</2><3> </3><4>to search for news, sports, politics, and everything else happening on Bluesky.</4>"
 msgstr ""
 
@@ -910,7 +891,7 @@ msgstr "<0>Tap here to update your location with GPS.</0>"
 msgid "<0>You</0> and<1> </1><2>{0} </2>are included in your starter pack"
 msgstr ""
 
-#: src/lib/strings/handles.ts:54
+#: src/lib/strings/handles.ts:94
 #: src/screens/Profile/Header/Handle.tsx:58
 msgid "⚠Invalid Handle"
 msgstr ""
@@ -1439,7 +1420,6 @@ msgstr ""
 msgid "All {0}"
 msgstr "All {0}"
 
-#: src/screens/Onboarding/StepSuggestedStarterpacks/StarterPackCard.tsx:98
 #: src/screens/StarterPack/StarterPackScreen.tsx:398
 msgid "All accounts have been followed!"
 msgstr ""
@@ -1524,7 +1504,7 @@ msgstr ""
 msgid "Already have a code?"
 msgstr ""
 
-#: src/components/WelcomeModal.tsx:187
+#: src/components/WelcomeModal.tsx:191
 msgid "Already have an account?"
 msgstr ""
 
@@ -1587,12 +1567,7 @@ msgid "An error occurred while compressing the video."
 msgstr ""
 
 #: src/screens/Onboarding/StepSuggestedAccounts/index.tsx:227
-#: src/screens/Onboarding/StepSuggestedStarterpacks/index.tsx:69
 msgid "An error occurred while fetching suggested accounts."
-msgstr ""
-
-#: src/state/queries/explore-feed-previews.tsx:181
-msgid "An error occurred while fetching the feed."
 msgstr ""
 
 #: src/components/StarterPack/ProfileStarterPacks.tsx:377
@@ -1621,8 +1596,6 @@ msgstr ""
 msgid "An error occurred while saving the QR code!"
 msgstr ""
 
-#: src/screens/Onboarding/StepSuggestedStarterpacks/StarterPackCard.tsx:55
-#: src/screens/Onboarding/StepSuggestedStarterpacks/StarterPackCard.tsx:83
 #: src/screens/StarterPack/StarterPackScreen.tsx:357
 #: src/screens/StarterPack/StarterPackScreen.tsx:384
 msgid "An error occurred while trying to follow all"
@@ -2007,8 +1980,8 @@ msgstr "Automation label"
 msgid "Automation Label"
 msgstr "Automation Label"
 
-#: src/screens/Settings/ContentAndMediaSettings.tsx:118
-#: src/screens/Settings/ContentAndMediaSettings.tsx:124
+#: src/screens/Settings/ContentAndMediaSettings.tsx:106
+#: src/screens/Settings/ContentAndMediaSettings.tsx:112
 msgid "Autoplay videos and GIFs"
 msgstr ""
 
@@ -2405,28 +2378,6 @@ msgstr ""
 msgid "Browse other feeds"
 msgstr ""
 
-#: src/components/TrendingTopics.tsx:88
-msgid "Browse posts about {displayName}"
-msgstr ""
-
-#: src/components/TrendingTopics.tsx:96
-msgid "Browse posts tagged with {displayName}"
-msgstr ""
-
-#: src/components/TrendingTopics.tsx:105
-msgid "Browse starter pack {displayName}"
-msgstr ""
-
-#. placeholder {0}: trend.displayName
-#: src/components/interstitials/FeedTrendingTopics.tsx:203
-#: src/screens/Search/modules/ExploreTrendingTopics.tsx:147
-msgid "Browse topic {0}"
-msgstr ""
-
-#: src/components/TrendingTopics.tsx:142
-msgid "Browse topic {displayName}"
-msgstr ""
-
 #: src/view/com/auth/SplashScreen.web.tsx:171
 msgid "Business"
 msgstr ""
@@ -2442,12 +2393,10 @@ msgstr ""
 #. The owner (creator) of a group chat.
 #. placeholder {0}: createSanitizedDisplayName( joinLinkPreview.owner, true, moderateProfile( joinLinkPreview.owner, moderationOpts, ).ui('displayName'), )
 #. placeholder {0}: sanitizeHandle(handle, '@')
-#. placeholder {0}: sanitizeHandle(item.feed.creator.handle, '@')
+#. placeholder {0}: sanitizeHandle(labeler.creator.handle, '@')
 #: src/components/LabelingServiceCard/index.tsx:62
 #: src/components/moderation/ReportDialog/index.tsx:1093
 #: src/screens/Messages/JoinRequest.tsx:185
-#: src/screens/Search/components/StarterPackCard.tsx:104
-#: src/screens/Search/Explore.tsx:956
 msgid "By {0}"
 msgstr ""
 
@@ -2487,10 +2436,6 @@ msgstr ""
 
 #: src/screens/Signup/StepInfo/Policies.tsx:63
 msgid "By creating an account you agree to the <0>Terms of Service</0>."
-msgstr ""
-
-#: src/screens/Search/components/StarterPackCard.tsx:103
-msgid "By you"
 msgstr ""
 
 #: src/view/com/composer/photos/OpenCameraBtn.tsx:68
@@ -3095,7 +3040,7 @@ msgstr "Close the incoming requests banner"
 msgid "Close this dialog"
 msgstr ""
 
-#: src/components/WelcomeModal.tsx:212
+#: src/components/WelcomeModal.tsx:216
 msgid "Close welcome modal"
 msgstr ""
 
@@ -3249,7 +3194,7 @@ msgstr ""
 msgid "Contacts removed"
 msgstr ""
 
-#: src/screens/Settings/ContentAndMediaSettings.tsx:53
+#: src/screens/Settings/ContentAndMediaSettings.tsx:41
 msgid "Content & Media"
 msgstr ""
 
@@ -3305,7 +3250,6 @@ msgstr ""
 #: src/screens/Onboarding/StepInterests/index.tsx:87
 #: src/screens/Onboarding/StepProfile/index.tsx:301
 #: src/screens/Onboarding/StepSuggestedAccounts/index.tsx:309
-#: src/screens/Onboarding/StepSuggestedStarterpacks/index.tsx:117
 msgid "Continue"
 msgstr ""
 
@@ -3334,7 +3278,6 @@ msgstr "Continue to group name"
 #: src/screens/Onboarding/StepInterests/index.tsx:80
 #: src/screens/Onboarding/StepProfile/index.tsx:298
 #: src/screens/Onboarding/StepSuggestedAccounts/index.tsx:306
-#: src/screens/Onboarding/StepSuggestedStarterpacks/index.tsx:114
 #: src/screens/Signup/BackNextButtons.tsx:61
 msgid "Continue to next step"
 msgstr ""
@@ -3640,8 +3583,8 @@ msgstr ""
 msgid "Create a starter pack for me"
 msgstr ""
 
-#: src/components/WelcomeModal.tsx:153
-#: src/components/WelcomeModal.tsx:161
+#: src/components/WelcomeModal.tsx:157
+#: src/components/WelcomeModal.tsx:165
 #: src/screens/Messages/JoinRequest.tsx:318
 #: src/screens/Signup/index.tsx:139
 #: src/view/com/auth/SplashScreen.tsx:108
@@ -3658,7 +3601,7 @@ msgstr ""
 #: src/components/dialogs/Signin.tsx:87
 #: src/components/dialogs/Signin.tsx:89
 #: src/screens/Hashtag.tsx:238
-#: src/screens/Search/SearchResults.tsx:418
+#: src/screens/Search/SearchResults.tsx:385
 msgid "Create an account"
 msgstr ""
 
@@ -4081,10 +4024,6 @@ msgstr ""
 msgid "Discourage apps from showing my account to logged-out users"
 msgstr ""
 
-#: src/screens/Search/Explore.tsx:444
-msgid "Discover feeds"
-msgstr "Discover feeds"
-
 #: src/view/com/posts/FollowingEmptyState.tsx:64
 #: src/view/com/posts/FollowingEmptyState.tsx:69
 #: src/view/com/posts/FollowingEndOfFeed.tsx:65
@@ -4120,10 +4059,6 @@ msgstr ""
 #: src/features/liveEvents/components/DiscoverFeedLiveEventFeedsAndTrendingBanner.tsx:74
 #: src/features/liveEvents/components/SidebarLiveEventFeedsBanner.tsx:64
 msgid "Dismiss live event banner"
-msgstr ""
-
-#: src/components/interstitials/TrendingVideos.tsx:91
-msgid "Dismiss this section"
 msgstr ""
 
 #: src/components/FeedInterstitials.tsx:351
@@ -4581,16 +4516,6 @@ msgstr ""
 msgid "Enable this source only"
 msgstr ""
 
-#: src/screens/Settings/ContentAndMediaSettings.tsx:134
-#: src/screens/Settings/ContentAndMediaSettings.tsx:148
-msgid "Enable trending topics"
-msgstr ""
-
-#: src/screens/Settings/ContentAndMediaSettings.tsx:155
-#: src/screens/Settings/ContentAndMediaSettings.tsx:169
-msgid "Enable trending videos in your Discover feed"
-msgstr ""
-
 #: src/screens/Moderation/index.tsx:400
 msgid "Enabled"
 msgstr ""
@@ -4664,10 +4589,6 @@ msgstr ""
 msgid "Enters full screen"
 msgstr ""
 
-#: src/screens/Search/modules/ExploreTrendingTopics.tsx:244
-msgid "Entertainment"
-msgstr ""
-
 #: src/view/com/composer/Composer.tsx:2731
 #: src/view/com/util/error/ErrorScreen.tsx:40
 msgid "Error"
@@ -4698,7 +4619,7 @@ msgstr ""
 msgid "Error receiving captcha response."
 msgstr ""
 
-#: src/screens/Search/SearchResults.tsx:206
+#: src/screens/Search/SearchResults.tsx:173
 msgid "Error: {error}"
 msgstr ""
 
@@ -4823,8 +4744,8 @@ msgstr ""
 msgid "Explore"
 msgstr ""
 
-#: src/components/WelcomeModal.tsx:166
-#: src/components/WelcomeModal.tsx:175
+#: src/components/WelcomeModal.tsx:170
+#: src/components/WelcomeModal.tsx:179
 msgid "Explore the app"
 msgstr ""
 
@@ -4843,8 +4764,8 @@ msgstr ""
 msgid "Export my profile data"
 msgstr "Export my profile data"
 
-#: src/screens/Settings/ContentAndMediaSettings.tsx:86
-#: src/screens/Settings/ContentAndMediaSettings.tsx:89
+#: src/screens/Settings/ContentAndMediaSettings.tsx:74
+#: src/screens/Settings/ContentAndMediaSettings.tsx:77
 msgid "External media"
 msgstr ""
 
@@ -4993,19 +4914,6 @@ msgstr "Failed to leave group chat"
 msgid "Failed to load conversations"
 msgstr ""
 
-#: src/screens/Search/Explore.tsx:522
-#: src/screens/Search/Explore.tsx:567
-#: src/screens/Search/Explore.tsx:613
-msgid "Failed to load feeds"
-msgstr ""
-
-#: src/screens/Search/Explore.tsx:481
-#: src/screens/Search/Explore.tsx:536
-#: src/screens/Search/Explore.tsx:581
-#: src/screens/Search/Explore.tsx:627
-msgid "Failed to load feeds preferences"
-msgstr ""
-
 #: src/components/dialogs/NotificationSettingsDialog.tsx:85
 #: src/screens/Messages/Settings.tsx:369
 #: src/screens/Settings/NotificationSettings/ActivityNotificationSettings.tsx:112
@@ -5027,14 +4935,7 @@ msgstr ""
 msgid "Failed to load profiles"
 msgstr "Failed to load profiles"
 
-#: src/screens/Search/Explore.tsx:474
-#: src/screens/Search/Explore.tsx:529
-#: src/screens/Search/Explore.tsx:574
-#: src/screens/Search/Explore.tsx:620
-msgid "Failed to load suggested feeds"
-msgstr ""
-
-#: src/screens/Search/Explore.tsx:382
+#: src/screens/Search/Explore.tsx:172
 msgid "Failed to load suggested follows"
 msgstr ""
 
@@ -5129,7 +5030,7 @@ msgstr ""
 msgid "Failed to save settings. Please try again."
 msgstr ""
 
-#: src/screens/Settings/InterestsSettings.tsx:148
+#: src/screens/Settings/InterestsSettings.tsx:144
 msgctxt "toast"
 msgid "Failed to save your interests."
 msgstr ""
@@ -5239,8 +5140,8 @@ msgstr ""
 msgid "Feed unavailable"
 msgstr ""
 
-#: src/view/shell/desktop/RightNav.tsx:109
-#: src/view/shell/desktop/RightNav.tsx:110
+#: src/view/shell/desktop/RightNav.tsx:107
+#: src/view/shell/desktop/RightNav.tsx:108
 #: src/view/shell/Drawer.tsx:430
 msgid "Feedback"
 msgstr ""
@@ -5254,7 +5155,6 @@ msgstr ""
 #: src/Navigation.tsx:545
 #: src/screens/SavedFeeds.tsx:112
 #: src/screens/SavedFeeds.tsx:303
-#: src/screens/Search/SearchResults.tsx:113
 #: src/screens/StarterPack/StarterPackScreen.tsx:193
 #: src/view/screens/Feeds.tsx:504
 #: src/view/screens/Profile.tsx:238
@@ -5361,11 +5261,9 @@ msgstr ""
 msgid "Find my friends"
 msgstr ""
 
-#. Starter packs suggested to the user for them to follow
 #: src/components/ProgressGuide/FollowDialog.tsx:72
 #: src/components/ProgressGuide/FollowDialog.tsx:80
 #: src/components/ProgressGuide/FollowDialog.tsx:448
-#: src/screens/Onboarding/StepSuggestedStarterpacks/index.tsx:43
 msgid "Find people to follow"
 msgstr ""
 
@@ -5468,8 +5366,6 @@ msgstr ""
 #: src/components/contacts/screens/ViewMatches.tsx:284
 #: src/components/contacts/screens/ViewMatches.tsx:299
 #: src/screens/Onboarding/StepSuggestedAccounts/index.tsx:298
-#: src/screens/Onboarding/StepSuggestedStarterpacks/StarterPackCard.tsx:158
-#: src/screens/Onboarding/StepSuggestedStarterpacks/StarterPackCard.tsx:165
 #: src/screens/Settings/FindContactsSettings.tsx:469
 #: src/screens/Settings/FindContactsSettings.tsx:479
 #: src/screens/StarterPack/StarterPackScreen.tsx:445
@@ -5572,8 +5468,8 @@ msgstr "Following {displayName}"
 msgid "Following {handle}"
 msgstr ""
 
-#: src/screens/Settings/ContentAndMediaSettings.tsx:78
-#: src/screens/Settings/ContentAndMediaSettings.tsx:81
+#: src/screens/Settings/ContentAndMediaSettings.tsx:66
+#: src/screens/Settings/ContentAndMediaSettings.tsx:69
 msgid "Following feed preferences"
 msgstr ""
 
@@ -6112,8 +6008,8 @@ msgstr ""
 
 #: src/screens/Settings/Settings.tsx:259
 #: src/screens/Settings/Settings.tsx:263
-#: src/view/shell/desktop/RightNav.tsx:130
-#: src/view/shell/desktop/RightNav.tsx:133
+#: src/view/shell/desktop/RightNav.tsx:128
+#: src/view/shell/desktop/RightNav.tsx:131
 #: src/view/shell/Drawer.tsx:443
 msgid "Help"
 msgstr ""
@@ -6152,9 +6048,6 @@ msgstr ""
 msgid "Hidden list"
 msgstr ""
 
-#: src/components/interstitials/FeedTrendingTopics.tsx:169
-#: src/components/interstitials/Trending.tsx:149
-#: src/components/interstitials/TrendingVideos.tsx:140
 #: src/components/moderation/ContentHider.tsx:217
 #: src/components/moderation/LabelPreference.tsx:141
 #: src/components/moderation/PostHider.tsx:137
@@ -6163,8 +6056,6 @@ msgstr ""
 #: src/lib/moderation/useLabelBehaviorDescription.ts:23
 #: src/lib/moderation/useLabelBehaviorDescription.ts:28
 #: src/lib/moderation/useLabelBehaviorDescription.ts:33
-#: src/screens/Search/modules/ExploreTrendingTopics.tsx:104
-#: src/view/shell/desktop/SidebarTrendingTopics.tsx:173
 msgid "Hide"
 msgstr ""
 
@@ -6228,21 +6119,6 @@ msgstr ""
 #: src/components/PostControls/PostMenu/PostMenuItems.tsx:551
 msgid "Hide translation"
 msgstr "Hide translation"
-
-#: src/components/interstitials/Trending.tsx:131
-msgid "Hide trending topics"
-msgstr ""
-
-#: src/components/interstitials/FeedTrendingTopics.tsx:167
-#: src/components/interstitials/Trending.tsx:147
-#: src/screens/Search/modules/ExploreTrendingTopics.tsx:102
-#: src/view/shell/desktop/SidebarTrendingTopics.tsx:171
-msgid "Hide trending topics?"
-msgstr ""
-
-#: src/components/interstitials/TrendingVideos.tsx:138
-msgid "Hide trending videos?"
-msgstr ""
 
 #: src/view/com/notifications/NotificationFeedItem.tsx:973
 msgid "Hide user list"
@@ -6904,7 +6780,7 @@ msgid "Last initiated just now"
 msgstr ""
 
 #: src/screens/Hashtag.tsx:99
-#: src/screens/Search/SearchResults.tsx:95
+#: src/screens/Search/SearchResults.tsx:86
 #: src/screens/Topic.tsx:66
 msgid "Latest"
 msgstr ""
@@ -6923,7 +6799,7 @@ msgstr ""
 msgid "Learn More"
 msgstr ""
 
-#: src/screens/Search/SearchResults.tsx:273
+#: src/screens/Search/SearchResults.tsx:240
 msgctxt "english-only-resource"
 msgid "Learn more about <0>how to use advanced search</0>."
 msgstr "Learn more about <0>how to use advanced search</0>."
@@ -7312,15 +7188,6 @@ msgstr ""
 msgid "Live link"
 msgstr ""
 
-#: src/screens/Search/Explore.tsx:83
-msgid "Load more"
-msgstr ""
-
-#: src/screens/Search/Explore.tsx:511
-#: src/screens/Search/Explore.tsx:602
-msgid "Load more suggested feeds"
-msgstr ""
-
 #: src/view/screens/Notifications.tsx:271
 msgid "Load new notifications"
 msgstr ""
@@ -7381,11 +7248,11 @@ msgstr ""
 msgid "Logged-out visibility"
 msgstr ""
 
-#: src/view/shell/desktop/RightNav.tsx:142
+#: src/view/shell/desktop/RightNav.tsx:140
 msgid "Logo by @sawaratsuki.bsky.social"
 msgstr ""
 
-#: src/view/shell/desktop/RightNav.tsx:139
+#: src/view/shell/desktop/RightNav.tsx:137
 #: src/view/shell/Drawer.tsx:771
 msgid "Logo by <0>@sawaratsuki.bsky.social</0>"
 msgstr ""
@@ -7433,8 +7300,8 @@ msgstr ""
 msgid "Make sure this is where you intend to go!"
 msgstr ""
 
-#: src/screens/Settings/ContentAndMediaSettings.tsx:62
-#: src/screens/Settings/ContentAndMediaSettings.tsx:65
+#: src/screens/Settings/ContentAndMediaSettings.tsx:50
+#: src/screens/Settings/ContentAndMediaSettings.tsx:53
 msgid "Manage saved feeds"
 msgstr ""
 
@@ -8066,7 +7933,6 @@ msgid "Newest replies first"
 msgstr ""
 
 #: src/lib/interests.ts:67
-#: src/screens/Search/modules/ExploreTrendingTopics.tsx:246
 msgid "News"
 msgstr ""
 
@@ -8287,7 +8153,7 @@ msgid "No results"
 msgstr ""
 
 #. placeholder {0}: interestsDisplayNames[selectedInterest]
-#: src/screens/Search/Explore.tsx:813
+#: src/screens/Search/Explore.tsx:296
 msgid "No results for \"{0}\"."
 msgstr ""
 
@@ -8300,19 +8166,19 @@ msgstr ""
 msgid "No results found for \"{query}\""
 msgstr ""
 
-#: src/screens/Search/SearchResults.tsx:233
+#: src/screens/Search/SearchResults.tsx:200
 msgid "No results found for “<0>{query}</0>” with advanced search filters applied."
 msgstr "No results found for “<0>{query}</0>” with advanced search filters applied."
 
-#: src/screens/Search/SearchResults.tsx:245
+#: src/screens/Search/SearchResults.tsx:212
 msgid "No results found for “<0>{query}</0>”."
 msgstr "No results found for “<0>{query}</0>”."
 
-#: src/screens/Search/SearchResults.tsx:239
+#: src/screens/Search/SearchResults.tsx:206
 msgid "No results found for your query with advanced search filters applied."
 msgstr "No results found for your query with advanced search filters applied."
 
-#: src/screens/Search/Explore.tsx:817
+#: src/screens/Search/Explore.tsx:300
 msgid "No results."
 msgstr ""
 
@@ -8707,10 +8573,6 @@ msgstr ""
 msgid "Open muted words and tags settings"
 msgstr ""
 
-#: src/screens/Search/components/StarterPackCard.tsx:120
-msgid "Open pack"
-msgstr ""
-
 #: src/components/PostControls/PostMenu/index.tsx:63
 msgid "Open post options menu"
 msgstr ""
@@ -9009,7 +8871,7 @@ msgid "Pause video"
 msgstr ""
 
 #: src/screens/ProfileList/index.tsx:164
-#: src/screens/Search/SearchResults.tsx:107
+#: src/screens/Search/SearchResults.tsx:98
 #: src/screens/StarterPack/StarterPackScreen.tsx:192
 msgid "People"
 msgstr ""
@@ -9349,7 +9211,6 @@ msgid "Please write your message below:"
 msgstr ""
 
 #: src/lib/interests.ts:70
-#: src/screens/Search/modules/ExploreTrendingTopics.tsx:240
 msgid "Politics"
 msgstr ""
 
@@ -9535,8 +9396,8 @@ msgstr ""
 msgid "Primary language"
 msgstr ""
 
-#: src/view/shell/desktop/RightNav.tsx:118
-#: src/view/shell/desktop/RightNav.tsx:119
+#: src/view/shell/desktop/RightNav.tsx:116
+#: src/view/shell/desktop/RightNav.tsx:117
 msgid "Privacy"
 msgstr ""
 
@@ -9744,7 +9605,7 @@ msgstr ""
 msgid "Read {0, plural, one {# more reply} other {# more replies}}"
 msgstr ""
 
-#: src/screens/Search/SearchResults.tsx:276
+#: src/screens/Search/SearchResults.tsx:243
 msgctxt "english-only-resource"
 msgid "Read about how to use advanced search filters"
 msgstr "Read about how to use advanced search filters"
@@ -9784,7 +9645,7 @@ msgstr ""
 msgid "Read the Bluesky Terms of Service"
 msgstr ""
 
-#: src/components/WelcomeModal.tsx:146
+#: src/components/WelcomeModal.tsx:148
 msgid "Real people. Real Marakiz. Real benefits. No manipulation."
 msgstr "Real people. Real Marakiz. Real benefits. No manipulation."
 
@@ -10479,8 +10340,6 @@ msgstr ""
 #: src/screens/Messages/JoinRequests.tsx:358
 #: src/screens/Onboarding/StepSuggestedAccounts/index.tsx:272
 #: src/screens/Onboarding/StepSuggestedAccounts/index.tsx:275
-#: src/screens/Onboarding/StepSuggestedStarterpacks/index.tsx:92
-#: src/screens/Onboarding/StepSuggestedStarterpacks/index.tsx:95
 #: src/screens/PostThread/components/ThreadError.tsx:81
 #: src/screens/PostThread/components/ThreadError.tsx:87
 #: src/screens/Signup/BackNextButtons.tsx:54
@@ -10724,12 +10583,8 @@ msgstr "Search for {q}"
 msgid "Search for feeds that you want to suggest to others."
 msgstr ""
 
-#: src/screens/Search/Explore.tsx:369
+#: src/screens/Search/Explore.tsx:159
 msgid "Search for more accounts"
-msgstr ""
-
-#: src/screens/Search/Explore.tsx:448
-msgid "Search for more feeds"
 msgstr ""
 
 #: src/components/dms/components/UserSearchInput.tsx:43
@@ -10742,7 +10597,7 @@ msgid "Search GIFs"
 msgstr ""
 
 #: src/screens/Hashtag.tsx:230
-#: src/screens/Search/SearchResults.tsx:410
+#: src/screens/Search/SearchResults.tsx:377
 msgid "Search is currently unavailable when logged out"
 msgstr ""
 
@@ -10821,19 +10676,12 @@ msgstr ""
 
 #: src/components/FeedInterstitials.tsx:495
 #: src/components/FeedInterstitials.tsx:554
-#: src/components/interstitials/FeedTrendingTopics.tsx:113
-#: src/view/shell/desktop/SidebarTrendingTopics.tsx:80
 msgid "See more"
 msgstr ""
 
 #: src/components/FeedInterstitials.tsx:475
 msgid "See more suggested profiles"
 msgstr ""
-
-#: src/components/interstitials/FeedTrendingTopics.tsx:99
-#: src/view/shell/desktop/SidebarTrendingTopics.tsx:66
-msgid "See more trending topics"
-msgstr "See more trending topics"
 
 #. Description of a feature flag (Thread numbering)
 #: src/analytics/features/index.ts:107
@@ -11019,7 +10867,7 @@ msgid "Select your date of birth"
 msgstr ""
 
 #: src/screens/Onboarding/StepInterests/index.tsx:115
-#: src/screens/Settings/InterestsSettings.tsx:179
+#: src/screens/Settings/InterestsSettings.tsx:175
 msgid "Select your interests from the options below"
 msgstr ""
 
@@ -11479,8 +11327,8 @@ msgstr ""
 
 #: src/components/dialogs/Signin.tsx:98
 #: src/components/dialogs/Signin.tsx:100
-#: src/components/WelcomeModal.tsx:193
-#: src/components/WelcomeModal.tsx:204
+#: src/components/WelcomeModal.tsx:197
+#: src/components/WelcomeModal.tsx:208
 #: src/screens/Hashtag.tsx:233
 #: src/screens/Login/index.tsx:143
 #: src/screens/Login/index.tsx:165
@@ -11489,7 +11337,7 @@ msgstr ""
 #: src/screens/Login/LoginForm.tsx:561
 #: src/screens/Messages/JoinRequest.tsx:298
 #: src/screens/Messages/JoinRequest.tsx:304
-#: src/screens/Search/SearchResults.tsx:413
+#: src/screens/Search/SearchResults.tsx:380
 #: src/view/com/auth/SplashScreen.tsx:118
 #: src/view/com/auth/SplashScreen.tsx:125
 #: src/view/com/auth/SplashScreen.web.tsx:124
@@ -11594,7 +11442,6 @@ msgstr "Sit down with a book and a cup of tea."
 #: src/screens/Onboarding/StepFinished/index.tsx:295
 #: src/screens/Onboarding/StepFinished/index.tsx:317
 #: src/screens/Onboarding/StepSuggestedAccounts/index.tsx:285
-#: src/screens/Onboarding/StepSuggestedStarterpacks/index.tsx:105
 #: src/screens/StarterPack/Wizard/index.tsx:202
 msgid "Skip"
 msgstr ""
@@ -11614,7 +11461,6 @@ msgid "Skip introduction and start using your account"
 msgstr ""
 
 #: src/screens/Onboarding/StepSuggestedAccounts/index.tsx:282
-#: src/screens/Onboarding/StepSuggestedStarterpacks/index.tsx:102
 msgid "Skip to next step"
 msgstr ""
 
@@ -11776,7 +11622,6 @@ msgid "Spam or other inauthentic behavior or deception"
 msgstr ""
 
 #: src/lib/interests.ts:72
-#: src/screens/Search/modules/ExploreTrendingTopics.tsx:238
 msgid "Sports"
 msgstr ""
 
@@ -11836,11 +11681,6 @@ msgstr ""
 msgid "Starter pack is invalid"
 msgstr ""
 
-#: src/screens/Search/SearchResults.tsx:120
-msgid "Starter packs"
-msgstr "Starter packs"
-
-#: src/screens/Search/Explore.tsx:657
 #: src/view/screens/Profile.tsx:239
 msgid "Starter Packs"
 msgstr ""
@@ -11984,7 +11824,7 @@ msgstr ""
 msgid "Suggested"
 msgstr "Suggested"
 
-#: src/screens/Search/Explore.tsx:365
+#: src/screens/Search/Explore.tsx:155
 msgid "Suggested accounts"
 msgstr ""
 
@@ -12184,8 +12024,8 @@ msgstr ""
 msgid "Temporarily deactivate your account"
 msgstr "Temporarily deactivate your account"
 
-#: src/view/shell/desktop/RightNav.tsx:125
-#: src/view/shell/desktop/RightNav.tsx:126
+#: src/view/shell/desktop/RightNav.tsx:123
+#: src/view/shell/desktop/RightNav.tsx:124
 msgid "Terms"
 msgstr ""
 
@@ -12447,8 +12287,7 @@ msgstr ""
 msgid "There was an issue fetching notifications. Tap here to try again."
 msgstr ""
 
-#: src/screens/Search/Explore.tsx:1011
-#: src/view/com/posts/PostFeed.tsx:828
+#: src/view/com/posts/PostFeed.tsx:789
 msgid "There was an issue fetching posts. Tap here to try again."
 msgstr ""
 
@@ -12953,8 +12792,8 @@ msgstr "Thread numbering"
 msgid "Thread options"
 msgstr ""
 
-#: src/screens/Settings/ContentAndMediaSettings.tsx:70
-#: src/screens/Settings/ContentAndMediaSettings.tsx:73
+#: src/screens/Settings/ContentAndMediaSettings.tsx:58
+#: src/screens/Settings/ContentAndMediaSettings.tsx:61
 msgid "Thread preferences"
 msgstr ""
 
@@ -13027,7 +12866,7 @@ msgid "Too many contacts - you've exceeded the number of contacts you can import
 msgstr ""
 
 #: src/screens/Hashtag.tsx:88
-#: src/screens/Search/SearchResults.tsx:83
+#: src/screens/Search/SearchResults.tsx:74
 #: src/screens/Topic.tsx:60
 msgid "Top"
 msgstr ""
@@ -13074,26 +12913,10 @@ msgstr "Translation to the same language is unavailable on your device."
 msgid "Tree view"
 msgstr ""
 
-#: src/components/interstitials/FeedTrendingTopics.tsx:95
-#: src/screens/Search/modules/ExploreTrendingTopics.tsx:69
-#: src/view/shell/desktop/SidebarTrendingTopics.tsx:63
-msgid "Trending"
-msgstr ""
-
 #. Accessibility label for the icon-only pill that shows currently trending/featured GIFs in the GIF picker.
 #: src/features/gifPicker/components/GifCategoryPills.tsx:45
 msgid "Trending GIFs"
 msgstr "Trending GIFs"
-
-#: src/components/interstitials/FeedTrendingTopics.tsx:122
-#: src/screens/Search/modules/ExploreTrendingTopics.tsx:72
-#: src/view/shell/desktop/SidebarTrendingTopics.tsx:90
-msgid "Trending options"
-msgstr ""
-
-#: src/components/interstitials/TrendingVideos.tsx:88
-msgid "Trending videos"
-msgstr "Trending videos"
 
 #: src/components/moderation/ReportDialog/utils/useReportOptions.ts:104
 msgid "Trolling"
@@ -13103,11 +12926,11 @@ msgstr ""
 msgid "Trust emerges from relationships, communities, and shared context, so we’re also enabling <0>trusted verifiers</0>: organizations that can directly issue verification."
 msgstr ""
 
-#: src/screens/Search/SearchResults.tsx:260
+#: src/screens/Search/SearchResults.tsx:227
 msgid "Try a different search term or remove some filters."
 msgstr "Try a different search term or remove some filters."
 
-#: src/screens/Search/SearchResults.tsx:262
+#: src/screens/Search/SearchResults.tsx:229
 msgid "Try a different search term."
 msgstr "Try a different search term."
 
@@ -13573,8 +13396,8 @@ msgstr ""
 msgid "Use in-app browser"
 msgstr ""
 
-#: src/screens/Settings/ContentAndMediaSettings.tsx:104
-#: src/screens/Settings/ContentAndMediaSettings.tsx:110
+#: src/screens/Settings/ContentAndMediaSettings.tsx:92
+#: src/screens/Settings/ContentAndMediaSettings.tsx:98
 msgid "Use in-app browser to open links"
 msgstr ""
 
@@ -13825,7 +13648,6 @@ msgid "Video from {0}. Tap to play or pause the video"
 msgstr ""
 
 #: src/lib/interests.ts:62
-#: src/screens/Search/modules/ExploreTrendingTopics.tsx:242
 msgid "Video Games"
 msgstr ""
 
@@ -13950,17 +13772,6 @@ msgstr "View incoming requests to join this group chat"
 
 #: src/components/moderation/LabelsOnMe.tsx:51
 msgid "View information about these labels"
-msgstr ""
-
-#: src/components/interstitials/TrendingVideos.tsx:201
-#: src/components/interstitials/TrendingVideos.tsx:223
-#: src/screens/Search/modules/ExploreTrendingVideos.tsx:193
-#: src/screens/Search/modules/ExploreTrendingVideos.tsx:212
-msgid "View more"
-msgstr ""
-
-#: src/components/interstitials/TrendingVideos.tsx:229
-msgid "View more trending videos"
 msgstr ""
 
 #: src/view/com/composer/Composer.tsx:1279
@@ -14163,7 +13974,7 @@ msgstr ""
 msgid "We ran out of posts from your follows. Here's the latest from <0/>."
 msgstr ""
 
-#: src/screens/Settings/InterestsSettings.tsx:172
+#: src/screens/Settings/InterestsSettings.tsx:168
 msgid "We recommend selecting at least two interests."
 msgstr ""
 
@@ -14266,15 +14077,13 @@ msgstr ""
 msgid "We're sorry, but we weren't able to load your muted words at this time. Please try again."
 msgstr ""
 
-#: src/screens/Search/SearchResults.tsx:439
-#: src/screens/Search/SearchResults.tsx:580
-#: src/screens/Search/SearchResults.tsx:777
+#: src/screens/Search/SearchResults.tsx:406
+#: src/screens/Search/SearchResults.tsx:547
 msgid "We’re sorry, but your search could not be completed."
 msgstr "We’re sorry, but your search could not be completed."
 
-#: src/screens/Search/SearchResults.tsx:438
-#: src/screens/Search/SearchResults.tsx:579
-#: src/screens/Search/SearchResults.tsx:776
+#: src/screens/Search/SearchResults.tsx:405
+#: src/screens/Search/SearchResults.tsx:546
 msgid "We’re sorry, but your search could not be completed. Please try again in a few minutes."
 msgstr "We’re sorry, but your search could not be completed. Please try again in a few minutes."
 
@@ -14368,11 +14177,6 @@ msgstr ""
 #: src/screens/Messages/ChatList.tsx:409
 #: src/screens/Messages/Inbox.tsx:190
 msgid "Whoops!"
-msgstr ""
-
-#: src/components/interstitials/TrendingVideos.tsx:128
-#: src/screens/Search/modules/ExploreTrendingVideos.tsx:110
-msgid "Whoops! Trending videos failed to load."
 msgstr ""
 
 #: src/screens/Takendown.tsx:167
@@ -14654,14 +14458,6 @@ msgstr "You can read chat history but can’t send new messages."
 #: src/view/com/composer/SelectMediaButton.tsx:441
 msgid "You can select up to {MAX_GALLERY_IMAGES, plural, other {# images}} in total."
 msgstr "You can select up to {MAX_GALLERY_IMAGES, plural, other {# images}} in total."
-
-#: src/components/interstitials/FeedTrendingTopics.tsx:168
-#: src/components/interstitials/Trending.tsx:148
-#: src/components/interstitials/TrendingVideos.tsx:139
-#: src/screens/Search/modules/ExploreTrendingTopics.tsx:103
-#: src/view/shell/desktop/SidebarTrendingTopics.tsx:172
-msgid "You can update this later from your settings."
-msgstr ""
 
 #: src/components/dms/ActionsWrapper.web.tsx:82
 #: src/components/dms/MessageContextMenu.tsx:127
@@ -15159,13 +14955,13 @@ msgstr "Your hosting provider is detected automatically from the username you en
 
 #: src/Navigation.tsx:475
 #: src/screens/Search/modules/ExploreInterestsCard.tsx:62
-#: src/screens/Settings/ContentAndMediaSettings.tsx:94
-#: src/screens/Settings/ContentAndMediaSettings.tsx:97
-#: src/screens/Settings/InterestsSettings.tsx:50
+#: src/screens/Settings/ContentAndMediaSettings.tsx:82
+#: src/screens/Settings/ContentAndMediaSettings.tsx:85
+#: src/screens/Settings/InterestsSettings.tsx:48
 msgid "Your interests"
 msgstr ""
 
-#: src/screens/Settings/InterestsSettings.tsx:139
+#: src/screens/Settings/InterestsSettings.tsx:135
 msgctxt "toast"
 msgid "Your interests have been updated!"
 msgstr ""
@@ -15228,7 +15024,7 @@ msgstr ""
 msgid "Your report will be sent to <0>{0}</0>."
 msgstr ""
 
-#: src/screens/Settings/InterestsSettings.tsx:64
+#: src/screens/Settings/InterestsSettings.tsx:62
 msgid "Your selected interests help us serve you content you care about."
 msgstr ""
 
