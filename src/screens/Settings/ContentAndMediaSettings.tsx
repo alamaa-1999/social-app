@@ -9,11 +9,6 @@ import {
   useInAppBrowser,
   useSetInAppBrowser,
 } from '#/state/preferences/in-app-browser'
-import {
-  useTrendingSettings,
-  useTrendingSettingsApi,
-} from '#/state/preferences/trending'
-import {useTrendingConfig} from '#/state/service-config'
 import * as SettingsList from '#/screens/Settings/components/SettingsList'
 import * as Toggle from '#/components/forms/Toggle'
 import {Bubbles_Stroke2_Corner2_Rounded as BubblesIcon} from '#/components/icons/Bubble'
@@ -22,10 +17,8 @@ import {Hashtag_Stroke2_Corner0_Rounded as HashtagIcon} from '#/components/icons
 import {Home_Stroke2_Corner2_Rounded as HomeIcon} from '#/components/icons/Home'
 import {Macintosh_Stroke2_Corner2_Rounded as MacintoshIcon} from '#/components/icons/Macintosh'
 import {Play_Stroke2_Corner2_Rounded as PlayIcon} from '#/components/icons/Play'
-import {Trending2_Stroke2_Corner2_Rounded as Graph} from '#/components/icons/Trending'
 import {Window_Stroke2_Corner2_Rounded as WindowIcon} from '#/components/icons/Window'
 import * as Layout from '#/components/Layout'
-import {useAnalytics} from '#/analytics'
 import {IS_NATIVE} from '#/env'
 
 type Props = NativeStackScreenProps<
@@ -34,15 +27,10 @@ type Props = NativeStackScreenProps<
 >
 export function ContentAndMediaSettingsScreen({}: Props) {
   const {_} = useLingui()
-  const ax = useAnalytics()
   const autoplayDisabledPref = useAutoplayDisabled()
   const setAutoplayDisabledPref = useSetAutoplayDisabled()
   const inAppBrowserPref = useInAppBrowser()
   const setUseInAppBrowser = useSetInAppBrowser()
-  const {enabled: trendingEnabled} = useTrendingConfig()
-  const {trendingDisabled, trendingVideoDisabled} = useTrendingSettings()
-  const {setTrendingDisabled, setTrendingVideoDisabled} =
-    useTrendingSettingsApi()
 
   return (
     <Layout.Screen>
@@ -126,53 +114,6 @@ export function ContentAndMediaSettingsScreen({}: Props) {
               <Toggle.Platform />
             </SettingsList.Item>
           </Toggle.Item>
-          {trendingEnabled ? (
-            <>
-              <SettingsList.Divider />
-              <Toggle.Item
-                name="show_trending_topics"
-                label={_(msg`Enable trending topics`)}
-                value={!trendingDisabled}
-                onChange={value => {
-                  const hide = Boolean(!value)
-                  if (hide) {
-                    ax.metric('trendingTopics:hide', {context: 'settings'})
-                  } else {
-                    ax.metric('trendingTopics:show', {context: 'settings'})
-                  }
-                  setTrendingDisabled(hide)
-                }}>
-                <SettingsList.Item>
-                  <SettingsList.ItemIcon icon={Graph} />
-                  <SettingsList.ItemText>
-                    <Trans>Enable trending topics</Trans>
-                  </SettingsList.ItemText>
-                  <Toggle.Platform />
-                </SettingsList.Item>
-              </Toggle.Item>
-              <Toggle.Item
-                name="show_trending_videos"
-                label={_(msg`Enable trending videos in your Discover feed`)}
-                value={!trendingVideoDisabled}
-                onChange={value => {
-                  const hide = Boolean(!value)
-                  if (hide) {
-                    ax.metric('trendingVideos:hide', {context: 'settings'})
-                  } else {
-                    ax.metric('trendingVideos:show', {context: 'settings'})
-                  }
-                  setTrendingVideoDisabled(hide)
-                }}>
-                <SettingsList.Item>
-                  <SettingsList.ItemIcon icon={Graph} />
-                  <SettingsList.ItemText>
-                    <Trans>Enable trending videos in your Discover feed</Trans>
-                  </SettingsList.ItemText>
-                  <Toggle.Platform />
-                </SettingsList.Item>
-              </Toggle.Item>
-            </>
-          ) : null}
         </SettingsList.Container>
       </Layout.Content>
     </Layout.Screen>

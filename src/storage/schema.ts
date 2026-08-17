@@ -57,7 +57,6 @@ export type Device = {
    */
   mergedGeolocation?: Geolocation
 
-  trendingBetaEnabled: boolean
   devMode: boolean
   demoMode: boolean
   activitySubscriptionsNudged?: boolean

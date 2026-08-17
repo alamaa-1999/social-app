@@ -31,7 +31,6 @@ import {logger} from '#/logger'
 import {usePostAuthorShadowFilter} from '#/state/cache/profile-shadow'
 import {listenPostCreated} from '#/state/events'
 import {useFeedFeedbackContext} from '#/state/feed-feedback'
-import {useTrendingSettings} from '#/state/preferences/trending'
 import {STALE} from '#/state/queries'
 import {
   type AuthorFilter,
@@ -61,13 +60,10 @@ import {
   PostFeedVideoGridRow,
   PostFeedVideoGridRowPlaceholder,
 } from '#/components/feeds/PostFeedVideoGridRow'
-import {FeedTrendingTopicsInterstitial} from '#/components/interstitials/FeedTrendingTopics'
-import {TrendingInterstitial} from '#/components/interstitials/Trending'
-import {TrendingVideos as TrendingVideosInterstitial} from '#/components/interstitials/TrendingVideos'
 import {isStandardSiteEmbed} from '#/components/Post/Embed/StandardSiteEmbed/utils'
 import {RichText} from '#/components/RichText'
 import {useAnalytics} from '#/analytics'
-import {IS_IOS, IS_NATIVE, IS_WEB} from '#/env'
+import {IS_IOS, IS_WEB} from '#/env'
 import {DiscoverFeedLiveEventFeedsAndTrendingBanner} from '#/features/liveEvents/components/DiscoverFeedLiveEventFeedsAndTrendingBanner'
 import {
   isStatusStillActive,
@@ -144,19 +140,6 @@ type FeedRow =
     }
   | {
       type: 'interstitialProgressGuide'
-      key: string
-    }
-  | {
-      type: 'interstitialTrending'
-      key: string
-    }
-  | {
-      type: 'interstitialFeedTrendingTopics'
-      key: string
-      feedSliceIndex: number
-    }
-  | {
-      type: 'interstitialTrendingVideos'
       key: string
     }
   | {
@@ -269,15 +252,10 @@ let PostFeed = ({
   const [feedType, feedUriOrActorDid, feedTab] = feed.split('|')
   const {gtMobile} = useBreakpoints()
   const {rightNavVisible} = useLayoutBreakpoints()
-  const areVideoFeedsEnabled = IS_NATIVE
 
-  const trendingIndices = ax.features.getValue(
+  const {accounts: trendingAccountsIndex} = ax.features.getValue(
     ax.features.TrendingDiscoverValues,
-    {
-      topics: 5,
-      accounts: 15,
-      videos: 30,
-    },
+    {accounts: 15},
   )
 
   const [hasPressedShowLessUris, setHasPressedShowLessUris] = useState(
@@ -408,8 +386,6 @@ let PostFeed = ({
 
   const showProgressInterstitial =
     (followProgressGuide || followAndLikeProgressGuide) && !rightNavVisible
-
-  const {trendingVideoDisabled} = useTrendingSettings()
 
   const ageAssuranceBannerState = useAgeAssuranceBannerState()
   const selectedFeed = useSelectedFeed()
@@ -574,20 +550,7 @@ let PostFeed = ({
                         key: 'composerPrompt-' + sliceIndex,
                       })
                     }
-                  } else if (sliceIndex === trendingIndices.topics) {
-                    arr.push({
-                      type: 'interstitialFeedTrendingTopics',
-                      key: 'interstitialFeedTrendingTopics-' + sliceIndex,
-                      feedSliceIndex: sliceIndex,
-                    })
-                  } else if (sliceIndex === trendingIndices.videos) {
-                    if (areVideoFeedsEnabled && !trendingVideoDisabled) {
-                      arr.push({
-                        type: 'interstitialTrendingVideos',
-                        key: 'interstitial-' + sliceIndex + '-' + lastFetchedAt,
-                      })
-                    }
-                  } else if (sliceIndex === trendingIndices.accounts) {
+                  } else if (sliceIndex === trendingAccountsIndex) {
                     arr.push({
                       type: 'interstitialFollows',
                       key: 'interstitial-' + sliceIndex + '-' + lastFetchedAt,
@@ -732,15 +695,13 @@ let PostFeed = ({
     feedTab,
     hasSession,
     showProgressInterstitial,
-    trendingVideoDisabled,
     gtMobile,
     isVideoFeed,
-    areVideoFeedsEnabled,
     hasPressedShowLessUris,
     ageAssuranceBannerState,
     isCurrentFeedAtStartupSelected,
     blockedOrMutedAuthors,
-    trendingIndices,
+    trendingAccountsIndex,
   ])
 
   // events
@@ -851,18 +812,10 @@ let PostFeed = ({
         return <ProgressGuide />
       } else if (row.type === 'ageAssuranceBanner') {
         return <AgeAssuranceDismissibleFeedBanner />
-      } else if (row.type === 'interstitialTrending') {
-        return <TrendingInterstitial />
-      } else if (row.type === 'interstitialFeedTrendingTopics') {
-        return (
-          <FeedTrendingTopicsInterstitial feedSliceIndex={row.feedSliceIndex} />
-        )
       } else if (row.type === 'liveEventFeedsAndTrendingBanner') {
         return <DiscoverFeedLiveEventFeedsAndTrendingBanner />
       } else if (row.type === 'composerPrompt') {
         return <ComposerPrompt />
-      } else if (row.type === 'interstitialTrendingVideos') {
-        return <TrendingVideosInterstitial />
       } else if (row.type === 'fallbackMarker') {
         // HACK
         // tell the user we fell back to discover

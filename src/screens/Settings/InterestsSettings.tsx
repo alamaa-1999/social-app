@@ -19,11 +19,9 @@ import {
   usePreferencesQuery,
 } from '#/state/queries/preferences'
 import {type UsePreferencesQueryResponse} from '#/state/queries/preferences/types'
-import {createGetSuggestedFeedsQueryKey} from '#/state/queries/trending/useGetSuggestedFeedsQuery'
 import {createGetSuggestedUsersForDiscoverQueryKey} from '#/state/queries/trending/useGetSuggestedUsersForDiscoverQuery'
 import {createGetSuggestedUsersForExploreQueryKey} from '#/state/queries/trending/useGetSuggestedUsersForExploreQuery'
 import {createGetSuggestedUsersForSeeMoreQueryKey} from '#/state/queries/trending/useGetSuggestedUsersForSeeMoreQuery'
-import {createSuggestedStarterPacksQueryKey} from '#/state/queries/useSuggestedStarterPacksQuery'
 import {usePdsClient} from '#/state/session'
 import {atoms as a, useGutters, useTheme} from '#/alf'
 import {Admonition} from '#/components/Admonition'
@@ -121,8 +119,6 @@ function Inner({
           },
         )
         await Promise.all([
-          qc.resetQueries({queryKey: createSuggestedStarterPacksQueryKey()}),
-          qc.resetQueries({queryKey: createGetSuggestedFeedsQueryKey()}),
           qc.resetQueries({
             queryKey: createGetSuggestedUsersForDiscoverQueryKey({}),
           }),

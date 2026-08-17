@@ -3,6 +3,7 @@
 import {i18n} from '@lingui/core'
 import {msg} from '@lingui/core/macro'
 
+import {SUNNAHSKY_HANDLE_SUFFIX} from '#/lib/constants'
 import {forceLTR} from '#/lib/strings/bidi'
 
 const VALIDATE_REGEX =
@@ -29,19 +30,58 @@ export function isInvalidHandle(handle: string): boolean {
 }
 
 /**
+ * Whether `handle` is exactly `suffix`, or ends in `.` + `suffix` - the
+ * anchored-boundary check every Sunnahsky domain-suffix comparison in this
+ * app must go through. An unanchored substring check (e.g.
+ * `handle.includes('.guest.')`) would incorrectly match a handle like
+ * `alice.guest.someone-elses-server.com` - a legitimate account on an
+ * unrelated PDS (this app supports login to any ATproto server, not just
+ * ours) that merely happens to contain the same characters without actually
+ * being a Sunnahsky domain at all. Requiring exact equality or a leading `.`
+ * rules that out. Kept as one shared helper (rather than each call site
+ * concatenating and `endsWith`-ing its own suffix) so the anchoring logic
+ * itself can't independently drift out of sync the way the suffix constant
+ * once did.
+ */
+function hasAnchoredSuffix(handle: string, suffix: string): boolean {
+  return handle === suffix || handle.endsWith('.' + suffix)
+}
+
+/**
+ * Whether `handle` belongs to Sunnahsky at all - a Striker
+ * (`*.sunnahsky.com`) or a Catcher (`*.guest.sunnahsky.com`) alike, since the
+ * latter is itself a subdomain of the former. Used to fast-path identity
+ * resolution: a Sunnahsky handle's PDS is always Sunnahsky's own server, so
+ * there is no need to ask external infrastructure to confirm that.
+ */
+export function isSunnahskyHandle(handle: string): boolean {
+  return hasAnchoredSuffix(handle, SUNNAHSKY_HANDLE_SUFFIX)
+}
+
+/**
  * Whether `handle` belongs to a Sunnahsky Catcher (reply-only) account.
  *
- * The PDS guarantees server-side that every Catcher handle contains a
- * ".guest." label immediately before the base domain (e.g.
- * "alex.guest.sunnahsky.com", or ".guest.test" in local dev) and that no
- * Striker handle ever does - see `ensureHandleMatchesRole` in the atproto
- * fork. This is therefore a reliable signal for any account actually hosted
- * on a Sunnahsky PDS. A handle from an unrelated PDS (this app can sign in
- * to any ATproto server, not just ours) will simply never match, which is
- * correct: Sunnahsky's role system does not apply to it.
+ * The PDS guarantees server-side that every Catcher handle ends with
+ * `.guest.sunnahsky.com` and that no Striker handle ever does - see
+ * `ensureHandleMatchesRole` in the atproto fork, which checks
+ * `handle.endsWith(catcherHandleDomain)` where `catcherHandleDomain` is
+ * exactly that suffix (`config.ts`: `'.guest' + strikerHandleDomain`). This
+ * check mirrors that anchoring via {@link hasAnchoredSuffix}, so a handle
+ * from an unrelated PDS correctly never matches.
+ *
+ * A local `dev-env` PDS (this project's standard local dev/test setup) is
+ * configured with `serviceHandleDomains: ['.test', '.example']` rather than
+ * `sunnahsky.com`, so a real Catcher handle there ends in `.guest.test`, not
+ * `.guest.sunnahsky.com` - the production suffix alone would never match in
+ * dev. `.test` is already the established, named "local dev domain" concept
+ * in this codebase (see `IS_TEST_USER` in `constants.ts`), so it's checked
+ * here the same way.
  */
 export function isCatcherHandle(handle: string): boolean {
-  return handle.includes('.guest.')
+  return (
+    hasAnchoredSuffix(handle, 'guest.' + SUNNAHSKY_HANDLE_SUFFIX) ||
+    hasAnchoredSuffix(handle, 'guest.test')
+  )
 }
 
 export function sanitizeHandle(

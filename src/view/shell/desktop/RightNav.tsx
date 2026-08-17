@@ -10,7 +10,6 @@ import {useSession} from '#/state/session'
 import {useLogoVariant} from '#/view/icons/useLogoVariant'
 import {DesktopFeeds} from '#/view/shell/desktop/Feeds'
 import {DesktopSearch} from '#/view/shell/desktop/Search'
-import {SidebarTrendingTopics} from '#/view/shell/desktop/SidebarTrendingTopics'
 import {
   atoms as a,
   useGutters,
@@ -95,7 +94,6 @@ export function DesktopRightNav({routeName}: {routeName: string}) {
       )}
 
       {showExploreScreenDuplicatedContent && <SidebarLiveEventFeedsBanner />}
-      {showExploreScreenDuplicatedContent && <SidebarTrendingTopics />}
 
       <Text style={[a.leading_snug, t.atoms.text_contrast_low]}>
         {hasSession && (

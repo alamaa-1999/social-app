@@ -12,6 +12,17 @@ export const BSKY_SERVICE = 'https://bsky.social'
 export const BSKY_SERVICE_DID = 'did:web:bsky.social'
 export const PUBLIC_BSKY_SERVICE = 'https://public.api.bsky.app'
 export const SUNNAHSKY_SERVICE = 'https://sunnahsky.com'
+/**
+ * Host suffix shared by every Sunnahsky handle - Strikers (`*.sunnahsky.com`)
+ * and Catchers (`*.guest.sunnahsky.com`) alike, since the latter is itself a
+ * subdomain of the former. Derived from {@link SUNNAHSKY_SERVICE} rather than
+ * a hardcoded string so the two can never drift apart. Consumed only via the
+ * anchored-suffix helpers in `strings/handles.ts` (`isSunnahskyHandle`,
+ * `isCatcherHandle`) - a second independently-hardcoded copy of the anchoring
+ * logic itself is exactly how the last domain-suffix bug in this project
+ * happened.
+ */
+export const SUNNAHSKY_HANDLE_SUFFIX = new URL(SUNNAHSKY_SERVICE).host
 export const DEFAULT_SERVICE = IS_DEV ? LOCAL_DEV_SERVICE : SUNNAHSKY_SERVICE
 const HELP_DESK_LANG = 'en-us'
 export const HELP_DESK_URL = `https://blueskyweb.zendesk.com/hc/${HELP_DESK_LANG}`

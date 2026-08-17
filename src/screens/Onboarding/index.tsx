@@ -1,8 +1,6 @@
 import {useMemo, useReducer} from 'react'
 import {View} from 'react-native'
-import * as bcp47Match from 'bcp-47-match'
 
-import {useLanguagePrefs} from '#/state/preferences'
 import {
   Layout,
   OnboardingControls,
@@ -26,20 +24,10 @@ import {ENV, IS_NATIVE} from '#/env'
 import {StepFindContacts} from './StepFindContacts'
 import {StepFindContactsIntro} from './StepFindContactsIntro'
 import {StepSuggestedAccounts} from './StepSuggestedAccounts'
-import {StepSuggestedStarterpacks} from './StepSuggestedStarterpacks'
 
 export function Onboarding() {
   const t = useTheme()
   const ax = useAnalytics()
-
-  const {contentLanguages} = useLanguagePrefs()
-  const probablySpeaksEnglish = useMemo(() => {
-    if (contentLanguages.length === 0) return true
-    return bcp47Match.basicFilter('en', contentLanguages).length > 0
-  }, [contentLanguages])
-
-  // starter packs screen is currently geared towards english-speaking accounts
-  const showSuggestedStarterpacks = ENV !== 'e2e' && probablySpeaksEnglish
 
   const findContactsEnabled =
     useIsFindContactsFeatureEnabledBasedOnGeolocation()
@@ -52,7 +40,6 @@ export function Onboarding() {
   const [state, dispatch] = useReducer(
     reducer,
     {
-      starterPacksStepEnabled: showSuggestedStarterpacks,
       findContactsStepEnabled: showFindContacts,
     },
     createInitialOnboardingState,
@@ -82,9 +69,6 @@ export function Onboarding() {
                     {state.activeStep === 'interests' && <StepInterests />}
                     {state.activeStep === 'suggested-accounts' && (
                       <StepSuggestedAccounts />
-                    )}
-                    {state.activeStep === 'suggested-starterpacks' && (
-                      <StepSuggestedStarterpacks />
                     )}
                     {state.activeStep === 'find-contacts-intro' && (
                       <StepFindContactsIntro />

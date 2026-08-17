@@ -10,7 +10,6 @@ type OnboardingScreen =
   | 'profile'
   | 'interests'
   | 'suggested-accounts'
-  | 'suggested-starterpacks'
   | 'find-contacts-intro'
   | 'find-contacts'
   | 'finished'
@@ -74,18 +73,15 @@ export type OnboardingAction =
 
 export function createInitialOnboardingState(
   {
-    starterPacksStepEnabled,
     findContactsStepEnabled,
   }: {
-    starterPacksStepEnabled: boolean
     findContactsStepEnabled: boolean
-  } = {starterPacksStepEnabled: true, findContactsStepEnabled: false},
+  } = {findContactsStepEnabled: false},
 ): OnboardingState {
   const screens: OnboardingState['screens'] = {
     profile: true,
     interests: true,
     'suggested-accounts': true,
-    'suggested-starterpacks': starterPacksStepEnabled,
     'find-contacts-intro': findContactsStepEnabled,
     'find-contacts': findContactsStepEnabled,
     finished: true,
@@ -149,7 +145,6 @@ export function reducer(
     }
     case 'finish': {
       next = createInitialOnboardingState({
-        starterPacksStepEnabled: s.screens['suggested-starterpacks'],
         findContactsStepEnabled: s.screens['find-contacts'],
       })
       break
@@ -198,7 +193,6 @@ function getStepOrder(s: OnboardingState): OnboardingScreen[] {
     s.screens.profile && ('profile' as const),
     s.screens.interests && ('interests' as const),
     s.screens['suggested-accounts'] && ('suggested-accounts' as const),
-    s.screens['suggested-starterpacks'] && ('suggested-starterpacks' as const),
     s.screens['find-contacts-intro'] && ('find-contacts-intro' as const),
     s.screens['find-contacts'] && ('find-contacts' as const),
     s.screens.finished && ('finished' as const),

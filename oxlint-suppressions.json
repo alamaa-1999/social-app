@@ -927,16 +927,6 @@
       "count": 1
     }
   },
-  "src/screens/Onboarding/StepSuggestedStarterpacks/StarterPackCard.tsx": {
-    "typescript/no-misused-promises": {
-      "count": 1
-    }
-  },
-  "src/screens/Onboarding/StepSuggestedStarterpacks/index.tsx": {
-    "typescript/no-misused-promises": {
-      "count": 1
-    }
-  },
   "src/screens/PostThread/components/ThreadItemAnchorFollowButton.tsx": {
     "typescript/no-explicit-any": {
       "count": 2
@@ -1033,11 +1023,6 @@
     }
   },
   "src/screens/Search/modules/ExploreSuggestedAccounts.tsx": {
-    "typescript/no-floating-promises": {
-      "count": 1
-    }
-  },
-  "src/screens/Search/modules/ExploreTrendingVideos.tsx": {
     "typescript/no-floating-promises": {
       "count": 1
     }

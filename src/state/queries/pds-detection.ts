@@ -6,6 +6,7 @@ import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {DEFAULT_SERVICE, SUNNAHSKY_SERVICE} from '#/lib/constants'
 import {useDebouncedValue} from '#/lib/hooks/useDebouncedValue'
 import {isNetworkError} from '#/lib/strings/errors'
+import {isSunnahskyHandle} from '#/lib/strings/handles'
 import {logger} from '#/logger'
 import {STALE} from '#/state/queries'
 import {
@@ -13,14 +14,6 @@ import {
   getSunnahskyPublicPdsClient,
 } from '#/state/session/clients'
 import {com} from '#/lexicons'
-
-/**
- * Host suffix shared by every Sunnahsky handle - Strikers (`*.sunnahsky.com`)
- * and Catchers (`*.guest.sunnahsky.com`) alike, since the latter is itself a
- * subdomain of the former. Derived from {@link SUNNAHSKY_SERVICE} rather than
- * a hardcoded string so the two can never drift apart.
- */
-const SUNNAHSKY_HANDLE_SUFFIX = new URL(SUNNAHSKY_SERVICE).host
 
 const RQKEY_ROOT = 'pds-detection'
 export const RQKEY = (identifier: string) => [RQKEY_ROOT, identifier]
@@ -166,14 +159,13 @@ export async function resolvePdsForIdentifier(
    * `did:`-prefixed identifiers still fall through to the external path below
    * (a bare DID carries no domain to branch on).
    */
-  const isSunnahskyHandle =
-    !norm.startsWith('did:') && norm.endsWith('.' + SUNNAHSKY_HANDLE_SUFFIX)
+  const isOnSunnahsky = !norm.startsWith('did:') && isSunnahskyHandle(norm)
   /*
    * Resolution runs without a session, so this uses the public appview client
    * rather than a session-scoped one. It matches the unauthenticated,
    * unproxied public agent this previously constructed by hand.
    */
-  const client = isSunnahskyHandle
+  const client = isOnSunnahsky
     ? getSunnahskyPublicPdsClient()
     : getPublicAppviewClient()
   try {
@@ -193,7 +185,7 @@ export async function resolvePdsForIdentifier(
     logger.debug('pds-detection: resolved identifier to DID', {
       identifier: norm,
       did,
-      viaSunnahsky: isSunnahskyHandle,
+      viaSunnahsky: isOnSunnahsky,
     })
     /*
      * A Sunnahsky handle's service URL is already known and fixed, so skip
@@ -201,7 +193,7 @@ export async function resolvePdsForIdentifier(
      * still resolved for real above, since it is what lets a returning
      * user's login skip the "confirm this hosting provider" dialog later.
      */
-    if (isSunnahskyHandle) {
+    if (isOnSunnahsky) {
       return {did, pdsUrl: SUNNAHSKY_SERVICE}
     }
     const doc = await withResolveTimeout(signal => resolveDidDoc(did, signal))

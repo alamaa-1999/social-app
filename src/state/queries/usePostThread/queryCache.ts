@@ -8,7 +8,6 @@ import {
   updatePostShadow,
 } from '#/state/cache/post-shadow'
 import {findAllPostsInQueryData as findAllPostsInBookmarksQueryData} from '#/state/queries/bookmarks/useBookmarksQuery'
-import {findAllPostsInQueryData as findAllPostsInExploreFeedPreviewsQueryData} from '#/state/queries/explore-feed-previews'
 import {findAllPostsInQueryData as findAllPostsInNotifsQueryData} from '#/state/queries/notifications/feed'
 import {findAllPostsInQueryData as findAllPostsInFeedQueryData} from '#/state/queries/post-feed'
 import {findAllPostsInQueryData as findAllPostsInQuoteQueryData} from '#/state/queries/post-quotes'
@@ -265,12 +264,6 @@ export function* getThreadPlaceholderCandidates(
     yield postViewToThreadPlaceholder(post)
   }
   for (let post of findAllPostsInBookmarksQueryData(queryClient, uri)) {
-    yield postViewToThreadPlaceholder(post)
-  }
-  for (let post of findAllPostsInExploreFeedPreviewsQueryData(
-    queryClient,
-    uri,
-  )) {
     yield postViewToThreadPlaceholder(post)
   }
 }
