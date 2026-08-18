@@ -1,6 +1,7 @@
 import {type AtIdentifierString} from '@atproto/syntax'
 import {useQuery} from '@tanstack/react-query'
 
+import {logger} from '#/logger'
 import {STALE} from '#/state/queries'
 import {useSunnahskyDids} from '#/state/queries/sunnahsky-dids'
 import {useAppviewClient} from '#/state/session'
@@ -43,12 +44,29 @@ export function useSunnahskyProfiles() {
     queryFn: async () => {
       const dids = [...sunnahskyDids!]
       const profiles: app.bsky.actor.defs.ProfileViewDetailed[] = []
-      for (let i = 0; i < dids.length; i += GET_PROFILES_BATCH_SIZE) {
-        const batch = dids.slice(i, i + GET_PROFILES_BATCH_SIZE)
-        const res = await client.call(app.bsky.actor.getProfiles, {
-          actors: batch as AtIdentifierString[],
+      try {
+        for (let i = 0; i < dids.length; i += GET_PROFILES_BATCH_SIZE) {
+          const batch = dids.slice(i, i + GET_PROFILES_BATCH_SIZE)
+          const res = await client.call(app.bsky.actor.getProfiles, {
+            actors: batch as AtIdentifierString[],
+          })
+          profiles.push(...res.profiles)
+        }
+      } catch (e) {
+        /*
+         * Logged here, once, rather than in each of the three consumers
+         * (useAutocomplete, useActorAutocompleteQuery,
+         * useActorAutocompleteFn) - all three only ever check
+         * `!!sunnahskyProfiles`, not `.error`, so without this a getProfiles
+         * failure would silently show zero results on every account-
+         * typeahead surface in the app with nothing logged anywhere. Rethrow
+         * so useQuery's own error state still works correctly for any
+         * consumer that does check it.
+         */
+        logger.error('useSunnahskyProfiles: getProfiles failed', {
+          message: e,
         })
-        profiles.push(...res.profiles)
+        throw e
       }
       return profiles
     },
