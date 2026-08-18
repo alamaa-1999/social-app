@@ -33,8 +33,6 @@ export const router = new Router<AllNavigatableRoutes>({
   PostLikedBy: '/profile/:name/post/:rkey/liked-by',
   PostRepostedBy: '/profile/:name/post/:rkey/reposted-by',
   PostQuotes: '/profile/:name/post/:rkey/quotes',
-  CustomFeed: '/profile/:name/feed/:rkey',
-  CustomFeedLikedBy: '/profile/:name/feed/:rkey/liked-by',
   ProfileLabelerLikedBy: '/profile/:name/labeler/liked-by',
   // debug
   Debug: '/sys/debug',

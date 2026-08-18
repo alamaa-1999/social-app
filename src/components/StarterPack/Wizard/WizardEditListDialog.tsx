@@ -15,16 +15,13 @@ import {
 import {atoms as a, native, useTheme, web} from '#/alf'
 import {Button, ButtonText} from '#/components/Button'
 import * as Dialog from '#/components/Dialog'
-import {
-  WizardFeedCard,
-  WizardProfileCard,
-} from '#/components/StarterPack/Wizard/WizardListCard'
+import {WizardProfileCard} from '#/components/StarterPack/Wizard/WizardListCard'
 import {Text} from '#/components/Typography'
 import {IS_WEB} from '#/env'
 import {type app} from '#/lexicons'
 
 function keyExtractor(
-  item: app.bsky.actor.defs.ProfileViewBasic | app.bsky.feed.defs.GeneratorView,
+  item: app.bsky.actor.defs.ProfileViewBasic,
   index: number,
 ) {
   return `${item.did}-${index}`
@@ -50,29 +47,18 @@ export function WizardEditListDialog({
   const listRef = useRef<ListMethods>(null)
 
   const getData = () => {
-    if (state.currentStep === 'Feeds') return state.feeds
-
     return [profile, ...state.profiles.filter(p => p.did !== profile.did)]
   }
 
-  const renderItem = ({item}: ListRenderItemInfo<any>) =>
-    state.currentStep === 'Profiles' ? (
-      <WizardProfileCard
-        profile={item}
-        btnType="remove"
-        state={state}
-        dispatch={dispatch}
-        moderationOpts={moderationOpts}
-      />
-    ) : (
-      <WizardFeedCard
-        generator={item}
-        btnType="remove"
-        state={state}
-        dispatch={dispatch}
-        moderationOpts={moderationOpts}
-      />
-    )
+  const renderItem = ({item}: ListRenderItemInfo<any>) => (
+    <WizardProfileCard
+      profile={item}
+      btnType="remove"
+      state={state}
+      dispatch={dispatch}
+      moderationOpts={moderationOpts}
+    />
+  )
 
   return (
     <Dialog.Outer
@@ -107,11 +93,7 @@ export function WizardEditListDialog({
             ]}>
             <View style={{width: 60}} />
             <Text style={[a.font_semi_bold, a.text_xl]}>
-              {state.currentStep === 'Profiles' ? (
-                <Trans>Edit People</Trans>
-              ) : (
-                <Trans>Edit Feeds</Trans>
-              )}
+              <Trans>Edit People</Trans>
             </Text>
             <View style={{width: 60}}>
               {IS_WEB && (

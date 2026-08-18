@@ -73,8 +73,6 @@ import {TermsOfServiceScreen} from '#/view/screens/TermsOfService'
 import {BottomBar} from '#/view/shell/bottom-bar/BottomBar'
 import {createNativeStackNavigatorWithAuth} from '#/view/shell/createNativeStackNavigatorWithAuth'
 import {BookmarksScreen} from '#/screens/Bookmarks'
-import {CustomFeedScreen} from '#/screens/CustomFeed'
-import {CustomFeedLikedByScreen} from '#/screens/CustomFeed/CustomFeedLikedBy'
 import {SharedPreferencesTesterScreen} from '#/screens/E2E/SharedPreferencesTesterScreen'
 import {FindContactsFlowScreen} from '#/screens/FindContactsFlowScreen'
 import HashtagScreen from '#/screens/Hashtag'
@@ -286,16 +284,6 @@ function commonScreens(Stack: typeof Flat, unreadCountLabel?: string) {
         options={({route}) => ({
           title: title(msg`Post by @${route.params.name}`),
         })}
-      />
-      <Stack.Screen
-        name="CustomFeed"
-        getComponent={() => CustomFeedScreen}
-        options={{title: title(msg`Feed`)}}
-      />
-      <Stack.Screen
-        name="CustomFeedLikedBy"
-        getComponent={() => CustomFeedLikedByScreen}
-        options={{title: title(msg`Liked by`)}}
       />
       <Stack.Screen
         name="ProfileLabelerLikedBy"
@@ -542,7 +530,7 @@ function commonScreens(Stack: typeof Flat, unreadCountLabel?: string) {
       <Stack.Screen
         name="Feeds"
         getComponent={() => FeedsScreen}
-        options={{title: title(msg`Feeds`)}}
+        options={{title: title(msg`Feeds`), requireAuth: true}}
       />
       <Stack.Screen
         name="StarterPack"

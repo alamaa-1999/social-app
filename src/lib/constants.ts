@@ -190,10 +190,6 @@ export const RECOMMENDED_SAVED_FEEDS: Pick<
   'type' | 'value' | 'pinned'
 >[] = [DISCOVER_SAVED_FEED, TIMELINE_SAVED_FEED]
 
-export const KNOWN_SHUTDOWN_FEEDS = [
-  'at://did:plc:wqowuobffl66jv3kpsvo7ak4/app.bsky.feed.generator/the-algorithm', // for you by skygaze
-]
-
 export const GIF_SERVICE = 'https://gifs.bsky.app'
 
 export const GIF_KLIPY_SEARCH = (params: string) =>

@@ -40,7 +40,6 @@ import {
   type WizardStep,
 } from '#/screens/StarterPack/Wizard/State'
 import {StepDetails} from '#/screens/StarterPack/Wizard/StepDetails'
-import {StepFeeds} from '#/screens/StarterPack/Wizard/StepFeeds'
 import {StepProfiles} from '#/screens/StarterPack/Wizard/StepProfiles'
 import {atoms as a, useTheme, web} from '#/alf'
 import {Button, ButtonIcon, ButtonText} from '#/components/Button'
@@ -195,11 +194,7 @@ function WizardInner({
     },
     Profiles: {
       header: _(msg`Choose People`),
-      nextBtn: _(msg`Next`),
-    },
-    Feeds: {
-      header: _(msg`Choose Feeds`),
-      nextBtn: state.feeds.length === 0 ? _(msg`Skip`) : _(msg`Finish`),
+      nextBtn: _(msg`Finish`),
     },
   }
   const currUiStrings = wizardUiStrings[state.currentStep]
@@ -210,7 +205,6 @@ function WizardInner({
       setName: state.name != null,
       setDescription: state.description != null,
       profilesCount: state.profiles.length,
-      feedsCount: state.feeds.length,
     })
     Image.prefetch([getStarterPackOgCard(currentProfile!.did, rkey)])
     dispatch({type: 'SetProcessing', processing: false})
@@ -266,7 +260,6 @@ function WizardInner({
         name: state.name?.trim() || getDefaultName(),
         description: state.description?.trim(),
         profiles: state.profiles,
-        feeds: state.feeds,
         currentStarterPack: currentStarterPack,
         currentListItems: currentListItems,
       })
@@ -275,13 +268,12 @@ function WizardInner({
         name: state.name?.trim() || getDefaultName(),
         description: state.description?.trim(),
         profiles: state.profiles,
-        feeds: state.feeds,
       })
     }
   }
 
   const onNext = () => {
-    if (state.currentStep === 'Feeds') {
+    if (state.currentStep === 'Profiles') {
       submit()
       return
     }
@@ -296,11 +288,9 @@ function WizardInner({
     )
   }
 
-  const items = state.currentStep === 'Profiles' ? state.profiles : state.feeds
+  const items = state.profiles
 
-  const isEditEnabled =
-    (state.currentStep === 'Profiles' && items.length > 1) ||
-    (state.currentStep === 'Feeds' && items.length > 0)
+  const isEditEnabled = state.currentStep === 'Profiles' && items.length > 1
 
   const editDialogControl = useDialogControl()
 
@@ -342,8 +332,6 @@ function WizardInner({
           <StepDetails />
         ) : state.currentStep === 'Profiles' ? (
           <StepProfiles moderationOpts={moderationOpts} />
-        ) : state.currentStep === 'Feeds' ? (
-          <StepFeeds moderationOpts={moderationOpts} />
         ) : null}
       </Container>
 
@@ -365,7 +353,7 @@ function Container({children}: {children: React.ReactNode}) {
   const {_} = useLingui()
   const [state, dispatch] = useWizardState()
 
-  if (state.currentStep === 'Profiles' || state.currentStep === 'Feeds') {
+  if (state.currentStep === 'Profiles') {
     return <View style={[a.flex_1]}>{children}</View>
   }
 
@@ -404,9 +392,9 @@ function Footer({
   const [state] = useWizardState()
   const {bottom: bottomInset} = useSafeAreaInsets()
   const {currentAccount} = useSession()
-  const items = state.currentStep === 'Profiles' ? state.profiles : state.feeds
+  const items = state.profiles
 
-  const minimumItems = state.currentStep === 'Profiles' ? 8 : 0
+  const minimumItems = 8
 
   const textStyles = [a.text_md]
 
@@ -436,8 +424,7 @@ function Footer({
       {items.length > minimumItems && (
         <View style={[a.absolute, {right: 14, top: 31}]}>
           <Text style={[a.font_semi_bold]}>
-            {items.length}/
-            {state.currentStep === 'Profiles' ? STARTER_PACK_MAX_SIZE : 3}
+            {items.length}/{STARTER_PACK_MAX_SIZE}
           </Text>
         </View>
       )}
@@ -452,137 +439,69 @@ function Footer({
                 borderWidth: 0.5,
                 borderColor: t.atoms.bg.backgroundColor,
               },
-              state.currentStep === 'Profiles'
-                ? {zIndex: 1 - index, marginLeft: index > 0 ? -8 : 0}
-                : {marginRight: 4},
+              {zIndex: 1 - index, marginLeft: index > 0 ? -8 : 0},
             ]}>
-            <UserAvatar
-              avatar={p.avatar}
-              size={32}
-              type={state.currentStep === 'Profiles' ? 'user' : 'algo'}
-            />
+            <UserAvatar avatar={p.avatar} size={32} type="user" />
           </View>
         ))}
       </View>
 
-      {
-        state.currentStep === 'Profiles' ? (
-          <Text style={[a.text_center, textStyles]}>
-            {
-              items.length < 2 ? (
-                currentAccount?.did === items[0].did ? (
-                  <Trans>
-                    It's just you right now! Add more people to your starter
-                    pack by searching above.
-                  </Trans>
-                ) : (
-                  <Trans>
-                    It's just{' '}
-                    <Text style={[a.font_semi_bold, textStyles]} emoji>
-                      {getName(items[0])}{' '}
-                    </Text>
-                    right now! Add more people to your starter pack by searching
-                    above.
-                  </Trans>
-                )
-              ) : items.length === 2 ? (
-                currentAccount?.did === items[0].did ? (
-                  <Trans>
-                    <Text style={[a.font_semi_bold, textStyles]}>You</Text> and
-                    <Text> </Text>
-                    <Text style={[a.font_semi_bold, textStyles]} emoji>
-                      {getName(items[1] /* [0] is self, skip it */)}{' '}
-                    </Text>
-                    are included in your starter pack
-                  </Trans>
-                ) : (
-                  <Trans>
-                    <Text style={[a.font_semi_bold, textStyles]}>
-                      {getName(items[0])}
-                    </Text>{' '}
-                    and
-                    <Text> </Text>
-                    <Text style={[a.font_semi_bold, textStyles]} emoji>
-                      {getName(items[1] /* [0] is self, skip it */)}{' '}
-                    </Text>
-                    are included in your starter pack
-                  </Trans>
-                )
-              ) : items.length > 2 ? (
-                <Trans context="profiles">
-                  <Text style={[a.font_semi_bold, textStyles]} emoji>
-                    {getName(items[1] /* [0] is self, skip it */)},{' '}
-                  </Text>
-                  <Text style={[a.font_semi_bold, textStyles]} emoji>
-                    {getName(items[2])},{' '}
-                  </Text>
-                  and{' '}
-                  <Plural
-                    value={items.length - 2}
-                    one="# other"
-                    other="# others"
-                  />{' '}
-                  are included in your starter pack
-                </Trans>
-              ) : null /* Should not happen. */
-            }
-          </Text>
-        ) : state.currentStep === 'Feeds' ? (
-          items.length === 0 ? (
-            <View style={[a.gap_sm]}>
-              <Text style={[a.font_semi_bold, a.text_center, textStyles]}>
-                <Trans>Add some feeds to your starter pack!</Trans>
+      <Text style={[a.text_center, textStyles]}>
+        {
+          items.length < 2 ? (
+            currentAccount?.did === items[0].did ? (
+              <Trans>
+                It's just you right now! Add more people to your starter pack by
+                searching above.
+              </Trans>
+            ) : (
+              <Trans>
+                It's just{' '}
+                <Text style={[a.font_semi_bold, textStyles]} emoji>
+                  {getName(items[0])}{' '}
+                </Text>
+                right now! Add more people to your starter pack by searching
+                above.
+              </Trans>
+            )
+          ) : items.length === 2 ? (
+            currentAccount?.did === items[0].did ? (
+              <Trans>
+                <Text style={[a.font_semi_bold, textStyles]}>You</Text> and
+                <Text> </Text>
+                <Text style={[a.font_semi_bold, textStyles]} emoji>
+                  {getName(items[1] /* [0] is self, skip it */)}{' '}
+                </Text>
+                are included in your starter pack
+              </Trans>
+            ) : (
+              <Trans>
+                <Text style={[a.font_semi_bold, textStyles]}>
+                  {getName(items[0])}
+                </Text>{' '}
+                and
+                <Text> </Text>
+                <Text style={[a.font_semi_bold, textStyles]} emoji>
+                  {getName(items[1] /* [0] is self, skip it */)}{' '}
+                </Text>
+                are included in your starter pack
+              </Trans>
+            )
+          ) : items.length > 2 ? (
+            <Trans context="profiles">
+              <Text style={[a.font_semi_bold, textStyles]} emoji>
+                {getName(items[1] /* [0] is self, skip it */)},{' '}
               </Text>
-              <Text style={[a.text_center, textStyles]}>
-                <Trans>
-                  Search for feeds that you want to suggest to others.
-                </Trans>
+              <Text style={[a.font_semi_bold, textStyles]} emoji>
+                {getName(items[2])},{' '}
               </Text>
-            </View>
-          ) : (
-            <Text style={[a.text_center, textStyles]}>
-              {
-                items.length === 1 ? (
-                  <Trans>
-                    <Text style={[a.font_semi_bold, textStyles]} emoji>
-                      {getName(items[0])}
-                    </Text>{' '}
-                    is included in your starter pack
-                  </Trans>
-                ) : items.length === 2 ? (
-                  <Trans>
-                    <Text style={[a.font_semi_bold, textStyles]} emoji>
-                      {getName(items[0])}
-                    </Text>{' '}
-                    and
-                    <Text> </Text>
-                    <Text style={[a.font_semi_bold, textStyles]} emoji>
-                      {getName(items[1])}{' '}
-                    </Text>
-                    are included in your starter pack
-                  </Trans>
-                ) : items.length > 2 ? (
-                  <Trans context="feeds">
-                    <Text style={[a.font_semi_bold, textStyles]} emoji>
-                      {getName(items[0])},{' '}
-                    </Text>
-                    <Text style={[a.font_semi_bold, textStyles]} emoji>
-                      {getName(items[1])},{' '}
-                    </Text>
-                    and{' '}
-                    <Plural
-                      value={items.length - 2}
-                      one="# other"
-                      other="# others"
-                    />{' '}
-                    are included in your starter pack
-                  </Trans>
-                ) : null /* Should not happen. */
-              }
-            </Text>
-          )
-        ) : null /* Should not happen. */
-      }
+              and{' '}
+              <Plural value={items.length - 2} one="# other" other="# others" />{' '}
+              are included in your starter pack
+            </Trans>
+          ) : null /* Should not happen. */
+        }
+      </Text>
 
       <View
         style={[
@@ -591,7 +510,7 @@ function Footer({
           a.gap_2xl,
           IS_NATIVE ? a.mt_sm : a.mt_md,
         ]}>
-        {state.currentStep === 'Profiles' && items.length < 8 && (
+        {items.length < 8 && (
           <Text
             style={[
               a.font_semi_bold,
@@ -607,11 +526,7 @@ function Footer({
           color="primary"
           size="large"
           onPress={onNext}
-          disabled={
-            !state.canNext ||
-            state.processing ||
-            (state.currentStep === 'Profiles' && items.length < 8)
-          }>
+          disabled={!state.canNext || state.processing || items.length < 8}>
           <ButtonText>{nextBtnText}</ButtonText>
           {state.processing && <ButtonIcon icon={Loader} />}
         </Button>
@@ -620,9 +535,7 @@ function Footer({
   )
 }
 
-function getName(
-  item: bsky.profile.AnyProfileView | app.bsky.feed.defs.GeneratorView,
-) {
+function getName(item: bsky.profile.AnyProfileView) {
   if (typeof item.displayName === 'string') {
     return enforceLen(sanitizeDisplayName(item.displayName), 28, true)
   } else if ('handle' in item && typeof item.handle === 'string') {

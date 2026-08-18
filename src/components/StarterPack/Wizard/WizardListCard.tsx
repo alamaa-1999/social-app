@@ -1,6 +1,5 @@
 import {Keyboard, View} from 'react-native'
 import {
-  moderateFeedGenerator,
   moderateProfile,
   type ModerationOpts,
   type ModerationUI,
@@ -9,7 +8,7 @@ import {msg} from '@lingui/core/macro'
 import {useLingui} from '@lingui/react'
 import {Trans} from '@lingui/react/macro'
 
-import {DISCOVER_FEED_URI, STARTER_PACK_MAX_SIZE} from '#/lib/constants'
+import {STARTER_PACK_MAX_SIZE} from '#/lib/constants'
 import {sanitizeDisplayName} from '#/lib/strings/display-names'
 import {sanitizeHandle} from '#/lib/strings/handles'
 import {useSession} from '#/state/session'
@@ -167,52 +166,6 @@ export function WizardProfileCard({
       subtitle={`@${sanitizeHandle(profile.handle)}`}
       onPress={onPress}
       avatar={profile.avatar}
-      included={included}
-      disabled={disabled}
-      moderationUi={moderationUi}
-    />
-  )
-}
-
-export function WizardFeedCard({
-  btnType,
-  generator,
-  state,
-  dispatch,
-  moderationOpts,
-}: {
-  btnType: 'checkbox' | 'remove'
-  generator: app.bsky.feed.defs.GeneratorView
-  state: WizardState
-  dispatch: (action: WizardAction) => void
-  moderationOpts: ModerationOpts
-}) {
-  const isDiscover = generator.uri === DISCOVER_FEED_URI
-  const included = isDiscover || state.feeds.some(f => f.uri === generator.uri)
-  const disabled = isDiscover || (!included && state.feeds.length >= 3)
-  const moderationUi = moderateFeedGenerator(generator, moderationOpts).ui(
-    'avatar',
-  )
-
-  const onPress = () => {
-    if (disabled) return
-
-    Keyboard.dismiss()
-    if (included) {
-      dispatch({type: 'RemoveFeed', feedUri: generator.uri})
-    } else {
-      dispatch({type: 'AddFeed', feed: generator})
-    }
-  }
-
-  return (
-    <WizardListCard
-      type="algo"
-      btnType={btnType}
-      displayName={sanitizeDisplayName(generator.displayName)}
-      subtitle={`Feed by @${sanitizeHandle(generator.creator.handle)}`}
-      onPress={onPress}
-      avatar={generator.avatar}
       included={included}
       disabled={disabled}
       moderationUi={moderationUi}

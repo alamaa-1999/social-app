@@ -1,20 +1,13 @@
-import {useMemo} from 'react'
 import {View} from 'react-native'
-import {AtUri} from '@atproto/syntax'
 
 import {PressableScale} from '#/lib/custom-animations/PressableScale'
-import {makeCustomFeedLink} from '#/lib/routes/links'
-import {UserAvatar} from '#/view/com/util/UserAvatar'
 import {atoms as a, native, useTheme, type ViewStyleProp} from '#/alf'
 import {Button, ButtonIcon} from '#/components/Button'
-import * as FeedCard from '#/components/FeedCard'
 import {sizes as iconSizes} from '#/components/icons/common'
 import {DotGrid3x1_Stroke2_Corner0_Rounded as EllipsisIcon} from '#/components/icons/DotGrid'
 import {MagnifyingGlass_Stroke2_Corner0_Rounded as SearchIcon} from '#/components/icons/MagnifyingGlass'
-import {Link} from '#/components/Link'
 import {Text, type TextProps} from '#/components/Typography'
 import {useAnalytics} from '#/analytics'
-import {type app} from '#/lexicons'
 
 export function Container({
   style,
@@ -41,43 +34,6 @@ export function Container({
       {children}
     </View>
   )
-}
-
-export function FeedLink({
-  feed,
-  children,
-}: {
-  feed: app.bsky.feed.defs.GeneratorView
-  children?: React.ReactNode
-}) {
-  const t = useTheme()
-  const {host: did, rkey} = useMemo(() => new AtUri(feed.uri), [feed.uri])
-  return (
-    <Link
-      to={makeCustomFeedLink(did, rkey)}
-      label={feed.displayName}
-      style={[a.flex_1]}>
-      {({focused, hovered, pressed}) => (
-        <View
-          style={[
-            a.flex_1,
-            a.flex_row,
-            a.align_center,
-            {gap: 10},
-            a.rounded_md,
-            a.p_xs,
-            {marginLeft: -6},
-            (focused || hovered || pressed) && t.atoms.bg_contrast_25,
-          ]}>
-          {children}
-        </View>
-      )}
-    </Link>
-  )
-}
-
-export function FeedAvatar({feed}: {feed: app.bsky.feed.defs.GeneratorView}) {
-  return <UserAvatar type="algo" size={38} avatar={feed.avatar} />
 }
 
 export function Icon({
@@ -176,21 +132,5 @@ export function EllipsisButton({
       ]}>
       <ButtonIcon icon={EllipsisIcon} size="md" />
     </Button>
-  )
-}
-
-export function PinButton({feed}: {feed: app.bsky.feed.defs.GeneratorView}) {
-  return (
-    <View style={[a.z_20, {marginRight: -6}]}>
-      <FeedCard.SaveButton
-        pin
-        view={feed}
-        size="large"
-        color="secondary"
-        variant="ghost"
-        shape="square"
-        text={false}
-      />
-    </View>
   )
 }

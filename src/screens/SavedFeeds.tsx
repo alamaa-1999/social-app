@@ -9,7 +9,11 @@ import {Trans} from '@lingui/react/macro'
 import {useNavigation} from '@react-navigation/native'
 import {type NativeStackScreenProps} from '@react-navigation/native-stack'
 
-import {RECOMMENDED_SAVED_FEEDS, TIMELINE_SAVED_FEED} from '#/lib/constants'
+import {
+  DISCOVER_FEED_URI,
+  RECOMMENDED_SAVED_FEEDS,
+  TIMELINE_SAVED_FEED,
+} from '#/lib/constants'
 import {useHaptics} from '#/lib/haptics'
 import {
   type CommonNavigatorParams,
@@ -35,10 +39,10 @@ import {
 } from '#/components/icons/Arrow'
 import {FilterTimeline_Stroke2_Corner0_Rounded as FilterTimeline} from '#/components/icons/FilterTimeline'
 import {FloppyDisk_Stroke2_Corner0_Rounded as SaveIcon} from '#/components/icons/FloppyDisk'
+import {ListSparkle_Stroke2_Corner0_Rounded as ListSparkle} from '#/components/icons/ListSparkle'
 import {Pin_Filled_Corner0_Rounded as PinIcon} from '#/components/icons/Pin'
 import {Trash_Stroke2_Corner0_Rounded as TrashIcon} from '#/components/icons/Trash'
 import * as Layout from '#/components/Layout'
-import {InlineLinkText} from '#/components/Link'
 import {Loader} from '#/components/Loader'
 import * as Toast from '#/components/Toast'
 import {Text} from '#/components/Typography'
@@ -220,24 +224,6 @@ function SavedFeedsInner({
             <Loader size="xl" />
           </View>
         )}
-
-        <View style={[a.px_lg, a.py_xl]}>
-          <Text
-            style={[a.text_sm, t.atoms.text_contrast_medium, a.leading_snug]}>
-            <Trans>
-              Feeds are custom algorithms that users build with a little coding
-              expertise.{' '}
-              <InlineLinkText
-                to="https://github.com/bluesky-social/feed-generator"
-                label={_(msg`See this guide`)}
-                disableMismatchWarning
-                style={[a.leading_snug]}>
-                See this guide
-              </InlineLinkText>{' '}
-              for more information.
-            </Trans>
-          </Text>
-        </View>
       </Layout.Content>
     </Layout.Screen>
   )
@@ -391,24 +377,6 @@ function SavedFeedsA11y({
             />
           ))
         )}
-
-        <View style={[a.px_lg, a.py_xl]}>
-          <Text
-            style={[a.text_sm, t.atoms.text_contrast_medium, a.leading_snug]}>
-            <Trans>
-              Feeds are custom algorithms that users build with a little coding
-              expertise.{' '}
-              <InlineLinkText
-                to="https://github.com/bluesky-social/feed-generator"
-                label={_(msg`See this guide`)}
-                disableMismatchWarning
-                style={[a.leading_snug]}>
-                See this guide
-              </InlineLinkText>{' '}
-              for more information.
-            </Trans>
-          </Text>
-        </View>
       </Layout.Content>
     </Layout.Screen>
   )
@@ -453,6 +421,8 @@ function PinnedFeedItem({
     <View style={[a.flex_row, t.atoms.bg]}>
       {feed.type === 'timeline' ? (
         <FollowingFeedCard />
+      ) : feedUri === DISCOVER_FEED_URI ? (
+        <DiscoverFeedCard />
       ) : (
         <FeedSourceCard
           feedUri={feedUri}
@@ -536,6 +506,8 @@ function UnpinnedFeedItem({
     <View style={[a.flex_row, a.border_b, t.atoms.border_contrast_low]}>
       {feed.type === 'timeline' ? (
         <FollowingFeedCard />
+      ) : feedUri === DISCOVER_FEED_URI ? (
+        <DiscoverFeedCard />
       ) : (
         <FeedSourceCard
           feedUri={feedUri}
@@ -616,6 +588,41 @@ function FollowingFeedCard() {
       <View style={[a.flex_1, a.flex_row, a.gap_sm, a.align_center]}>
         <Text style={[a.text_sm, a.font_semi_bold, a.leading_snug]}>
           <Trans context="feed-name">Following</Trans>
+        </Text>
+      </View>
+    </View>
+  )
+}
+
+function DiscoverFeedCard() {
+  const t = useTheme()
+  return (
+    <View style={[a.flex_row, a.align_center, a.flex_1, a.p_lg]}>
+      <View
+        style={[
+          a.align_center,
+          a.justify_center,
+          a.rounded_sm,
+          a.mr_md,
+          {
+            width: 36,
+            height: 36,
+            backgroundColor: t.palette.primary_500,
+          },
+        ]}>
+        <ListSparkle
+          style={[
+            {
+              width: 22,
+              height: 22,
+            },
+          ]}
+          fill={t.palette.white}
+        />
+      </View>
+      <View style={[a.flex_1, a.flex_row, a.gap_sm, a.align_center]}>
+        <Text style={[a.text_sm, a.font_semi_bold, a.leading_snug]}>
+          <Trans context="feed-name">Discover</Trans>
         </Text>
       </View>
     </View>

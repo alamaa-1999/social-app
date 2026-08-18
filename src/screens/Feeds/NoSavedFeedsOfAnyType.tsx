@@ -42,8 +42,8 @@ export function NoSavedFeedsOfAnyType({
       <Text
         style={[a.leading_snug, t.atoms.text_contrast_medium, {maxWidth: 310}]}>
         <Trans>
-          Looks like you haven't saved any feeds! Use our recommendations or
-          browse more below.
+          Looks like you haven't saved any feeds! Use our recommendations to get
+          started.
         </Trans>
       </Text>
 

@@ -702,7 +702,6 @@ export type Events = {
     setName: boolean
     setDescription: boolean
     profilesCount: number
-    feedsCount: number
   }
   'starterPack:convertToList': {
     starterPack: string

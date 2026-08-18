@@ -1,50 +1,36 @@
 import {useCallback, useMemo, useRef, useState} from 'react'
-import {ActivityIndicator, StyleSheet, View} from 'react-native'
+import {StyleSheet, View} from 'react-native'
 import {msg} from '@lingui/core/macro'
 import {useLingui} from '@lingui/react'
 import {Trans} from '@lingui/react/macro'
-import debounce from 'lodash.debounce'
 
 import {useOpenComposer} from '#/lib/hooks/useOpenComposer'
 import {usePalette} from '#/lib/hooks/usePalette'
-import {useWebMediaQueries} from '#/lib/hooks/useWebMediaQueries'
 import {
   type CommonNavigatorParams,
   type NativeStackScreenProps,
 } from '#/lib/routes/types'
 import {cleanError} from '#/lib/strings/errors'
-import {s} from '#/lib/styles'
-import {
-  type SavedFeedItem,
-  useGetPopularFeedsQuery,
-  useSavedFeeds,
-  useSearchPopularFeedsMutation,
-} from '#/state/queries/feed'
-import {useSession} from '#/state/session'
+import {type SavedFeedItem, useSavedFeeds} from '#/state/queries/feed'
 import {ErrorMessage} from '#/view/com/util/error/ErrorMessage'
 import {FAB} from '#/view/com/util/fab/FAB'
 import {List, type ListMethods} from '#/view/com/util/List'
-import {FeedFeedLoadingPlaceholder} from '#/view/com/util/LoadingPlaceholder'
 import {Text} from '#/view/com/util/text/Text'
 import {NoFollowingFeed} from '#/screens/Feeds/NoFollowingFeed'
 import {NoSavedFeedsOfAnyType} from '#/screens/Feeds/NoSavedFeedsOfAnyType'
 import {atoms as a, useTheme} from '#/alf'
 import {ButtonIcon} from '#/components/Button'
-import {Divider} from '#/components/Divider'
 import * as FeedCard from '#/components/FeedCard'
-import {SearchInput} from '#/components/forms/SearchInput'
 import {IconCircle} from '#/components/IconCircle'
 import {ChevronRight_Stroke2_Corner0_Rounded as ChevronRight} from '#/components/icons/Chevron'
 import {EditBig_Stroke2_Corner2_Rounded as EditBigIcon} from '#/components/icons/EditBig'
 import {FilterTimeline_Stroke2_Corner0_Rounded as FilterTimeline} from '#/components/icons/FilterTimeline'
-import {ListMagnifyingGlass_Stroke2_Corner0_Rounded} from '#/components/icons/ListMagnifyingGlass'
 import {ListSparkle_Stroke2_Corner0_Rounded} from '#/components/icons/ListSparkle'
 import {SettingsGear2_Stroke2_Corner0_Rounded as Gear} from '#/components/icons/SettingsGear2'
 import * as Layout from '#/components/Layout'
 import {Link} from '#/components/Link'
 import * as ListCard from '#/components/ListCard'
-import {IS_NATIVE, IS_WEB} from '#/env'
-import {type app} from '#/lexicons'
+import {IS_WEB} from '#/env'
 
 type Props = NativeStackScreenProps<CommonNavigatorParams, 'Feeds'>
 
@@ -76,38 +62,20 @@ type FlatlistSlice =
       key: string
     }
   | {
-      type: 'popularFeedsHeader'
-      key: string
-    }
-  | {
-      type: 'popularFeedsLoading'
-      key: string
-    }
-  | {
-      type: 'popularFeedsNoResults'
-      key: string
-    }
-  | {
-      type: 'popularFeed'
-      key: string
-      feedUri: string
-      feed: app.bsky.feed.defs.GeneratorView
-    }
-  | {
-      type: 'popularFeedsLoadingMore'
-      key: string
-    }
-  | {
       type: 'noFollowingFeed'
       key: string
     }
 
+/**
+ * `requireAuth: true` on this route (`Navigation.tsx`) - the only content
+ * this screen ever showed a logged-out visitor was the third-party feed
+ * discovery/search section, removed along with the rest of the generic
+ * custom-feeds system. Nothing left to show without a session.
+ */
 export function FeedsScreen(_props: Props) {
   const pal = usePalette('default')
   const t = useTheme()
   const {openComposer} = useOpenComposer()
-  const {isMobile} = useWebMediaQueries()
-  const [query, setQuery] = useState('')
   const [isPTR, setIsPTR] = useState(false)
   const {
     data: savedFeeds,
@@ -115,301 +83,108 @@ export function FeedsScreen(_props: Props) {
     error: savedFeedsError,
     refetch: refetchSavedFeeds,
   } = useSavedFeeds()
-  const {
-    data: popularFeeds,
-    isFetching: isPopularFeedsFetching,
-    error: popularFeedsError,
-    refetch: refetchPopularFeeds,
-    fetchNextPage: fetchNextPopularFeedsPage,
-    isFetchingNextPage: isPopularFeedsFetchingNextPage,
-    hasNextPage: hasNextPopularFeedsPage,
-  } = useGetPopularFeedsQuery()
   const {_} = useLingui()
-  const {
-    data: searchResults,
-    mutate: search,
-    reset: resetSearch,
-    isPending: isSearchPending,
-    error: searchError,
-  } = useSearchPopularFeedsMutation()
-  const {hasSession} = useSession()
   const listRef = useRef<ListMethods>(null)
 
-  /**
-   * A search query is present. We may not have search results yet.
-   */
-  const isUserSearching = query.length > 1
-  const debouncedSearch = useMemo(
-    () => debounce(q => search(q), 500), // debounce for 500ms
-    [search],
-  )
   const onPressCompose = useCallback(() => {
     openComposer({logContext: 'Fab'})
   }, [openComposer])
-  const onChangeQuery = useCallback(
-    (text: string) => {
-      setQuery(text)
-      if (text.length > 1) {
-        debouncedSearch(text)
-      } else {
-        refetchPopularFeeds()
-        resetSearch()
-      }
-    },
-    [setQuery, refetchPopularFeeds, debouncedSearch, resetSearch],
-  )
-  const onPressCancelSearch = useCallback(() => {
-    setQuery('')
-    refetchPopularFeeds()
-    resetSearch()
-  }, [refetchPopularFeeds, setQuery, resetSearch])
-  const onSubmitQuery = useCallback(() => {
-    debouncedSearch(query)
-  }, [query, debouncedSearch])
   const onPullToRefresh = useCallback(async () => {
     setIsPTR(true)
-    await Promise.all([
-      refetchSavedFeeds().catch(_e => undefined),
-      refetchPopularFeeds().catch(_e => undefined),
-    ])
+    await refetchSavedFeeds().catch(_e => undefined)
     setIsPTR(false)
-  }, [setIsPTR, refetchSavedFeeds, refetchPopularFeeds])
-  const onEndReached = useCallback(() => {
-    if (
-      isPopularFeedsFetching ||
-      isUserSearching ||
-      !hasNextPopularFeedsPage ||
-      popularFeedsError
-    )
-      return
-    fetchNextPopularFeedsPage()
-  }, [
-    isPopularFeedsFetching,
-    isUserSearching,
-    popularFeedsError,
-    hasNextPopularFeedsPage,
-    fetchNextPopularFeedsPage,
-  ])
+  }, [setIsPTR, refetchSavedFeeds])
 
   const items = useMemo(() => {
     let slices: FlatlistSlice[] = []
-    const hasActualSavedCount =
-      !isSavedFeedsPlaceholder ||
-      (isSavedFeedsPlaceholder && (savedFeeds?.count || 0) > 0)
-    const canShowDiscoverSection =
-      !hasSession || (hasSession && hasActualSavedCount)
 
-    if (hasSession) {
+    slices.push({
+      key: 'savedFeedsHeader',
+      type: 'savedFeedsHeader',
+    })
+
+    if (savedFeedsError) {
       slices.push({
-        key: 'savedFeedsHeader',
-        type: 'savedFeedsHeader',
+        key: 'savedFeedsError',
+        type: 'error',
+        error: cleanError(savedFeedsError.toString()),
       })
-
-      if (savedFeedsError) {
-        slices.push({
-          key: 'savedFeedsError',
-          type: 'error',
-          error: cleanError(savedFeedsError.toString()),
-        })
-      } else {
-        if (isSavedFeedsPlaceholder && !savedFeeds?.feeds.length) {
-          /*
-           * Initial render in placeholder state is 0 on a cold page load,
-           * because preferences haven't loaded yet.
-           *
-           * In practice, `savedFeeds` is always defined, but we check for TS
-           * and for safety.
-           *
-           * In both cases, we show 4 as the the loading state.
-           */
-          const min = 8
-          const count = savedFeeds
-            ? savedFeeds.count === 0
-              ? min
-              : savedFeeds.count
-            : min
-          Array(count)
-            .fill(0)
-            .forEach((_, i) => {
-              slices.push({
-                key: 'savedFeedPlaceholder' + i,
-                type: 'savedFeedPlaceholder',
-              })
-            })
-        } else {
-          if (savedFeeds?.feeds?.length) {
-            const noFollowingFeed = savedFeeds.feeds.every(
-              f => f.type !== 'timeline',
-            )
-
-            slices = slices.concat(
-              savedFeeds.feeds
-                .filter(s => {
-                  return s.config.pinned
-                })
-                .map(s => ({
-                  key: `savedFeed:${s.view?.uri}:${s.config.id}`,
-                  type: 'savedFeed',
-                  savedFeed: s,
-                })),
-            )
-            slices = slices.concat(
-              savedFeeds.feeds
-                .filter(s => {
-                  return !s.config.pinned
-                })
-                .map(s => ({
-                  key: `savedFeed:${s.view?.uri}:${s.config.id}`,
-                  type: 'savedFeed',
-                  savedFeed: s,
-                })),
-            )
-
-            if (noFollowingFeed) {
-              slices.push({
-                key: 'noFollowingFeed',
-                type: 'noFollowingFeed',
-              })
-            }
-          } else {
+    } else {
+      if (isSavedFeedsPlaceholder && !savedFeeds?.feeds.length) {
+        /*
+         * Initial render in placeholder state is 0 on a cold page load,
+         * because preferences haven't loaded yet.
+         *
+         * In practice, `savedFeeds` is always defined, but we check for TS
+         * and for safety.
+         *
+         * In both cases, we show 4 as the the loading state.
+         */
+        const min = 8
+        const count = savedFeeds
+          ? savedFeeds.count === 0
+            ? min
+            : savedFeeds.count
+          : min
+        Array(count)
+          .fill(0)
+          .forEach((_, i) => {
             slices.push({
-              key: 'savedFeedNoResults',
-              type: 'savedFeedNoResults',
+              key: 'savedFeedPlaceholder' + i,
+              type: 'savedFeedPlaceholder',
             })
-          }
-        }
-      }
-    }
-
-    if (!hasSession || (hasSession && canShowDiscoverSection)) {
-      slices.push({
-        key: 'popularFeedsHeader',
-        type: 'popularFeedsHeader',
-      })
-
-      if (popularFeedsError || searchError) {
-        slices.push({
-          key: 'popularFeedsError',
-          type: 'error',
-          error: cleanError(
-            popularFeedsError?.toString() ?? searchError?.toString() ?? '',
-          ),
-        })
+          })
       } else {
-        if (isUserSearching) {
-          if (isSearchPending || !searchResults) {
-            slices.push({
-              key: 'popularFeedsLoading',
-              type: 'popularFeedsLoading',
-            })
-          } else {
-            if (!searchResults || searchResults?.length === 0) {
-              slices.push({
-                key: 'popularFeedsNoResults',
-                type: 'popularFeedsNoResults',
+        if (savedFeeds?.feeds?.length) {
+          const noFollowingFeed = savedFeeds.feeds.every(
+            f => f.type !== 'timeline',
+          )
+
+          slices = slices.concat(
+            savedFeeds.feeds
+              .filter(s => {
+                return s.config.pinned
               })
-            } else {
-              slices = slices.concat(
-                searchResults.map(feed => ({
-                  key: `popularFeed:${feed.uri}`,
-                  type: 'popularFeed',
-                  feedUri: feed.uri,
-                  feed,
-                })),
-              )
-            }
+              .map(s => ({
+                key: `savedFeed:${s.view?.uri}:${s.config.id}`,
+                type: 'savedFeed',
+                savedFeed: s,
+              })),
+          )
+          slices = slices.concat(
+            savedFeeds.feeds
+              .filter(s => {
+                return !s.config.pinned
+              })
+              .map(s => ({
+                key: `savedFeed:${s.view?.uri}:${s.config.id}`,
+                type: 'savedFeed',
+                savedFeed: s,
+              })),
+          )
+
+          if (noFollowingFeed) {
+            slices.push({
+              key: 'noFollowingFeed',
+              type: 'noFollowingFeed',
+            })
           }
         } else {
-          if (isPopularFeedsFetching && !popularFeeds?.pages) {
-            slices.push({
-              key: 'popularFeedsLoading',
-              type: 'popularFeedsLoading',
-            })
-          } else {
-            if (!popularFeeds?.pages) {
-              slices.push({
-                key: 'popularFeedsNoResults',
-                type: 'popularFeedsNoResults',
-              })
-            } else {
-              for (const page of popularFeeds.pages || []) {
-                slices = slices.concat(
-                  page.feeds.map(feed => ({
-                    key: `popularFeed:${feed.uri}`,
-                    type: 'popularFeed',
-                    feedUri: feed.uri,
-                    feed,
-                  })),
-                )
-              }
-
-              if (isPopularFeedsFetchingNextPage) {
-                slices.push({
-                  key: 'popularFeedsLoadingMore',
-                  type: 'popularFeedsLoadingMore',
-                })
-              }
-            }
-          }
+          slices.push({
+            key: 'savedFeedNoResults',
+            type: 'savedFeedNoResults',
+          })
         }
       }
     }
 
     return slices
-  }, [
-    hasSession,
-    savedFeeds,
-    isSavedFeedsPlaceholder,
-    savedFeedsError,
-    popularFeeds,
-    isPopularFeedsFetching,
-    popularFeedsError,
-    isPopularFeedsFetchingNextPage,
-    searchResults,
-    isSearchPending,
-    searchError,
-    isUserSearching,
-  ])
-
-  const searchBarIndex = items.findIndex(
-    item => item.type === 'popularFeedsHeader',
-  )
-
-  const onChangeSearchFocus = useCallback(
-    (focus: boolean) => {
-      if (focus && searchBarIndex > -1) {
-        if (IS_NATIVE) {
-          // scrollToIndex scrolls the exact right amount, so use if available
-          listRef.current?.scrollToIndex({
-            index: searchBarIndex,
-            animated: true,
-          })
-        } else {
-          // web implementation only supports scrollToOffset
-          // thus, we calculate the offset based on the index
-          // pixel values are estimates, I wasn't able to get it pixel perfect :(
-          const headerHeight = isMobile ? 43 : 53
-          const feedItemHeight = isMobile ? 49 : 58
-          listRef.current?.scrollToOffset({
-            offset: searchBarIndex * feedItemHeight - headerHeight,
-            animated: true,
-          })
-        }
-      }
-    },
-    [searchBarIndex, isMobile],
-  )
+  }, [savedFeeds, isSavedFeedsPlaceholder, savedFeedsError])
 
   const renderItem = useCallback(
     ({item}: {item: FlatlistSlice}) => {
       if (item.type === 'error') {
         return <ErrorMessage message={item.error} />
-      } else if (item.type === 'popularFeedsLoadingMore') {
-        return (
-          <View style={s.p10}>
-            <ActivityIndicator size="large" />
-          </View>
-        )
       } else if (item.type === 'savedFeedsHeader') {
         return <FeedsSavedHeader />
       } else if (item.type === 'savedFeedNoResults') {
@@ -428,45 +203,6 @@ export function FeedsScreen(_props: Props) {
         return <SavedFeedPlaceholder />
       } else if (item.type === 'savedFeed') {
         return <FeedOrFollowing savedFeed={item.savedFeed} />
-      } else if (item.type === 'popularFeedsHeader') {
-        return (
-          <>
-            <FeedsAboutHeader />
-            <View style={{paddingHorizontal: 12, paddingBottom: 4}}>
-              <SearchInput
-                placeholder={_(msg`Search feeds`)}
-                value={query}
-                onChangeText={onChangeQuery}
-                onClearText={onPressCancelSearch}
-                onSubmitEditing={onSubmitQuery}
-                onFocus={() => onChangeSearchFocus(true)}
-                onBlur={() => onChangeSearchFocus(false)}
-              />
-            </View>
-          </>
-        )
-      } else if (item.type === 'popularFeedsLoading') {
-        return <FeedFeedLoadingPlaceholder />
-      } else if (item.type === 'popularFeed') {
-        return (
-          <View style={[a.px_lg, a.pt_lg, a.gap_lg]}>
-            <FeedCard.Default view={item.feed} />
-            <Divider />
-          </View>
-        )
-      } else if (item.type === 'popularFeedsNoResults') {
-        return (
-          <View
-            style={{
-              paddingHorizontal: 16,
-              paddingTop: 10,
-              paddingBottom: '150%',
-            }}>
-            <Text type="lg" style={pal.textLight}>
-              <Trans>No results found for "{query}"</Trans>
-            </Text>
-          </View>
-        )
       } else if (item.type === 'noFollowingFeed') {
         return (
           <View
@@ -482,16 +218,7 @@ export function FeedsScreen(_props: Props) {
       }
       return null
     },
-    [
-      _,
-      pal.border,
-      pal.textLight,
-      query,
-      onChangeQuery,
-      onPressCancelSearch,
-      onSubmitQuery,
-      onChangeSearchFocus,
-    ],
+    [pal.border],
   )
 
   return (
@@ -526,9 +253,8 @@ export function FeedsScreen(_props: Props) {
           contentContainerStyle={styles.contentContainer}
           renderItem={renderItem}
           refreshing={isPTR}
-          onRefresh={isUserSearching ? undefined : onPullToRefresh}
+          onRefresh={onPullToRefresh}
           initialNumToRender={10}
-          onEndReached={onEndReached}
           desktopFixedHeight
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
@@ -536,16 +262,14 @@ export function FeedsScreen(_props: Props) {
         />
       </Layout.Center>
 
-      {hasSession && (
-        <FAB
-          testID="composeFAB"
-          onPress={onPressCompose}
-          icon={<EditBigIcon size="lg" fill={t.palette.white} />}
-          accessibilityRole="button"
-          accessibilityLabel={_(msg`New post`)}
-          accessibilityHint=""
-        />
-      )}
+      <FAB
+        testID="composeFAB"
+        onPress={onPressCompose}
+        icon={<EditBigIcon size="lg" fill={t.palette.white} />}
+        accessibilityRole="button"
+        accessibilityLabel={_(msg`New post`)}
+        accessibilityHint=""
+      />
     </Layout.Screen>
   )
 }
@@ -553,6 +277,8 @@ export function FeedsScreen(_props: Props) {
 function FeedOrFollowing({savedFeed}: {savedFeed: SavedFeedItem}) {
   return savedFeed.type === 'timeline' ? (
     <FollowingFeed />
+  ) : savedFeed.type === 'discover' ? (
+    <DiscoverFeed />
   ) : (
     <SavedFeed savedFeed={savedFeed} />
   )
@@ -594,6 +320,48 @@ function FollowingFeed() {
         </View>
         <FeedCard.TitleAndByline
           title={_(msg({message: 'Following', context: 'feed-name'}))}
+        />
+      </FeedCard.Header>
+    </View>
+  )
+}
+
+function DiscoverFeed() {
+  const t = useTheme()
+  const {_} = useLingui()
+  return (
+    <View
+      style={[
+        a.flex_1,
+        a.px_lg,
+        a.py_md,
+        a.border_b,
+        t.atoms.border_contrast_low,
+      ]}>
+      <FeedCard.Header>
+        <View
+          style={[
+            a.align_center,
+            a.justify_center,
+            {
+              width: 28,
+              height: 28,
+              borderRadius: 3,
+              backgroundColor: t.palette.primary_500,
+            },
+          ]}>
+          <ListSparkle_Stroke2_Corner0_Rounded
+            style={[
+              {
+                width: 18,
+                height: 18,
+              },
+            ]}
+            fill={t.palette.white}
+          />
+        </View>
+        <FeedCard.TitleAndByline
+          title={_(msg({message: 'Discover', context: 'feed-name'}))}
         />
       </FeedCard.Header>
     </View>
@@ -698,35 +466,6 @@ function FeedsSavedHeader() {
         </Text>
         <Text style={[t.atoms.text_contrast_high]}>
           <Trans>All the feeds you've saved, right in one place.</Trans>
-        </Text>
-      </View>
-    </View>
-  )
-}
-
-function FeedsAboutHeader() {
-  const t = useTheme()
-
-  return (
-    <View
-      style={
-        IS_WEB
-          ? [a.flex_row, a.px_md, a.pt_lg, a.pb_lg, a.gap_md]
-          : [{flexDirection: 'row-reverse'}, a.p_lg, a.gap_md]
-      }>
-      <IconCircle
-        icon={ListMagnifyingGlass_Stroke2_Corner0_Rounded}
-        size="lg"
-      />
-      <View style={[a.flex_1, a.gap_sm]}>
-        <Text style={[a.flex_1, a.text_2xl, a.font_bold, t.atoms.text]}>
-          <Trans>Discover New Feeds</Trans>
-        </Text>
-        <Text style={[t.atoms.text_contrast_high]}>
-          <Trans>
-            Choose your own timeline! Feeds built by the community help you find
-            content you love.
-          </Trans>
         </Text>
       </View>
     </View>

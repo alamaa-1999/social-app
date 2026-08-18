@@ -24,7 +24,6 @@ import {
 import {type LabelPreference} from '@bsky/sdk/moderation'
 import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query'
 
-import {DISCOVER_FEED_URI} from '#/lib/constants'
 import {replaceEqualDeep} from '#/lib/functions'
 import {getAge} from '#/lib/strings/time'
 import {GCTIME, STALE} from '#/state/queries'
@@ -314,45 +313,6 @@ export function useRemoveFeedMutation() {
   return useMutation<void, unknown, Pick<app.bsky.actor.defs.SavedFeed, 'id'>>({
     mutationFn: async savedFeed => {
       await client.call(removeSavedFeeds, [savedFeed.id])
-      // triggers a refetch
-      await queryClient.invalidateQueries({
-        queryKey: preferencesQueryKey,
-      })
-    },
-  })
-}
-
-export function useReplaceForYouWithDiscoverFeedMutation() {
-  const queryClient = useQueryClient()
-  const client = usePdsClient()
-
-  return useMutation({
-    mutationFn: async ({
-      forYouFeedConfig,
-      discoverFeedConfig,
-    }: {
-      forYouFeedConfig: app.bsky.actor.defs.SavedFeed | undefined
-      discoverFeedConfig: app.bsky.actor.defs.SavedFeed | undefined
-    }) => {
-      if (forYouFeedConfig) {
-        await client.call(removeSavedFeeds, [forYouFeedConfig.id])
-      }
-      if (!discoverFeedConfig) {
-        await client.call(addSavedFeeds, [
-          {
-            type: 'feed',
-            value: DISCOVER_FEED_URI,
-            pinned: true,
-          },
-        ])
-      } else {
-        await client.call(updateSavedFeeds, [
-          {
-            ...discoverFeedConfig,
-            pinned: true,
-          },
-        ])
-      }
       // triggers a refetch
       await queryClient.invalidateQueries({
         queryKey: preferencesQueryKey,

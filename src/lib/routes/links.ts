@@ -17,18 +17,6 @@ export function makeProfileLink(
   return [`/profile`, handleSegment, ...segments].join('/')
 }
 
-export function makeCustomFeedLink(
-  did: string,
-  rkey: string,
-  segment?: string,
-  feedCacheKey?: 'discover' | 'explore',
-) {
-  return (
-    [`/profile`, did, 'feed', rkey, ...(segment ? [segment] : [])].join('/') +
-    (feedCacheKey ? `?feedCacheKey=${encodeURIComponent(feedCacheKey)}` : '')
-  )
-}
-
 export function makeListLink(did: string, rkey: string, ...segments: string[]) {
   return [`/profile`, did, 'lists', rkey, ...segments].join('/')
 }

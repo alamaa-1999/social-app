@@ -16,7 +16,6 @@ import {useIsFetching} from '@tanstack/react-query'
 
 import {RQKEY_ROOT as STARTERPACK_RQKEY_ROOT} from '#/state/queries/actor-starter-packs'
 import {RQKEY_ROOT as FEED_RQKEY_ROOT} from '#/state/queries/post-feed'
-import {RQKEY_ROOT as FEEDGEN_RQKEY_ROOT} from '#/state/queries/profile-feedgens'
 import {RQKEY_ROOT as LIST_RQKEY_ROOT} from '#/state/queries/profile-lists'
 import {usePagerHeaderContext} from '#/view/com/pager/PagerHeaderContext'
 import {atoms as a} from '#/alf'
@@ -204,7 +203,6 @@ function useIsProfileFetching() {
   // are any of the profile-related queries fetching?
   return [
     useIsFetching({queryKey: [FEED_RQKEY_ROOT]}),
-    useIsFetching({queryKey: [FEEDGEN_RQKEY_ROOT]}),
     useIsFetching({queryKey: [LIST_RQKEY_ROOT]}),
     useIsFetching({queryKey: [STARTERPACK_RQKEY_ROOT]}),
   ].some(isFetching => isFetching)

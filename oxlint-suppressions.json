@@ -1160,11 +1160,6 @@
       "count": 1
     }
   },
-  "src/screens/StarterPack/Wizard/StepFeeds.tsx": {
-    "typescript/no-misused-promises": {
-      "count": 1
-    }
-  },
   "src/screens/StarterPack/Wizard/index.tsx": {
     "typescript/no-floating-promises": {
       "count": 2
@@ -1694,9 +1689,6 @@
     }
   },
   "src/view/screens/Feeds.tsx": {
-    "typescript/no-floating-promises": {
-      "count": 3
-    },
     "typescript/no-misused-promises": {
       "count": 1
     },

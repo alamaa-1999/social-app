@@ -177,21 +177,20 @@ export function FeedSourceCardLoaded({
     </>
   )
 
-  if (link) {
+  /*
+   * Feed generators have no page to navigate to (the `CustomFeed` route was
+   * removed along with the rest of the generic custom-feeds system) - only
+   * a List still has somewhere to go.
+   */
+  if (link && feed.type === 'list') {
     return (
       <Link
         testID={`feed-${feed.displayName}`}
-        label={
-          feed.type === 'feed'
-            ? _(
-                msg`${feed.displayName}, a feed by ${sanitizeHandle(feed.creatorHandle, '@')}, liked by ${feed.likeCount || 0}`,
-              )
-            : _(
-                msg`${feed.displayName}, a list by ${sanitizeHandle(feed.creatorHandle, '@')}`,
-              )
-        }
+        label={_(
+          msg`${feed.displayName}, a list by ${sanitizeHandle(feed.creatorHandle, '@')}`,
+        )}
         to={{
-          screen: feed.type === 'feed' ? 'CustomFeed' : 'ProfileList',
+          screen: 'ProfileList',
           params: {name: feed.creatorDid, rkey: new AtUri(feed.uri).rkey},
         }}
         style={[

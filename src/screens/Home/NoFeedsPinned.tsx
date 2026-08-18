@@ -12,9 +12,7 @@ import {CenteredView} from '#/view/com/util/Views'
 import {atoms as a} from '#/alf'
 import {Button, ButtonIcon, ButtonText} from '#/components/Button'
 import {useHeaderOffset} from '#/components/hooks/useHeaderOffset'
-import {ListSparkle_Stroke2_Corner0_Rounded as ListSparkle} from '#/components/icons/ListSparkle'
 import {PlusLarge_Stroke2_Corner0_Rounded as Plus} from '#/components/icons/Plus'
-import {Link} from '#/components/Link'
 import {Text} from '#/components/Typography'
 
 export function NoFeedsPinned({
@@ -99,16 +97,6 @@ export function NoFeedsPinned({
             <ButtonIcon icon={Plus} position="left" />
             <ButtonText>{_(msg`Add recommended feeds`)}</ButtonText>
           </Button>
-
-          <Link
-            label={_(msg`Browse other feeds`)}
-            to="/feeds"
-            size="large"
-            variant="solid"
-            color="secondary">
-            <ButtonIcon icon={ListSparkle} position="left" />
-            <ButtonText>{_(msg`Browse other feeds`)}</ButtonText>
-          </Link>
         </View>
       </View>
     </CenteredView>

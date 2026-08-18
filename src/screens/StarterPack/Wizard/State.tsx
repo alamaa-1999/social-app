@@ -6,7 +6,7 @@ import * as Toast from '#/components/Toast'
 import {app} from '#/lexicons'
 import * as bsky from '#/types/bsky'
 
-const steps = ['Details', 'Profiles', 'Feeds'] as const
+const steps = ['Details', 'Profiles'] as const
 type Step = (typeof steps)[number]
 
 type Action =
@@ -17,8 +17,6 @@ type Action =
   | {type: 'SetDescription'; description: string}
   | {type: 'AddProfile'; profile: bsky.profile.AnyProfileView}
   | {type: 'RemoveProfile'; profileDid: string}
-  | {type: 'AddFeed'; feed: app.bsky.feed.defs.GeneratorView}
-  | {type: 'RemoveFeed'; feedUri: string}
   | {type: 'SetProcessing'; processing: boolean}
   | {type: 'SetError'; error: string}
 
@@ -28,7 +26,6 @@ interface State {
   name?: string
   description?: string
   profiles: bsky.profile.AnyProfileView[]
-  feeds: app.bsky.feed.defs.GeneratorView[]
   processing: boolean
   error?: string
   transitionDirection: 'Backward' | 'Forward'
@@ -49,7 +46,7 @@ function reducer(state: State, action: Action): State {
 
   // -- Navigation
   const currentIndex = steps.indexOf(state.currentStep)
-  if (action.type === 'Next' && state.currentStep !== 'Feeds') {
+  if (action.type === 'Next' && state.currentStep !== 'Profiles') {
     updatedState = {
       ...state,
       currentStep: steps[currentIndex + 1],
@@ -92,21 +89,6 @@ function reducer(state: State, action: Action): State {
         ),
       }
       break
-    case 'AddFeed':
-      if (state.feeds.length >= 3) {
-        Toast.show(msg`You may only add up to 3 feeds`.message ?? '', {
-          type: 'info',
-        })
-      } else {
-        updatedState = {...state, feeds: [...state.feeds, action.feed]}
-      }
-      break
-    case 'RemoveFeed':
-      updatedState = {
-        ...state,
-        feeds: state.feeds.filter(f => f.uri !== action.feedUri),
-      }
-      break
     case 'SetProcessing':
       updatedState = {...state, processing: action.processing}
       break
@@ -139,7 +121,6 @@ export function Provider({
         name: starterPack.record.name,
         description: starterPack.record.description,
         profiles: listItems?.map(i => i.subject) ?? [],
-        feeds: starterPack.feeds ?? [],
         processing: false,
         transitionDirection: 'Forward',
         targetDid,
@@ -150,7 +131,6 @@ export function Provider({
       canNext: true,
       currentStep: 'Details',
       profiles: [targetProfile],
-      feeds: [],
       processing: false,
       transitionDirection: 'Forward',
       targetDid,

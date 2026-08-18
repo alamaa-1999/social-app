@@ -30,7 +30,6 @@ import {resetProfilePostsQueries} from '#/state/queries/post-feed'
 import {useProfileQuery} from '#/state/queries/profile'
 import {useResolveDidQuery} from '#/state/queries/resolve-uri'
 import {useAppviewClient, useSession} from '#/state/session'
-import {ProfileFeedgens} from '#/view/com/feeds/ProfileFeedgens'
 import {ProfileLists} from '#/view/com/lists/ProfileLists'
 import {PagerWithHeader} from '#/view/com/pager/PagerWithHeader'
 import {type PostFeedRef} from '#/view/com/posts/PostFeed'
@@ -195,7 +194,6 @@ function ProfileScreenLoaded({
   const mediaSectionRef = useRef<SectionRef>(null)
   const videosSectionRef = useRef<SectionRef>(null)
   const likesSectionRef = useRef<SectionRef>(null)
-  const feedsSectionRef = useRef<SectionRef>(null)
   const listsSectionRef = useRef<SectionRef>(null)
   const starterPacksSectionRef = useRef<SectionRef>(null)
   const labelsSectionRef = useRef<SectionRef>(null)
@@ -219,8 +217,6 @@ function ProfileScreenLoaded({
   const showMediaTab = !hasLabeler
   const showVideosTab = !hasLabeler
   const showLikesTab = isMe
-  const feedGenCount = profile.associated?.feedgens || 0
-  const showFeedsTab = isMe || feedGenCount > 0
   const starterPackCount = profile.associated?.starterPacks || 0
   const showStarterPacksTab = isMe || starterPackCount > 0
   // subtract starterpack count from list count, since starterpacks are a type of list
@@ -235,7 +231,6 @@ function ProfileScreenLoaded({
     showMediaTab ? _(msg`Media`) : undefined,
     showVideosTab ? _(msg`Videos`) : undefined,
     showLikesTab ? _(msg`Likes`) : undefined,
-    showFeedsTab ? _(msg`Feeds`) : undefined,
     showStarterPacksTab ? _(msg`Starter Packs`) : undefined,
     showListsTab && !hasLabeler ? _(msg`Lists`) : undefined,
   ].filter(Boolean) as string[]
@@ -247,7 +242,6 @@ function ProfileScreenLoaded({
   let mediaIndex: number | null = null
   let videosIndex: number | null = null
   let likesIndex: number | null = null
-  let feedsIndex: number | null = null
   let starterPacksIndex: number | null = null
   let listsIndex: number | null = null
   if (showFiltersTab) {
@@ -267,9 +261,6 @@ function ProfileScreenLoaded({
   }
   if (showLikesTab) {
     likesIndex = nextIndex++
-  }
-  if (showFeedsTab) {
-    feedsIndex = nextIndex++
   }
   if (showStarterPacksTab) {
     starterPacksIndex = nextIndex++
@@ -292,8 +283,6 @@ function ProfileScreenLoaded({
         videosSectionRef.current?.scrollToTop()
       } else if (index === likesIndex) {
         likesSectionRef.current?.scrollToTop()
-      } else if (index === feedsIndex) {
-        feedsSectionRef.current?.scrollToTop()
       } else if (index === starterPacksIndex) {
         starterPacksSectionRef.current?.scrollToTop()
       } else if (index === listsIndex) {
@@ -307,7 +296,6 @@ function ProfileScreenLoaded({
       mediaIndex,
       videosIndex,
       likesIndex,
-      feedsIndex,
       listsIndex,
       starterPacksIndex,
     ],
@@ -535,18 +523,6 @@ function ProfileScreenLoaded({
                 setScrollViewTag={setScrollViewTag}
                 emptyStateMessage={_(msg`No likes yet`)}
                 emptyStateIcon={HeartIcon}
-              />
-            )
-          : null}
-        {showFeedsTab
-          ? ({headerHeight, isFocused, scrollElRef}) => (
-              <ProfileFeedgens
-                ref={feedsSectionRef}
-                did={profile.did}
-                scrollElRef={scrollElRef as ListRef}
-                headerOffset={headerHeight}
-                enabled={isFocused}
-                setScrollViewTag={setScrollViewTag}
               />
             )
           : null}
