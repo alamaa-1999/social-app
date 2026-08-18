@@ -73,6 +73,12 @@ export function useSunnahskyProfiles() {
   })
 }
 
+// A 1-character query trivially substring-matches almost any handle or
+// display name (everyone's name contains "a" somewhere), which looks like
+// broken/random results rather than useful narrowing - require at least
+// this many characters before returning anything, standard for typeahead.
+const MIN_QUERY_LENGTH = 2
+
 /**
  * Pure, synchronous local search over an already-fetched Sunnahsky profile
  * list - matches `useAutocomplete()`/`actor-autocomplete.ts`'s existing
@@ -90,7 +96,7 @@ export function matchSunnahskyProfiles(
   if (q.endsWith('.')) {
     q = q.slice(0, -1)
   }
-  if (!q) return []
+  if (q.length < MIN_QUERY_LENGTH) return []
 
   const rank = (p: app.bsky.actor.defs.ProfileViewDetailed): number => {
     const handle = p.handle.toLowerCase()

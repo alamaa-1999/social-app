@@ -7,9 +7,11 @@ import {
 } from '@tanstack/react-query'
 
 import {STALE} from '#/state/queries'
-import {useSunnahskyDids} from '#/state/queries/sunnahsky-dids'
-import {useAppviewClient} from '#/state/session'
-import {app} from '#/lexicons'
+import {
+  matchSunnahskyProfiles,
+  useSunnahskyProfiles,
+} from '#/state/queries/sunnahsky-profiles'
+import {type app} from '#/lexicons'
 
 export const RQKEY_ROOT = 'actor-search'
 export const RQKEY = (query: string, limit?: number) => [
@@ -18,16 +20,27 @@ export const RQKEY = (query: string, limit?: number) => [
   limit,
 ]
 
+type SearchActorsPage = {actors: app.bsky.actor.defs.ProfileViewDetailed[]}
+
 /**
- * `app.bsky.actor.searchActors` has no author/DID-scoping param (unlike
- * `searchPostsV2`'s `authors` array) - it IS the actor search itself, so
- * there's nothing to inject. Every caller instead gets a non-removable
- * post-fetch filter against `useSunnahskyDids()` here, once, rather than
- * duplicated at each of this hook's several call sites (Phase E of
- * `close off external content plan.md`). Waits for the DID set to resolve
- * before firing at all - same race this project already fixed once for
- * Discover (see state/queries/post-feed.ts), where firing early with an
- * empty/undefined filter would have shown unfiltered results for one tick.
+ * Matches locally against `useSunnahskyProfiles()` (sunnahsky-profiles.ts)
+ * rather than fetching Bluesky's real `app.bsky.actor.searchActors`.
+ * Verified directly against the real AppView: `searchActors` is ranked the
+ * same way `searchActorsTypeahead` is (see sunnahsky-profiles.ts's own doc
+ * comment) - a genuine Sunnahsky match can be entirely absent from even a
+ * 100-result fetch for a plain query like "ABDULLAH", not just ranked low.
+ * Same fix as today's earlier account-typeahead rewrite, reusing the same
+ * primitive rather than inventing a second one.
+ *
+ * `query === '*'` is a wildcard convention one caller
+ * (StarterPack/Wizard/StepProfiles.tsx) relies on to mean "give me
+ * whatever Sunnahsky accounts you have, not a real search" - preserved
+ * here rather than treated as a literal (and useless) substring query.
+ *
+ * Still a `useInfiniteQuery` returning `InfiniteData` so every existing
+ * caller's `.pages.flatMap(...)` access pattern keeps working unchanged,
+ * even though local matching only ever produces one page - there's no
+ * more to paginate into, so `getNextPageParam` always returns `undefined`.
  */
 export function useActorSearch({
   query,
@@ -40,36 +53,36 @@ export function useActorSearch({
   maintainData?: boolean
   limit?: number
 }) {
-  const client = useAppviewClient()
-  const {data: sunnahskyDids} = useSunnahskyDids()
+  const {data: sunnahskyProfiles} = useSunnahskyProfiles()
   return useInfiniteQuery<
-    app.bsky.actor.searchActors.$OutputBody,
+    SearchActorsPage,
     Error,
-    InfiniteData<app.bsky.actor.searchActors.$OutputBody>,
+    InfiniteData<SearchActorsPage>,
     QueryKey,
     string | undefined
   >({
     staleTime: STALE.MINUTES.FIVE,
     queryKey: RQKEY(query, limit),
-    queryFn: async ({pageParam}) => {
-      return await client.call(app.bsky.actor.searchActors, {
-        q: query,
-        limit,
-        cursor: pageParam,
-      })
+    queryFn: () => {
+      const profiles = sunnahskyProfiles ?? []
+      const actors =
+        query === '*'
+          ? profiles.slice(0, limit)
+          : matchSunnahskyProfiles(profiles, query, limit)
+      return {actors}
     },
-    enabled: enabled && !!query && !!sunnahskyDids,
+    // `sunnahskyProfiles` gates `enabled` (see sunnahsky-profiles.ts and
+    // today's other fixes for why) so this never fires with an incomplete
+    // list and permanently caches an empty result for this query key.
+    enabled: enabled && !!query && !!sunnahskyProfiles,
     initialPageParam: undefined,
-    getNextPageParam: lastPage => lastPage.cursor,
+    getNextPageParam: () => undefined,
     placeholderData: maintainData ? keepPreviousData : undefined,
-    select: data => select(data, sunnahskyDids),
+    select,
   })
 }
 
-function select(
-  data: InfiniteData<app.bsky.actor.searchActors.$OutputBody>,
-  sunnahskyDids: Set<string> | undefined,
-) {
+function select(data: InfiniteData<SearchActorsPage>) {
   // enforce uniqueness
   const dids = new Set()
 
@@ -77,9 +90,6 @@ function select(
     ...data,
     pages: data.pages.map(page => ({
       actors: page.actors.filter(actor => {
-        if (!sunnahskyDids?.has(actor.did)) {
-          return false
-        }
         if (dids.has(actor.did)) {
           return false
         }
@@ -94,11 +104,11 @@ export function* findAllProfilesInQueryData(
   queryClient: QueryClient,
   did: string,
 ) {
-  const queryDatas = queryClient.getQueriesData<
-    InfiniteData<app.bsky.actor.searchActors.$OutputBody>
-  >({
-    queryKey: [RQKEY_ROOT],
-  })
+  const queryDatas = queryClient.getQueriesData<InfiniteData<SearchActorsPage>>(
+    {
+      queryKey: [RQKEY_ROOT],
+    },
+  )
   for (const [_queryKey, queryData] of queryDatas) {
     if (!queryData) {
       continue
