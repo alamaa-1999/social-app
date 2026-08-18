@@ -34,6 +34,15 @@ export function useActorAutocompleteQuery(
     prefix = prefix.slice(0, -1)
   }
 
+  /*
+   * Deliberately not gating `enabled` on `sunnahskyDids` here, unlike
+   * actor-search.ts - see the same note in
+   * components/Autocomplete/useAutocomplete/index.ts. searchActorsTypeahead
+   * has no author-scoping param, so sunnahskyDids only affects what
+   * computeSuggestions() is allowed to keep after the fetch, never the
+   * fetch itself. Waiting on it here would just make every keystroke slower
+   * for zero correctness gain.
+   */
   return useQuery<app.bsky.actor.defs.ProfileViewBasic[]>({
     staleTime: STALE.MINUTES.ONE,
     queryKey: RQKEY(prefix || ''),

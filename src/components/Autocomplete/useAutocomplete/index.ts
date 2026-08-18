@@ -38,6 +38,18 @@ export function useAutocomplete({
   const {data: sunnahskyDids} = useSunnahskyDids()
   const emojiSearch = useEmojiSearch()
 
+  /*
+   * Deliberately not gating `enabled` on `sunnahskyDids` here, unlike
+   * actor-search.ts. There it's a request-time parameter (spread directly
+   * into `authors`), so firing early would send a wrong/empty array.
+   * `searchActorsTypeahead` has no such param - there's nothing to scope
+   * server-side, which is why this filters client-side in `select` below
+   * instead. `sunnahskyDids` never affects what this fetch returns, only
+   * what's allowed to render from it - gating `enabled` on it would buy no
+   * correctness and would make every keystroke wait on an unrelated
+   * hourly-cached DID-list fetch on a cold load, a bad trade for a
+   * component whose whole job is to feel instant.
+   */
   const query = useQuery({
     staleTime: STALE.MINUTES.ONE,
     queryKey: [
