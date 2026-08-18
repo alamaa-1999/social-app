@@ -1,5 +1,5 @@
 import {useCallback, useMemo, useRef} from 'react'
-import {AtUri} from '@atproto/syntax'
+import {type AtIdentifierString, AtUri} from '@atproto/syntax'
 import {moderatePost} from '@bsky/sdk/moderation'
 import {
   type InfiniteData,
@@ -9,6 +9,7 @@ import {
 } from '@tanstack/react-query'
 
 import {useModerationOpts} from '#/state/preferences/moderation-opts'
+import {useSunnahskyDids} from '#/state/queries/sunnahsky-dids'
 import {useAppviewClient} from '#/state/session'
 import {type SearchFilters} from '#/screens/Search/searchParams'
 import {app} from '#/lexicons'
@@ -47,6 +48,7 @@ export function useSearchPostsV2Query({
 }) {
   const client = useAppviewClient()
   const moderationOpts = useModerationOpts()
+  const {data: sunnahskyDids} = useSunnahskyDids()
   const selectArgs = useMemo(
     () => ({
       isSearchingSpecificUser:
@@ -89,6 +91,24 @@ export function useSearchPostsV2Query({
       const finalQuery = appendFromMe(q, filters?.from === 'me')
       return await client.call(app.bsky.feed.searchPostsV2, {
         ...builtFilters,
+        /*
+         * Non-removable base filter (Phase E of
+         * `close off external content plan.md`): always overrides whatever
+         * `buildSearchPostsV2Filters` computed for `authors`, which unions a
+         * user-typed `from:` token (lifted out of the free-text query) with
+         * the advanced-search dialog's own Author field - either source
+         * alone could otherwise widen the search to a real Bluesky account
+         * outside Sunnahsky. Verified directly against the real AppView that
+         * inline `from:`/`author:` text has no server-side operator meaning
+         * of its own, so this array is the only thing that can restrict
+         * scope. `enabled` below guarantees this only fires once
+         * `sunnahskyDids` has resolved with at least one member - whether the
+         * server treats an explicitly empty `authors` array as "match
+         * nobody" or "no restriction" is unverified, so a zero-member set
+         * (accepted open risk, not expected in practice) also holds off
+         * rather than risk sending one.
+         */
+        authors: [...sunnahskyDids!] as AtIdentifierString[],
         query: finalQuery,
         limit: 25,
         cursor: pageParam,
@@ -102,7 +122,7 @@ export function useSearchPostsV2Query({
     },
     initialPageParam: undefined,
     getNextPageParam: lastPage => lastPage.cursor,
-    enabled: enabled ?? !!moderationOpts,
+    enabled: (enabled ?? !!moderationOpts) && (sunnahskyDids?.size ?? 0) > 0,
     select: useCallback(
       (data: InfiniteData<app.bsky.feed.searchPostsV2.$OutputBody>) => {
         const {moderationOpts, isSearchingSpecificUser} = selectArgs

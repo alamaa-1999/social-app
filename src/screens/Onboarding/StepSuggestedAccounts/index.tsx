@@ -74,9 +74,17 @@ export function StepSuggestedAccounts() {
     isRefetching,
     refetch,
   } = useSuggestedOnboardingUsers({
+    /*
+     * On the curated (English-speaker) path this reaches
+     * useSunnahskySuggestedUsers(), which deliberately ignores `category` -
+     * no topic/category personalization exists for Sunnahsky accounts (see
+     * that hook's own doc comment). The tab bar below still renders and
+     * responds to taps, but every tab shows the same list - the same
+     * accepted, deferred-topic-feeds trade-off as Explore's category tabs,
+     * not a bug specific to onboarding.
+     */
     category: selectedInterest || (useFullExperience ? null : interests[0]),
     search: !useFullExperience,
-    overrideInterests: state.interestsStepResults.selectedInterests,
   })
 
   const isError = !!error

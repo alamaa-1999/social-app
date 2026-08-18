@@ -4,17 +4,16 @@ import {Trans, useLingui} from '@lingui/react/macro'
 import {useQueryClient} from '@tanstack/react-query'
 import * as bcp47Match from 'bcp-47-match'
 
-import {popularInterests, useInterestsDisplayNames} from '#/lib/interests'
+import {useInterestsDisplayNames} from '#/lib/interests'
 import {cleanError} from '#/lib/strings/errors'
 import {useLanguagePrefs} from '#/state/preferences/languages'
 import {useModerationOpts} from '#/state/preferences/moderation-opts'
 import {RQKEY_ROOT as useActorSearchQueryKeyRoot} from '#/state/queries/actor-search'
 import {Nux, useNux} from '#/state/queries/nuxs'
-import {usePreferencesQuery} from '#/state/queries/preferences'
 import {
-  getSuggestedUsersForExploreQueryKeyRoot,
-  useGetSuggestedUsersForExploreQuery,
-} from '#/state/queries/trending/useGetSuggestedUsersForExploreQuery'
+  RQKEY_ROOT as sunnahskySuggestedUsersQueryKeyRoot,
+  useSunnahskySuggestedUsers,
+} from '#/state/queries/sunnahsky-suggested-users'
 import {List} from '#/view/com/util/List'
 import {ExploreInterestsCard} from '#/screens/Search/modules/ExploreInterestsCard'
 import {atoms as a, native, platform, useTheme} from '#/alf'
@@ -25,7 +24,6 @@ import {
   type Props as SVGIconProps,
 } from '#/components/icons/common'
 import {UserCircle_Stroke2_Corner0_Rounded as Person} from '#/components/icons/UserCircle'
-import {boostInterests} from '#/components/InterestTabs'
 import * as ProfileCard from '#/components/ProfileCard'
 import {Text} from '#/components/Typography'
 import {type Metrics, useAnalytics} from '#/analytics'
@@ -93,7 +91,6 @@ export function Explore({
   const ax = useAnalytics()
   const {t: l} = useLingui()
   const t = useTheme()
-  const {data: preferences} = usePreferencesQuery()
   const moderationOpts = useModerationOpts()
   const [selectedInterest, setSelectedInterest] = useState<string | null>(null)
 
@@ -105,19 +102,13 @@ export function Explore({
     if (contentLanguages.length === 0) return true
     return bcp47Match.basicFilter('en', contentLanguages).length > 0
   }, [contentLanguages])
-  const personalizedInterests = preferences?.interests?.tags
   const interestsDisplayNames = useInterestsDisplayNames()
-  const interests = Object.keys(interestsDisplayNames)
-    .sort(boostInterests(popularInterests))
-    .sort(boostInterests(personalizedInterests))
   const {
     data: suggestedUsers,
     isLoading: suggestedUsersIsLoading,
     error: suggestedUsersError,
     isRefetching: suggestedUsersIsRefetching,
-  } = useGetSuggestedUsersForExploreQuery({
-    category: selectedInterest || (useFullExperience ? null : interests[0]),
-  })
+  } = useSunnahskySuggestedUsers()
   /* End special language handling */
 
   const interestsNux = useNux(Nux.ExploreInterestsCard)
@@ -130,7 +121,7 @@ export function Explore({
     setIsPTR(true)
     await Promise.all([
       qc.resetQueries({
-        queryKey: [getSuggestedUsersForExploreQueryKeyRoot],
+        queryKey: [sunnahskySuggestedUsersQueryKeyRoot],
       }),
       qc.resetQueries({
         queryKey: [useActorSearchQueryKeyRoot],

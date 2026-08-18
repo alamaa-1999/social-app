@@ -20,7 +20,6 @@ import {
 } from '#/state/queries/preferences'
 import {type UsePreferencesQueryResponse} from '#/state/queries/preferences/types'
 import {createGetSuggestedUsersForDiscoverQueryKey} from '#/state/queries/trending/useGetSuggestedUsersForDiscoverQuery'
-import {createGetSuggestedUsersForExploreQueryKey} from '#/state/queries/trending/useGetSuggestedUsersForExploreQuery'
 import {createGetSuggestedUsersForSeeMoreQueryKey} from '#/state/queries/trending/useGetSuggestedUsersForSeeMoreQuery'
 import {usePdsClient} from '#/state/session'
 import {atoms as a, useGutters, useTheme} from '#/alf'
@@ -118,12 +117,14 @@ function Inner({
             return old
           },
         )
+        /*
+         * Explore's own suggested-accounts query isn't reset here -
+         * useSunnahskySuggestedUsers() doesn't depend on interests at all
+         * (see state/queries/sunnahsky-suggested-users.ts).
+         */
         await Promise.all([
           qc.resetQueries({
             queryKey: createGetSuggestedUsersForDiscoverQueryKey({}),
-          }),
-          qc.resetQueries({
-            queryKey: createGetSuggestedUsersForExploreQueryKey({}),
           }),
           qc.resetQueries({
             queryKey: createGetSuggestedUsersForSeeMoreQueryKey({}),

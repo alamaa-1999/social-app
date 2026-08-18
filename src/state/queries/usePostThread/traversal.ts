@@ -24,6 +24,7 @@ export function sortAndAnnotateThreadItems(
     moderationOpts,
     view,
     skipModerationHandling,
+    sunnahskyDids,
   }: {
     threadgateHiddenReplies: Set<string>
     moderationOpts: ModerationOpts
@@ -36,6 +37,16 @@ export function sortAndAnnotateThreadItems(
      * `threadItems` array.
      */
     skipModerationHandling?: boolean
+    /**
+     * Sunnahsky-hosted DIDs, used to filter replies (depth > 0) out of the
+     * output below - the anchor post (depth 0) and any parent chain walked
+     * upward from it (depth < 0) are untouched, since those are a separate,
+     * deliberately out-of-scope concern (Phase H of
+     * `close off external content plan.md`). `undefined` while
+     * `useSunnahskyDids()` is still loading hides all replies rather than
+     * flashing unfiltered ones first - Phase G of that plan.
+     */
+    sunnahskyDids: Set<string> | undefined
   },
 ) {
   const threadItems: ThreadItem[] = []
@@ -453,9 +464,22 @@ export function sortAndAnnotateThreadItems(
     }
   }
 
+  /*
+   * Filter foreign replies out of the final output. Depth 0 (the anchor) and
+   * depth < 0 (the parent chain walked upward, handled earlier above) are
+   * left untouched - see the `sunnahskyDids` param doc above. The numeric
+   * `replyCount` shown elsewhere is not recomputed from this filtered set -
+   * it stays the real AppView count, same reasoning as likes (resolved scope
+   * rule, Phase G).
+   */
+  const isSunnahskyReply = (item: ThreadItem) =>
+    item.type !== 'threadPost' ||
+    item.depth <= 0 ||
+    !!sunnahskyDids?.has(item.value.post.author.did)
+
   return {
-    threadItems,
-    otherThreadItems,
+    threadItems: threadItems.filter(isSunnahskyReply),
+    otherThreadItems: otherThreadItems.filter(isSunnahskyReply),
   }
 }
 

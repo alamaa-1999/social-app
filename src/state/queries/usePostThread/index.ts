@@ -4,6 +4,7 @@ import {useQuery, useQueryClient} from '@tanstack/react-query'
 
 import {useModerationOpts} from '#/state/preferences/moderation-opts'
 import {useThreadPreferences} from '#/state/queries/preferences/useThreadPreferences'
+import {useSunnahskyDids} from '#/state/queries/sunnahsky-dids'
 import {
   LINEAR_VIEW_BELOW,
   LINEAR_VIEW_BF,
@@ -44,6 +45,7 @@ export function usePostThread({anchor}: {anchor?: string}) {
   const {hasSession} = useSession()
   const {gtPhone} = useBreakpoints()
   const moderationOpts = useModerationOpts()
+  const {data: sunnahskyDids} = useSunnahskyDids()
   const mergeThreadgateHiddenReplies = useMergeThreadgateHiddenReplies()
   const {
     isLoaded: isThreadPreferencesLoaded,
@@ -200,6 +202,7 @@ export function usePostThread({anchor}: {anchor?: string}) {
             threadgate?.record,
           ),
           moderationOpts: moderationOpts!,
+          sunnahskyDids,
         },
       )
       return threadItems
@@ -213,6 +216,7 @@ export function usePostThread({anchor}: {anchor?: string}) {
     mergeThreadgateHiddenReplies,
     moderationOpts,
     threadgate?.record,
+    sunnahskyDids,
   ])
 
   /**
@@ -246,6 +250,7 @@ export function usePostThread({anchor}: {anchor?: string}) {
       view: view,
       threadgateHiddenReplies: mergeThreadgateHiddenReplies(threadgate?.record),
       moderationOpts: moderationOpts!,
+      sunnahskyDids,
     })
   }, [
     thread,
@@ -253,6 +258,7 @@ export function usePostThread({anchor}: {anchor?: string}) {
     mergeThreadgateHiddenReplies,
     moderationOpts,
     view,
+    sunnahskyDids,
   ])
 
   /*

@@ -389,8 +389,7 @@ let SearchScreenPostResults = ({
             </InlineLinkText>
             <Text> </Text>
             <Text style={t.atoms.text_contrast_medium}>
-              to search for news, sports, politics, and everything else
-              happening on Bluesky.
+              to search posts and accounts on Sunnahsky.
             </Text>
           </Trans>
         </Text>

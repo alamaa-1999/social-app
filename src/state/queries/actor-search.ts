@@ -7,6 +7,7 @@ import {
 } from '@tanstack/react-query'
 
 import {STALE} from '#/state/queries'
+import {useSunnahskyDids} from '#/state/queries/sunnahsky-dids'
 import {useAppviewClient} from '#/state/session'
 import {app} from '#/lexicons'
 
@@ -17,6 +18,17 @@ export const RQKEY = (query: string, limit?: number) => [
   limit,
 ]
 
+/**
+ * `app.bsky.actor.searchActors` has no author/DID-scoping param (unlike
+ * `searchPostsV2`'s `authors` array) - it IS the actor search itself, so
+ * there's nothing to inject. Every caller instead gets a non-removable
+ * post-fetch filter against `useSunnahskyDids()` here, once, rather than
+ * duplicated at each of this hook's several call sites (Phase E of
+ * `close off external content plan.md`). Waits for the DID set to resolve
+ * before firing at all - same race this project already fixed once for
+ * Discover (see state/queries/post-feed.ts), where firing early with an
+ * empty/undefined filter would have shown unfiltered results for one tick.
+ */
 export function useActorSearch({
   query,
   enabled,
@@ -29,6 +41,7 @@ export function useActorSearch({
   limit?: number
 }) {
   const client = useAppviewClient()
+  const {data: sunnahskyDids} = useSunnahskyDids()
   return useInfiniteQuery<
     app.bsky.actor.searchActors.$OutputBody,
     Error,
@@ -45,15 +58,18 @@ export function useActorSearch({
         cursor: pageParam,
       })
     },
-    enabled: enabled && !!query,
+    enabled: enabled && !!query && !!sunnahskyDids,
     initialPageParam: undefined,
     getNextPageParam: lastPage => lastPage.cursor,
     placeholderData: maintainData ? keepPreviousData : undefined,
-    select,
+    select: data => select(data, sunnahskyDids),
   })
 }
 
-function select(data: InfiniteData<app.bsky.actor.searchActors.$OutputBody>) {
+function select(
+  data: InfiniteData<app.bsky.actor.searchActors.$OutputBody>,
+  sunnahskyDids: Set<string> | undefined,
+) {
   // enforce uniqueness
   const dids = new Set()
 
@@ -61,6 +77,9 @@ function select(data: InfiniteData<app.bsky.actor.searchActors.$OutputBody>) {
     ...data,
     pages: data.pages.map(page => ({
       actors: page.actors.filter(actor => {
+        if (!sunnahskyDids?.has(actor.did)) {
+          return false
+        }
         if (dids.has(actor.did)) {
           return false
         }

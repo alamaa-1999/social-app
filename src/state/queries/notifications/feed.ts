@@ -29,6 +29,7 @@ import {
 
 import {useModerationOpts} from '#/state/preferences/moderation-opts'
 import {STALE} from '#/state/queries'
+import {useSunnahskyDids} from '#/state/queries/sunnahsky-dids'
 import {useAppviewClient} from '#/state/session'
 import {useThreadgateHiddenReplyUris} from '#/state/threadgate-hidden-replies'
 import {app} from '#/lexicons'
@@ -64,13 +65,15 @@ export function useNotificationFeedQuery(opts: {
   const enabled = opts.enabled !== false
   const filter = opts.filter
   const {uris: hiddenReplyUris} = useThreadgateHiddenReplyUris()
+  const {data: sunnahskyDids} = useSunnahskyDids()
 
   const selectArgs = useMemo(() => {
     return {
       moderationOpts,
       hiddenReplyUris,
+      sunnahskyDids,
     }
-  }, [moderationOpts, hiddenReplyUris])
+  }, [moderationOpts, hiddenReplyUris, sunnahskyDids])
   const lastRun = useRef<{
     data: InfiniteData<FeedPage>
     args: typeof selectArgs
@@ -126,7 +129,7 @@ export function useNotificationFeedQuery(opts: {
     enabled,
     select: useCallback(
       (data: InfiniteData<FeedPage>) => {
-        const {moderationOpts, hiddenReplyUris} = selectArgs
+        const {moderationOpts, hiddenReplyUris, sunnahskyDids} = selectArgs
 
         // Keep track of the last run and whether we can reuse
         // some already selected pages from there.
@@ -184,6 +187,18 @@ export function useNotificationFeedQuery(opts: {
                       item.subjectUri &&
                       hiddenReplyUris.has(item.subjectUri)
                     return !isHiddenReply
+                  })
+                  .filter(item => {
+                    /*
+                     * Reply-type notifications render foreign content (the
+                     * reply post itself), unlike like/repost notifications,
+                     * which are count-adjacent per the resolved scope rule.
+                     * `sunnahskyDids` undefined (still loading) hides
+                     * replies rather than flashing unfiltered ones - Phase F
+                     * of `close off external content plan.md`.
+                     */
+                    if (item.type !== 'reply') return true
+                    return !!sunnahskyDids?.has(item.notification.author.did)
                   })
                   .filter(item => {
                     if (

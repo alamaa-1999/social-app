@@ -2,16 +2,19 @@ import {useMemo} from 'react'
 
 import {useInterestsDisplayNames} from '#/lib/interests'
 import {useActorSearch} from '#/state/queries/actor-search'
-import {useGetSuggestedOnboardingUsersQuery} from '#/state/queries/trending/useGetSuggestedOnboardingUsersQuery'
+import {useSunnahskySuggestedUsers} from '#/state/queries/sunnahsky-suggested-users'
 
 /**
  * Conditional hook, used in case a user is a non-english speaker, in which
  * case we fall back to searching for users instead of our more curated set.
+ * Both branches are Sunnahsky-scoped: `curated` samples directly from
+ * `useSunnahskyDids()` (see sunnahsky-suggested-users.ts), and `search`
+ * inherits its scoping from `useActorSearch()`'s own non-removable
+ * `authors` filter (Phase E).
  */
 export function useSuggestedOnboardingUsers({
   category = null,
   search = false,
-  overrideInterests,
 }: {
   category?: string | null
   /**
@@ -19,18 +22,9 @@ export function useSuggestedOnboardingUsers({
    * based on the user's app language setting
    */
   search?: boolean
-  /**
-   * In onboarding, interests haven't been saved to prefs yet, so we need to
-   * pass them down through here
-   */
-  overrideInterests: string[]
 }) {
   const interestsDisplayNames = useInterestsDisplayNames()
-  const curated = useGetSuggestedOnboardingUsersQuery({
-    enabled: !search,
-    category,
-    overrideInterests,
-  })
+  const curated = useSunnahskySuggestedUsers()
   const searched = useActorSearch({
     enabled: !!search,
     // use user's app language translation for this value
