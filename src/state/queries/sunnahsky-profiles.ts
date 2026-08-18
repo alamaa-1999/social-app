@@ -73,19 +73,18 @@ export function useSunnahskyProfiles() {
   })
 }
 
-// A 1-character query trivially substring-matches almost any handle or
-// display name (everyone's name contains "a" somewhere), which looks like
-// broken/random results rather than useful narrowing - require at least
-// this many characters before returning anything, standard for typeahead.
-const MIN_QUERY_LENGTH = 2
-
 /**
  * Pure, synchronous local search over an already-fetched Sunnahsky profile
  * list - matches `useAutocomplete()`/`actor-autocomplete.ts`'s existing
  * query-normalization convention (lowercase, trim, drop a trailing dot so
- * "foo" -> "foo." doesn't clear matches). Ranks handle-starts-with first,
- * then displayName-starts-with, then any other substring match, each tier
- * alphabetical - simple on purpose, the roster is tiny.
+ * "foo" -> "foo." doesn't clear matches). Matches are prefix-only (handle or
+ * displayName starts with the query), not substring - a 1-character query
+ * would otherwise match almost any handle/name anywhere in the string
+ * (everyone's name contains "a" somewhere), which looks like broken/random
+ * results rather than useful narrowing. Prefix matching stays meaningful even
+ * at length 1, so there's no minimum query length. Ranks handle-starts-with
+ * first, then displayName-starts-with, each tier alphabetical - simple on
+ * purpose, the roster is tiny.
  */
 export function matchSunnahskyProfiles(
   profiles: app.bsky.actor.defs.ProfileViewDetailed[],
@@ -96,21 +95,19 @@ export function matchSunnahskyProfiles(
   if (q.endsWith('.')) {
     q = q.slice(0, -1)
   }
-  if (q.length < MIN_QUERY_LENGTH) return []
+  if (!q) return []
 
   const rank = (p: app.bsky.actor.defs.ProfileViewDetailed): number => {
     const handle = p.handle.toLowerCase()
-    const name = p.displayName?.toLowerCase() ?? ''
     if (handle.startsWith(q)) return 0
-    if (name.startsWith(q)) return 1
-    return 2
+    return 1
   }
 
   return profiles
     .filter(
       p =>
-        p.handle.toLowerCase().includes(q) ||
-        p.displayName?.toLowerCase().includes(q),
+        p.handle.toLowerCase().startsWith(q) ||
+        p.displayName?.toLowerCase().startsWith(q),
     )
     .sort((a, b) => {
       const rankDiff = rank(a) - rank(b)
