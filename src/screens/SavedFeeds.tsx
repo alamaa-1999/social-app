@@ -407,6 +407,11 @@ function PinnedFeedItem({
   const t = useTheme()
   const playHaptic = useHaptics()
   const feedUri = feed.value
+  /*
+   * Following and Discover are permanent fixtures - always pinned, never
+   * unpinnable or removable by the user, unlike any other saved feed.
+   */
+  const isLockedFeed = feed.type === 'timeline' || feedUri === DISCOVER_FEED_URI
 
   const onTogglePinned = () => {
     playHaptic()
@@ -432,15 +437,17 @@ function PinnedFeedItem({
         />
       )}
       <View style={[a.pr_sm, a.flex_row, a.align_center, a.gap_sm]}>
-        <Button
-          testID={`feed-${feed.type}-togglePin`}
-          label={_(msg`Unpin feed`)}
-          onPress={onTogglePinned}
-          size="small"
-          color="primary_subtle"
-          shape="square">
-          <ButtonIcon icon={PinIcon} />
-        </Button>
+        {!isLockedFeed && (
+          <Button
+            testID={`feed-${feed.type}-togglePin`}
+            label={_(msg`Unpin feed`)}
+            onPress={onTogglePinned}
+            size="small"
+            color="primary_subtle"
+            shape="square">
+            <ButtonIcon icon={PinIcon} />
+          </Button>
+        )}
         {onMoveUp !== undefined ? (
           <>
             <Button
@@ -487,6 +494,15 @@ function UnpinnedFeedItem({
   const t = useTheme()
   const playHaptic = useHaptics()
   const feedUri = feed.value
+  /*
+   * Defensive: Following/Discover should never legitimately end up
+   * unpinned (PinnedFeedItem no longer offers the control that would put
+   * them here), but guard the remove button anyway in case a pre-existing
+   * account already has one unpinned from before this lockdown shipped -
+   * they're still permanent fixtures, just re-pinnable via the button
+   * below rather than removable.
+   */
+  const isLockedFeed = feed.type === 'timeline' || feedUri === DISCOVER_FEED_URI
 
   const onTogglePinned = () => {
     playHaptic()
@@ -516,16 +532,18 @@ function UnpinnedFeedItem({
         />
       )}
       <View style={[a.pr_lg, a.flex_row, a.align_center, a.gap_sm]}>
-        <Button
-          testID={`feed-${feedUri}-toggleSave`}
-          label={_(msg`Remove from my feeds`)}
-          onPress={onPressRemove}
-          size="small"
-          color="secondary"
-          variant="ghost"
-          shape="square">
-          <ButtonIcon icon={TrashIcon} />
-        </Button>
+        {!isLockedFeed && (
+          <Button
+            testID={`feed-${feedUri}-toggleSave`}
+            label={_(msg`Remove from my feeds`)}
+            onPress={onPressRemove}
+            size="small"
+            color="secondary"
+            variant="ghost"
+            shape="square">
+            <ButtonIcon icon={TrashIcon} />
+          </Button>
+        )}
         <Button
           testID={`feed-${feed.type}-togglePin`}
           label={_(msg`Pin feed`)}

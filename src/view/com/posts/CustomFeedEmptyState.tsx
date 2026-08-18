@@ -41,6 +41,7 @@ export function CustomFeedEmptyState() {
   const {t: l} = useLingui()
   const pal = usePalette('default')
   const navigation = useNavigation<NavigationProp>()
+  const isDiscover = feedFeedback.feedSourceInfo?.uri === DISCOVER_FEED_URI
 
   const onPressFindAccounts = useCallback(() => {
     if (IS_WEB) {
@@ -56,24 +57,38 @@ export function CustomFeedEmptyState() {
       <View style={styles.emptyIconContainer}>
         <MagnifyingGlassIcon style={[styles.emptyIcon, pal.text]} size={62} />
       </View>
-      <Text type="xl-medium" style={[s.textCenter, pal.text]}>
-        <Trans>
-          This feed is empty! You may need to follow more users or tune your
-          language settings.
-        </Trans>
-      </Text>
-      <View style={[a.mt_xl, a.align_center]}>
-        <Button
-          label={l`Find accounts to follow`}
-          onPress={onPressFindAccounts}
-          color="secondary_inverted"
-          size="large">
-          <ButtonText>
-            <Trans>Find accounts to follow</Trans>
-          </ButtonText>
-          <ButtonIcon icon={ChevronRightIcon} />
-        </Button>
-      </View>
+      {isDiscover ? (
+        /*
+         * Discover is Sunnahsky's own synthetic Striker feed, not a
+         * follow/language-driven algorithmic one - "follow more users" is
+         * never the right advice here, and there's nothing actionable for
+         * the user to do about a quiet Striker roster.
+         */
+        <Text type="xl-medium" style={[s.textCenter, pal.text]}>
+          <Trans>No posts from Sunnahsky Strikers yet. Check back soon!</Trans>
+        </Text>
+      ) : (
+        <>
+          <Text type="xl-medium" style={[s.textCenter, pal.text]}>
+            <Trans>
+              This feed is empty! You may need to follow more users or tune your
+              language settings.
+            </Trans>
+          </Text>
+          <View style={[a.mt_xl, a.align_center]}>
+            <Button
+              label={l`Find accounts to follow`}
+              onPress={onPressFindAccounts}
+              color="secondary_inverted"
+              size="large">
+              <ButtonText>
+                <Trans>Find accounts to follow</Trans>
+              </ButtonText>
+              <ButtonIcon icon={ChevronRightIcon} />
+            </Button>
+          </View>
+        </>
+      )}
     </View>
   )
 }

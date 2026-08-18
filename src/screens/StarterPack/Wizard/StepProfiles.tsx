@@ -7,6 +7,7 @@ import {Trans} from '@lingui/react/macro'
 import {useA11y} from '#/state/a11y'
 import {useActorAutocompleteQuery} from '#/state/queries/actor-autocomplete'
 import {useActorSearch} from '#/state/queries/actor-search'
+import {useSunnahskyDids} from '#/state/queries/sunnahsky-dids'
 import {List} from '#/view/com/util/List'
 import {useWizardState} from '#/screens/StarterPack/Wizard/State'
 import {atoms as a, useTheme} from '#/alf'
@@ -32,6 +33,16 @@ export function StepProfiles({
   const [query, setQuery] = useState('')
   const {screenReaderEnabled} = useA11y()
 
+  /*
+   * Both underlying queries below search Bluesky's real, network-wide actor
+   * index with no author scoping of their own - filter every result down to
+   * Sunnahsky's own accounts. `sunnahskyDids` starts undefined while
+   * loading, so both lists are deliberately empty until it resolves, rather
+   * than showing unfiltered results even momentarily.
+   */
+  const {data: sunnahskyDids, isLoading: isLoadingSunnahskyDids} =
+    useSunnahskyDids()
+
   const {
     data: topPages,
     fetchNextPage,
@@ -41,13 +52,16 @@ export function StepProfiles({
   })
   const topFollowers = topPages?.pages
     .flatMap(p => p.actors)
-    .filter(p => !p.associated?.labeler)
+    .filter(p => !p.associated?.labeler && sunnahskyDids?.has(p.did))
 
   const {data: resultsUnfiltered, isFetching: isFetchingResults} =
     useActorAutocompleteQuery(query, true, 12)
-  const results = resultsUnfiltered?.filter(p => !p.associated?.labeler)
+  const results = resultsUnfiltered?.filter(
+    p => !p.associated?.labeler && sunnahskyDids?.has(p.did),
+  )
 
-  const isLoading = isLoadingTopPages || isFetchingResults
+  const isLoading =
+    isLoadingTopPages || isFetchingResults || isLoadingSunnahskyDids
 
   const renderItem = ({
     item,
