@@ -9,6 +9,7 @@ import {useAppviewClient} from '#/state/session'
 import {app} from '#/lexicons'
 import {useModerationOpts} from '../preferences/moderation-opts'
 import {DEFAULT_LOGGED_OUT_PREFERENCES} from './preferences'
+import {useSunnahskyDids} from './sunnahsky-dids'
 
 const DEFAULT_MOD_OPTS = {
   userDid: undefined,
@@ -25,6 +26,7 @@ export function useActorAutocompleteQuery(
 ) {
   const moderationOpts = useModerationOpts()
   const client = useAppviewClient()
+  const {data: sunnahskyDids} = useSunnahskyDids()
 
   prefix = prefix.toLowerCase().trim()
   if (prefix.endsWith('.')) {
@@ -50,9 +52,10 @@ export function useActorAutocompleteQuery(
           q: prefix,
           searched: data,
           moderationOpts: moderationOpts || DEFAULT_MOD_OPTS,
+          sunnahskyDids,
         })
       },
-      [prefix, moderationOpts],
+      [prefix, moderationOpts, sunnahskyDids],
     ),
     placeholderData: maintainData ? keepPreviousData : undefined,
   })
@@ -63,6 +66,7 @@ export function useActorAutocompleteFn() {
   const queryClient = useQueryClient()
   const moderationOpts = useModerationOpts()
   const client = useAppviewClient()
+  const {data: sunnahskyDids} = useSunnahskyDids()
 
   return useCallback(
     async ({query, limit = 8}: {query: string; limit?: number}) => {
@@ -90,9 +94,10 @@ export function useActorAutocompleteFn() {
         q: query,
         searched: res?.actors,
         moderationOpts: moderationOpts || DEFAULT_MOD_OPTS,
+        sunnahskyDids,
       })
     },
-    [queryClient, moderationOpts, client],
+    [queryClient, moderationOpts, client, sunnahskyDids],
   )
 }
 
@@ -100,10 +105,18 @@ function computeSuggestions({
   q,
   searched = [],
   moderationOpts,
+  sunnahskyDids,
 }: {
   q?: string
   searched?: app.bsky.actor.defs.ProfileViewBasic[]
   moderationOpts: ModerationOpts
+  /**
+   * Non-removable base filter, shared by both callers below.
+   * `undefined` (still loading) fails closed - every profile is hidden
+   * rather than flashing unfiltered ones - same pattern as
+   * useAutocomplete()/actor-search.ts/notifications/feed.ts.
+   */
+  sunnahskyDids: Set<string> | undefined
 }) {
   let items: app.bsky.actor.defs.ProfileViewBasic[] = []
   for (const item of searched) {
@@ -112,6 +125,7 @@ function computeSuggestions({
     }
   }
   return items.filter(profile => {
+    if (!sunnahskyDids?.has(profile.did)) return false
     const modui = moderateProfile(profile, moderationOpts).ui('profileList')
     const isExactMatch = q && profile.handle.toLowerCase() === q
     return (
