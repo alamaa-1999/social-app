@@ -3966,13 +3966,6 @@ msgctxt "feed-name"
 msgid "Discover"
 msgstr "Discover"
 
-#: src/view/com/posts/FollowingEmptyState.tsx:64
-#: src/view/com/posts/FollowingEmptyState.tsx:69
-#: src/view/com/posts/FollowingEndOfFeed.tsx:65
-#: src/view/com/posts/FollowingEndOfFeed.tsx:70
-msgid "Discover new custom feeds"
-msgstr ""
-
 #: src/components/Dialog/index.tsx:400
 #: src/features/inviteFriends/components/FollowersPromoBanner.tsx:83
 msgid "Dismiss"
@@ -5157,10 +5150,10 @@ msgstr ""
 
 #: src/view/com/posts/CustomFeedEmptyState.tsx:80
 #: src/view/com/posts/CustomFeedEmptyState.tsx:85
-#: src/view/com/posts/FollowingEmptyState.tsx:48
-#: src/view/com/posts/FollowingEmptyState.tsx:53
-#: src/view/com/posts/FollowingEndOfFeed.tsx:49
-#: src/view/com/posts/FollowingEndOfFeed.tsx:54
+#: src/view/com/posts/FollowingEmptyState.tsx:44
+#: src/view/com/posts/FollowingEmptyState.tsx:49
+#: src/view/com/posts/FollowingEndOfFeed.tsx:45
+#: src/view/com/posts/FollowingEndOfFeed.tsx:50
 msgid "Find accounts to follow"
 msgstr ""
 
@@ -14169,11 +14162,6 @@ msgstr ""
 msgid "You can also <0>temporarily deactivate</0> your account instead. Your profile, posts, feeds, and lists will no longer be visible to other Bluesky users. You can reactivate your account at any time by logging in."
 msgstr ""
 
-#: src/view/com/posts/FollowingEmptyState.tsx:60
-#: src/view/com/posts/FollowingEndOfFeed.tsx:61
-msgid "You can also discover new Custom Feeds to follow."
-msgstr ""
-
 #: src/screens/Settings/components/ExportCarDialog.tsx:145
 msgid "You can also download your chat data as a \"JSONL\" file. This file only includes chat messages that you have sent and does not include chat messages that you have received."
 msgstr ""
@@ -14579,7 +14567,7 @@ msgstr ""
 msgid "You've reached the end of the active content."
 msgstr ""
 
-#: src/view/com/posts/FollowingEndOfFeed.tsx:42
+#: src/view/com/posts/FollowingEndOfFeed.tsx:38
 msgid "You've reached the end of your feed! Find some more accounts to follow."
 msgstr ""
 
@@ -14709,7 +14697,7 @@ msgstr ""
 msgid "Your followers"
 msgstr ""
 
-#: src/view/com/posts/FollowingEmptyState.tsx:41
+#: src/view/com/posts/FollowingEmptyState.tsx:37
 msgid "Your following feed is empty! Follow more users to see what's happening."
 msgstr ""
 

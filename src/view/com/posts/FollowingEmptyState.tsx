@@ -27,10 +27,6 @@ export function FollowingEmptyState() {
     }
   }, [navigation])
 
-  const onPressDiscoverFeeds = useCallback(() => {
-    navigation.navigate('Feeds')
-  }, [navigation])
-
   return (
     <View style={styles.container}>
       <View style={styles.inner}>
@@ -51,22 +47,6 @@ export function FollowingEmptyState() {
             size="large">
             <ButtonText>
               <Trans>Find accounts to follow</Trans>
-            </ButtonText>
-            <ButtonIcon icon={ChevronRightIcon} />
-          </Button>
-        </View>
-
-        <Text type="xl-medium" style={[s.textCenter, pal.text, s.mt20]}>
-          <Trans>You can also discover new Custom Feeds to follow.</Trans>
-        </Text>
-        <View style={[a.mt_md, a.align_center]}>
-          <Button
-            label={l`Discover new custom feeds`}
-            onPress={onPressDiscoverFeeds}
-            color="secondary_inverted"
-            size="large">
-            <ButtonText>
-              <Trans>Discover new custom feeds</Trans>
             </ButtonText>
             <ButtonIcon icon={ChevronRightIcon} />
           </Button>
