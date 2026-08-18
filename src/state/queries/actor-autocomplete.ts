@@ -1,15 +1,16 @@
 import {useCallback} from 'react'
 import {moderateProfile, type ModerationOpts} from '@bsky/sdk/moderation'
-import {keepPreviousData, useQuery, useQueryClient} from '@tanstack/react-query'
+import {keepPreviousData, useQuery} from '@tanstack/react-query'
 
 import {isJustAMute, moduiContainsHideableOffense} from '#/lib/moderation'
-import {logger} from '#/logger'
 import {STALE} from '#/state/queries'
-import {useAppviewClient} from '#/state/session'
-import {app} from '#/lexicons'
+import {type app} from '#/lexicons'
 import {useModerationOpts} from '../preferences/moderation-opts'
 import {DEFAULT_LOGGED_OUT_PREFERENCES} from './preferences'
-import {useSunnahskyDids} from './sunnahsky-dids'
+import {
+  matchSunnahskyProfiles,
+  useSunnahskyProfiles,
+} from './sunnahsky-profiles'
 
 const DEFAULT_MOD_OPTS = {
   userDid: undefined,
@@ -25,8 +26,7 @@ export function useActorAutocompleteQuery(
   limit?: number,
 ) {
   const moderationOpts = useModerationOpts()
-  const client = useAppviewClient()
-  const {data: sunnahskyDids} = useSunnahskyDids()
+  const {data: sunnahskyProfiles} = useSunnahskyProfiles()
 
   prefix = prefix.toLowerCase().trim()
   if (prefix.endsWith('.')) {
@@ -35,36 +35,35 @@ export function useActorAutocompleteQuery(
   }
 
   /*
-   * Deliberately not gating `enabled` on `sunnahskyDids` here, unlike
-   * actor-search.ts - see the same note in
-   * components/Autocomplete/useAutocomplete/index.ts. searchActorsTypeahead
-   * has no author-scoping param, so sunnahskyDids only affects what
-   * computeSuggestions() is allowed to keep after the fetch, never the
-   * fetch itself. Waiting on it here would just make every keystroke slower
-   * for zero correctness gain.
+   * Matches locally against sunnahskyProfiles (sunnahsky-profiles.ts)
+   * rather than fetching Bluesky's real searchActorsTypeahead, which has no
+   * awareness of Sunnahsky's accounts and can exclude a genuine match
+   * entirely for a short/generic query. `enabled` requires
+   * sunnahskyProfiles to have resolved first - without it, a query typed
+   * before the list finished loading would cache an empty result for that
+   * exact prefix. `select` also carries sunnahskyProfiles in its dependency
+   * array: unlike `enabled`, staleTime here means this query won't
+   * necessarily refire on its own once the list resolves, so without this
+   * `select` would keep re-deriving from whatever (possibly still-empty)
+   * value it first closed over.
    */
-  return useQuery<app.bsky.actor.defs.ProfileViewBasic[]>({
+  return useQuery<app.bsky.actor.defs.ProfileViewDetailed[]>({
+    enabled: !!sunnahskyProfiles,
     staleTime: STALE.MINUTES.ONE,
     queryKey: RQKEY(prefix || ''),
-    async queryFn() {
-      const data = prefix
-        ? await client.call(app.bsky.actor.searchActorsTypeahead, {
-            q: prefix,
-            limit: limit || 8,
-          })
-        : undefined
-      return data?.actors || []
+    queryFn() {
+      return sunnahskyProfiles ?? []
     },
     select: useCallback(
-      (data: app.bsky.actor.defs.ProfileViewBasic[]) => {
+      (data: app.bsky.actor.defs.ProfileViewDetailed[]) => {
         return computeSuggestions({
           q: prefix,
-          searched: data,
+          sunnahskyProfiles: data,
           moderationOpts: moderationOpts || DEFAULT_MOD_OPTS,
-          sunnahskyDids,
+          limit: limit || 8,
         })
       },
-      [prefix, moderationOpts, sunnahskyDids],
+      [prefix, moderationOpts, limit, sunnahskyProfiles],
     ),
     placeholderData: maintainData ? keepPreviousData : undefined,
   })
@@ -72,69 +71,46 @@ export function useActorAutocompleteQuery(
 
 export type ActorAutocompleteFn = ReturnType<typeof useActorAutocompleteFn>
 export function useActorAutocompleteFn() {
-  const queryClient = useQueryClient()
   const moderationOpts = useModerationOpts()
-  const client = useAppviewClient()
-  const {data: sunnahskyDids} = useSunnahskyDids()
+  const {data: sunnahskyProfiles} = useSunnahskyProfiles()
 
   return useCallback(
-    async ({query, limit = 8}: {query: string; limit?: number}) => {
+    ({query, limit = 8}: {query: string; limit?: number}) => {
       query = query.toLowerCase()
-      let res
-      if (query) {
-        try {
-          res = await queryClient.fetchQuery({
-            staleTime: STALE.MINUTES.ONE,
-            queryKey: RQKEY(query || ''),
-            queryFn: () =>
-              client.call(app.bsky.actor.searchActorsTypeahead, {
-                q: query,
-                limit,
-              }),
-          })
-        } catch (e) {
-          logger.error('useActorSearch: searchActorsTypeahead failed', {
-            message: e,
-          })
-        }
-      }
+
+      /*
+       * This is an imperative function, not a reactive query, so there's no
+       * `enabled` to lean on - a caller could invoke this before
+       * sunnahskyProfiles has resolved. Guard explicitly rather than
+       * matching against an empty list, which would look identical to "no
+       * matches" instead of "still loading."
+       */
+      if (!sunnahskyProfiles) return []
 
       return computeSuggestions({
         q: query,
-        searched: res?.actors,
+        sunnahskyProfiles,
         moderationOpts: moderationOpts || DEFAULT_MOD_OPTS,
-        sunnahskyDids,
+        limit,
       })
     },
-    [queryClient, moderationOpts, client, sunnahskyDids],
+    [moderationOpts, sunnahskyProfiles],
   )
 }
 
 function computeSuggestions({
   q,
-  searched = [],
+  sunnahskyProfiles,
   moderationOpts,
-  sunnahskyDids,
+  limit,
 }: {
   q?: string
-  searched?: app.bsky.actor.defs.ProfileViewBasic[]
+  sunnahskyProfiles: app.bsky.actor.defs.ProfileViewDetailed[]
   moderationOpts: ModerationOpts
-  /**
-   * Non-removable base filter, shared by both callers below.
-   * `undefined` (still loading) fails closed - every profile is hidden
-   * rather than flashing unfiltered ones - same pattern as
-   * useAutocomplete()/actor-search.ts/notifications/feed.ts.
-   */
-  sunnahskyDids: Set<string> | undefined
+  limit: number
 }) {
-  let items: app.bsky.actor.defs.ProfileViewBasic[] = []
-  for (const item of searched) {
-    if (!items.find(item2 => item2.handle === item.handle)) {
-      items.push(item)
-    }
-  }
-  return items.filter(profile => {
-    if (!sunnahskyDids?.has(profile.did)) return false
+  const matches = matchSunnahskyProfiles(sunnahskyProfiles, q ?? '', limit)
+  return matches.filter(profile => {
     const modui = moderateProfile(profile, moderationOpts).ui('profileList')
     const isExactMatch = q && profile.handle.toLowerCase() === q
     return (

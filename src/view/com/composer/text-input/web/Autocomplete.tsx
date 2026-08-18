@@ -33,8 +33,8 @@ export function createSuggestion({
   autocompleteRef: React.Ref<AutocompleteRef>
 }): Omit<SuggestionOptions, 'editor'> {
   return {
-    async items({query}) {
-      const suggestions = await autocomplete({query})
+    items({query}) {
+      const suggestions = autocomplete({query})
       return suggestions.slice(0, 8)
     },
 

@@ -6,15 +6,16 @@ import {isJustAMute, moduiContainsHideableOffense} from '#/lib/moderation'
 import {useModerationOpts} from '#/state/preferences/moderation-opts'
 import {STALE} from '#/state/queries'
 import {DEFAULT_LOGGED_OUT_PREFERENCES} from '#/state/queries/preferences'
-import {useSunnahskyDids} from '#/state/queries/sunnahsky-dids'
-import {useAppviewClient} from '#/state/session'
+import {
+  matchSunnahskyProfiles,
+  useSunnahskyProfiles,
+} from '#/state/queries/sunnahsky-profiles'
 import {
   type AutocompleteApi,
   type AutocompleteItem,
   type AutocompleteItemType,
   type AutocompleteProfile,
 } from '#/components/Autocomplete/types'
-import {app} from '#/lexicons'
 import {useEmojiSearch} from './useEmojiSearch'
 
 const DEFAULT_MOD_OPTS = {
@@ -33,24 +34,28 @@ export function useAutocomplete({
   limit?: number
   showSearchFallback?: boolean
 }): AutocompleteApi {
-  const client = useAppviewClient()
   const moderationOpts = useModerationOpts()
-  const {data: sunnahskyDids} = useSunnahskyDids()
+  const {data: sunnahskyProfiles} = useSunnahskyProfiles()
   const emojiSearch = useEmojiSearch()
 
   /*
-   * Deliberately not gating `enabled` on `sunnahskyDids` here, unlike
-   * actor-search.ts. There it's a request-time parameter (spread directly
-   * into `authors`), so firing early would send a wrong/empty array.
-   * `searchActorsTypeahead` has no such param - there's nothing to scope
-   * server-side, which is why this filters client-side in `select` below
-   * instead. `sunnahskyDids` never affects what this fetch returns, only
-   * what's allowed to render from it - gating `enabled` on it would buy no
-   * correctness and would make every keystroke wait on an unrelated
-   * hourly-cached DID-list fetch on a cold load, a bad trade for a
-   * component whose whole job is to feel instant.
+   * Profile results are matched locally against `sunnahskyProfiles` (see
+   * sunnahsky-profiles.ts) inside `queryFn` below, rather than fetched from
+   * Bluesky's real searchActorsTypeahead - that ranking has no awareness of
+   * Sunnahsky's accounts and can exclude a genuine match entirely for a
+   * short/generic query. `enabled` requires `sunnahskyProfiles` to have
+   * resolved before this ever fires for `type === 'profile'` - without it,
+   * a query typed before the list finished loading would permanently cache
+   * an empty result for that exact `{type, query}` key. A `select`-level
+   * dependency-array fix (needed elsewhere in this project for the same
+   * class of bug) isn't needed here on top of that: `q` is already part of
+   * `queryKey`, so every keystroke is its own fresh `queryFn` call reading
+   * whatever `sunnahskyProfiles` is current at that render, not a cached
+   * closure from an earlier one. `type === 'emoji'` is unaffected, since no
+   * Sunnahsky-scoping concept applies to it.
    */
   const query = useQuery({
+    enabled: type !== 'profile' || !!sunnahskyProfiles,
     staleTime: STALE.MINUTES.ONE,
     queryKey: [
       'autocomplete',
@@ -67,12 +72,13 @@ export function useAutocomplete({
         // Going from "foo" to "foo." should not clear matches.
         q = q.toLowerCase().trim().replace(/\.$/, '')
 
-        const data = await client.call(app.bsky.actor.searchActorsTypeahead, {
+        const matches = matchSunnahskyProfiles(
+          sunnahskyProfiles ?? [],
           q,
-          limit: limit || 8,
-        })
+          limit || 8,
+        )
 
-        return (data?.actors || []).map(profile => ({
+        return matches.map(profile => ({
           key: profile.did,
           type: 'profile' as const,
           value: '@' + profile.handle,
@@ -94,15 +100,6 @@ export function useAutocomplete({
           seen.add(item.key)
 
           if (item.type === 'profile') {
-            /*
-             * Non-removable base filter: hides every profile suggestion
-             * whose author isn't Sunnahsky-hosted, in addition to the
-             * existing moderation check. `sunnahskyDids` undefined (still
-             * loading) hides all profile results rather than flashing
-             * unfiltered ones - same fail-closed pattern as actor-search.ts
-             * and notifications/feed.ts.
-             */
-            if (!sunnahskyDids?.has(item.profile.did)) continue
             const moderated = moderateProfileItem({
               query: q,
               item,
@@ -116,7 +113,7 @@ export function useAutocomplete({
 
         return results
       },
-      [q, moderationOpts, sunnahskyDids],
+      [q, moderationOpts],
     ),
     placeholderData: keepPreviousData,
   })
