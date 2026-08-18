@@ -6,6 +6,7 @@ import {isJustAMute, moduiContainsHideableOffense} from '#/lib/moderation'
 import {useModerationOpts} from '#/state/preferences/moderation-opts'
 import {STALE} from '#/state/queries'
 import {DEFAULT_LOGGED_OUT_PREFERENCES} from '#/state/queries/preferences'
+import {useSunnahskyDids} from '#/state/queries/sunnahsky-dids'
 import {useAppviewClient} from '#/state/session'
 import {
   type AutocompleteApi,
@@ -34,6 +35,7 @@ export function useAutocomplete({
 }): AutocompleteApi {
   const client = useAppviewClient()
   const moderationOpts = useModerationOpts()
+  const {data: sunnahskyDids} = useSunnahskyDids()
   const emojiSearch = useEmojiSearch()
 
   const query = useQuery({
@@ -80,6 +82,15 @@ export function useAutocomplete({
           seen.add(item.key)
 
           if (item.type === 'profile') {
+            /*
+             * Non-removable base filter: hides every profile suggestion
+             * whose author isn't Sunnahsky-hosted, in addition to the
+             * existing moderation check. `sunnahskyDids` undefined (still
+             * loading) hides all profile results rather than flashing
+             * unfiltered ones - same fail-closed pattern as actor-search.ts
+             * and notifications/feed.ts.
+             */
+            if (!sunnahskyDids?.has(item.profile.did)) continue
             const moderated = moderateProfileItem({
               query: q,
               item,
@@ -93,7 +104,7 @@ export function useAutocomplete({
 
         return results
       },
-      [q, moderationOpts],
+      [q, moderationOpts, sunnahskyDids],
     ),
     placeholderData: keepPreviousData,
   })

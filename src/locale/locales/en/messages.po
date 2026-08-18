@@ -856,9 +856,12 @@ msgid "<0>{displayName}</0><1/><2> added you</2>"
 msgstr "<0>{displayName}</0><1/><2> added you</2>"
 
 #: src/screens/Hashtag.tsx:232
-#: src/screens/Search/SearchResults.tsx:379
 msgid "<0>Sign in</0><1> or </1><2>create an account</2><3> </3><4>to search for news, sports, politics, and everything else happening on Bluesky.</4>"
 msgstr ""
+
+#: src/screens/Search/SearchResults.tsx:379
+msgid "<0>Sign in</0><1> or </1><2>create an account</2><3> </3><4>to search posts and accounts on Sunnahsky.</4>"
+msgstr "<0>Sign in</0><1> or </1><2>create an account</2><3> </3><4>to search posts and accounts on Sunnahsky.</4>"
 
 #: src/components/ageAssurance/AgeAssuranceAccountCard.tsx:250
 msgid "<0>Tap here to update your location with GPS.</0>"
@@ -1383,7 +1386,7 @@ msgstr ""
 
 #. the default tab in the interests tab bar
 #: src/components/dms/ReactionsDialog.tsx:292
-#: src/screens/Onboarding/StepSuggestedAccounts/index.tsx:205
+#: src/screens/Onboarding/StepSuggestedAccounts/index.tsx:213
 #: src/view/screens/Notifications.tsx:86
 msgid "All"
 msgstr ""
@@ -1540,7 +1543,7 @@ msgstr ""
 msgid "An error occurred while compressing the video."
 msgstr ""
 
-#: src/screens/Onboarding/StepSuggestedAccounts/index.tsx:227
+#: src/screens/Onboarding/StepSuggestedAccounts/index.tsx:235
 msgid "An error occurred while fetching suggested accounts."
 msgstr ""
 
@@ -3189,7 +3192,7 @@ msgstr ""
 #: src/screens/Login/components/ConfirmHostingProviderDialog.tsx:152
 #: src/screens/Onboarding/StepInterests/index.tsx:87
 #: src/screens/Onboarding/StepProfile/index.tsx:301
-#: src/screens/Onboarding/StepSuggestedAccounts/index.tsx:309
+#: src/screens/Onboarding/StepSuggestedAccounts/index.tsx:317
 msgid "Continue"
 msgstr ""
 
@@ -3217,7 +3220,7 @@ msgstr "Continue to group name"
 
 #: src/screens/Onboarding/StepInterests/index.tsx:80
 #: src/screens/Onboarding/StepProfile/index.tsx:298
-#: src/screens/Onboarding/StepSuggestedAccounts/index.tsx:306
+#: src/screens/Onboarding/StepSuggestedAccounts/index.tsx:314
 #: src/screens/Signup/BackNextButtons.tsx:61
 msgid "Continue to next step"
 msgstr ""
@@ -4809,7 +4812,7 @@ msgstr "Failed to edit invite link"
 msgid "Failed to enable invite link"
 msgstr "Failed to enable invite link"
 
-#: src/screens/Onboarding/StepSuggestedAccounts/index.tsx:147
+#: src/screens/Onboarding/StepSuggestedAccounts/index.tsx:155
 msgid "Failed to follow all suggested accounts, please try again"
 msgstr ""
 
@@ -4862,7 +4865,7 @@ msgstr ""
 msgid "Failed to load profiles"
 msgstr "Failed to load profiles"
 
-#: src/screens/Search/Explore.tsx:172
+#: src/screens/Search/Explore.tsx:163
 msgid "Failed to load suggested follows"
 msgstr ""
 
@@ -4957,7 +4960,7 @@ msgstr ""
 msgid "Failed to save settings. Please try again."
 msgstr ""
 
-#: src/screens/Settings/InterestsSettings.tsx:144
+#: src/screens/Settings/InterestsSettings.tsx:145
 msgctxt "toast"
 msgid "Failed to save your interests."
 msgstr ""
@@ -5185,8 +5188,8 @@ msgid "Find people you know"
 msgstr "Find people you know"
 
 #: src/screens/Search/Shell.tsx:765
-msgid "Find posts, users, and feeds on Bluesky"
-msgstr ""
+msgid "Find Sunnahsky posts and accounts"
+msgstr "Find Sunnahsky posts and accounts"
 
 #: src/components/dialogs/nuxs/FindContactsAnnouncement.tsx:98
 msgid "Find your friends"
@@ -5278,7 +5281,7 @@ msgstr ""
 
 #: src/components/contacts/screens/ViewMatches.tsx:284
 #: src/components/contacts/screens/ViewMatches.tsx:299
-#: src/screens/Onboarding/StepSuggestedAccounts/index.tsx:298
+#: src/screens/Onboarding/StepSuggestedAccounts/index.tsx:306
 #: src/screens/Settings/FindContactsSettings.tsx:469
 #: src/screens/Settings/FindContactsSettings.tsx:479
 #: src/screens/StarterPack/StarterPackScreen.tsx:445
@@ -5286,7 +5289,7 @@ msgstr ""
 msgid "Follow all"
 msgstr ""
 
-#: src/screens/Onboarding/StepSuggestedAccounts/index.tsx:295
+#: src/screens/Onboarding/StepSuggestedAccounts/index.tsx:303
 msgid "Follow all accounts"
 msgstr ""
 
@@ -5299,7 +5302,7 @@ msgstr ""
 msgid "Follow back"
 msgstr ""
 
-#: src/screens/Onboarding/StepSuggestedAccounts/index.tsx:136
+#: src/screens/Onboarding/StepSuggestedAccounts/index.tsx:144
 msgid "Followed all accounts!"
 msgstr ""
 
@@ -5425,7 +5428,7 @@ msgid "For the best experience, we recommend using the theme font."
 msgstr ""
 
 #: src/components/ProgressGuide/FollowDialog.tsx:131
-#: src/screens/Onboarding/StepSuggestedAccounts/index.tsx:353
+#: src/screens/Onboarding/StepSuggestedAccounts/index.tsx:361
 #: src/screens/Search/modules/ExploreSuggestedAccounts.tsx:87
 msgid "For You"
 msgstr ""
@@ -8048,7 +8051,7 @@ msgid "No results"
 msgstr ""
 
 #. placeholder {0}: interestsDisplayNames[selectedInterest]
-#: src/screens/Search/Explore.tsx:296
+#: src/screens/Search/Explore.tsx:287
 msgid "No results for \"{0}\"."
 msgstr ""
 
@@ -8069,7 +8072,7 @@ msgstr "No results found for “<0>{query}</0>”."
 msgid "No results found for your query with advanced search filters applied."
 msgstr "No results found for your query with advanced search filters applied."
 
-#: src/screens/Search/Explore.tsx:300
+#: src/screens/Search/Explore.tsx:291
 msgid "No results."
 msgstr ""
 
@@ -10191,8 +10194,8 @@ msgstr ""
 #: src/screens/Messages/components/MessageListError.tsx:24
 #: src/screens/Messages/Inbox.tsx:210
 #: src/screens/Messages/JoinRequests.tsx:358
-#: src/screens/Onboarding/StepSuggestedAccounts/index.tsx:272
-#: src/screens/Onboarding/StepSuggestedAccounts/index.tsx:275
+#: src/screens/Onboarding/StepSuggestedAccounts/index.tsx:280
+#: src/screens/Onboarding/StepSuggestedAccounts/index.tsx:283
 #: src/screens/PostThread/components/ThreadError.tsx:81
 #: src/screens/PostThread/components/ThreadError.tsx:87
 #: src/screens/Signup/BackNextButtons.tsx:54
@@ -10422,7 +10425,7 @@ msgstr "Search for “{searchText}”"
 msgid "Search for {q}"
 msgstr "Search for {q}"
 
-#: src/screens/Search/Explore.tsx:159
+#: src/screens/Search/Explore.tsx:150
 msgid "Search for more accounts"
 msgstr ""
 
@@ -10701,7 +10704,7 @@ msgid "Select your date of birth"
 msgstr ""
 
 #: src/screens/Onboarding/StepInterests/index.tsx:115
-#: src/screens/Settings/InterestsSettings.tsx:175
+#: src/screens/Settings/InterestsSettings.tsx:176
 msgid "Select your interests from the options below"
 msgstr ""
 
@@ -11271,7 +11274,7 @@ msgstr "Sit down with a book and a cup of tea."
 #: src/screens/Onboarding/StepFindContactsIntro/index.tsx:90
 #: src/screens/Onboarding/StepFinished/index.tsx:295
 #: src/screens/Onboarding/StepFinished/index.tsx:317
-#: src/screens/Onboarding/StepSuggestedAccounts/index.tsx:285
+#: src/screens/Onboarding/StepSuggestedAccounts/index.tsx:293
 msgid "Skip"
 msgstr ""
 
@@ -11289,7 +11292,7 @@ msgstr "Skip empty posts?"
 msgid "Skip introduction and start using your account"
 msgstr ""
 
-#: src/screens/Onboarding/StepSuggestedAccounts/index.tsx:282
+#: src/screens/Onboarding/StepSuggestedAccounts/index.tsx:290
 msgid "Skip to next step"
 msgstr ""
 
@@ -11408,7 +11411,7 @@ msgstr ""
 msgid "Something went wrong. Please try again."
 msgstr ""
 
-#: src/screens/Onboarding/StepSuggestedAccounts/index.tsx:235
+#: src/screens/Onboarding/StepSuggestedAccounts/index.tsx:243
 msgid "Sorry, we're unable to load account suggestions at this time."
 msgstr ""
 
@@ -11645,13 +11648,13 @@ msgstr ""
 msgid "Suggested"
 msgstr "Suggested"
 
-#: src/screens/Search/Explore.tsx:155
+#: src/screens/Search/Explore.tsx:146
 msgid "Suggested accounts"
 msgstr ""
 
 #. Accounts suggested to the user for them to follow
 #: src/components/FeedInterstitials.tsx:452
-#: src/screens/Onboarding/StepSuggestedAccounts/index.tsx:186
+#: src/screens/Onboarding/StepSuggestedAccounts/index.tsx:194
 msgid "Suggested for you"
 msgstr ""
 
@@ -13752,7 +13755,7 @@ msgstr ""
 msgid "We ran out of posts from your follows. Here's the latest from Discover."
 msgstr "We ran out of posts from your follows. Here's the latest from Discover."
 
-#: src/screens/Settings/InterestsSettings.tsx:168
+#: src/screens/Settings/InterestsSettings.tsx:169
 msgid "We recommend selecting at least two interests."
 msgstr ""
 
@@ -13855,13 +13858,13 @@ msgstr ""
 msgid "We're sorry, but we weren't able to load your muted words at this time. Please try again."
 msgstr ""
 
-#: src/screens/Search/SearchResults.tsx:406
-#: src/screens/Search/SearchResults.tsx:547
+#: src/screens/Search/SearchResults.tsx:405
+#: src/screens/Search/SearchResults.tsx:546
 msgid "We’re sorry, but your search could not be completed."
 msgstr "We’re sorry, but your search could not be completed."
 
-#: src/screens/Search/SearchResults.tsx:405
-#: src/screens/Search/SearchResults.tsx:546
+#: src/screens/Search/SearchResults.tsx:404
+#: src/screens/Search/SearchResults.tsx:545
 msgid "We’re sorry, but your search could not be completed. Please try again in a few minutes."
 msgstr "We’re sorry, but your search could not be completed. Please try again in a few minutes."
 
@@ -14722,11 +14725,11 @@ msgstr "Your hosting provider is detected automatically from the username you en
 #: src/screens/Search/modules/ExploreInterestsCard.tsx:62
 #: src/screens/Settings/ContentAndMediaSettings.tsx:82
 #: src/screens/Settings/ContentAndMediaSettings.tsx:85
-#: src/screens/Settings/InterestsSettings.tsx:48
+#: src/screens/Settings/InterestsSettings.tsx:47
 msgid "Your interests"
 msgstr ""
 
-#: src/screens/Settings/InterestsSettings.tsx:135
+#: src/screens/Settings/InterestsSettings.tsx:136
 msgctxt "toast"
 msgid "Your interests have been updated!"
 msgstr ""
@@ -14789,7 +14792,7 @@ msgstr ""
 msgid "Your report will be sent to <0>{0}</0>."
 msgstr ""
 
-#: src/screens/Settings/InterestsSettings.tsx:62
+#: src/screens/Settings/InterestsSettings.tsx:61
 msgid "Your selected interests help us serve you content you care about."
 msgstr ""
 
