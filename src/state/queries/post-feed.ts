@@ -135,29 +135,39 @@ export function usePostFeedQuery(
   const feedTuners = useFeedTuners(feedDesc)
   const moderationOpts = useModerationOpts()
   const {data: preferences} = usePreferencesQuery()
+  const {hasSession} = useSession()
+  const client = useAppviewClient()
+  const {data: strikerDids} = useStrikersQuery()
+  const isDiscover = feedDesc.includes(DISCOVER_FEED_URI)
   /**
    * Load bearing: we need to await AA state or risk FOUC. This marginally
    * delays feeds, but AA state is fetched immediately on load and is then
    * available for the remainder of the session, so this delay only affects cold
    * loads. -esb
+   *
+   * Also load bearing for Discover specifically: `strikerDids` is a real
+   * network fetch (`listStrikers`) that can easily still be in flight on a
+   * cold load. `queryFn` below only runs once (`staleTime: STALE.INFINITY`),
+   * so if it fired before `strikerDids` resolved, `StrikerFeedAPI` would get
+   * permanently constructed with an empty DID list and short-circuit to an
+   * empty feed forever, with no error and no retry.
    */
   const enabled =
-    opts?.enabled !== false && Boolean(moderationOpts) && Boolean(preferences)
+    opts?.enabled !== false &&
+    Boolean(moderationOpts) &&
+    Boolean(preferences) &&
+    (!isDiscover || Boolean(strikerDids))
   const userInterests = aggregateUserInterests(preferences)
   const followingPinnedIndex =
     preferences?.savedFeeds?.findIndex(
       f => f.pinned && f.value === 'following',
     ) ?? -1
   const enableFollowingToDiscoverFallback = followingPinnedIndex === 0
-  const {hasSession} = useSession()
-  const client = useAppviewClient()
-  const {data: strikerDids} = useStrikersQuery()
   const lastRun = useRef<{
     data: InfiniteData<FeedPageUnselected>
     args: typeof selectArgs
     result: InfiniteData<FeedPage>
   } | null>(null)
-  const isDiscover = feedDesc.includes(DISCOVER_FEED_URI)
 
   /**
    * The number of posts to fetch in a single request. Because we filter
