@@ -28,8 +28,6 @@ import {findAllProfilesInQueryData as findAllProfilesInProfileFollowersQueryData
 import {findAllProfilesInQueryData as findAllProfilesInProfileFollowsQueryData} from '#/state/queries/profile-follows'
 import {findAllProfilesInQueryData as findAllProfilesInSuggestedFollowsQueryData} from '#/state/queries/suggested-follows'
 import {findAllProfilesInQueryData as findAllProfilesInSunnahskySuggestedUsersQueryData} from '#/state/queries/sunnahsky-suggested-users'
-import {findAllProfilesInQueryData as findAllProfilesInSuggestedUsersForDiscoverQueryData} from '#/state/queries/trending/useGetSuggestedUsersForDiscoverQuery'
-import {findAllProfilesInQueryData as findAllProfilesInSuggestedUsersForSeeMoreQueryData} from '#/state/queries/trending/useGetSuggestedUsersForSeeMoreQuery'
 import {findAllProfilesInQueryData as findAllProfilesInPostThreadV2QueryData} from '#/state/queries/usePostThread/queryCache'
 import {type app} from '#/lexicons'
 import type * as bsky from '#/types/bsky'
@@ -318,8 +316,6 @@ function* findProfilesInCache(
   yield* findAllProfilesInProfileFollowersQueryData(queryClient, did)
   yield* findAllProfilesInProfileFollowsQueryData(queryClient, did)
   yield* findAllProfilesInSunnahskySuggestedUsersQueryData(queryClient, did)
-  yield* findAllProfilesInSuggestedUsersForDiscoverQueryData(queryClient, did)
-  yield* findAllProfilesInSuggestedUsersForSeeMoreQueryData(queryClient, did)
   yield* findAllProfilesInSuggestedFollowsQueryData(queryClient, did)
   yield* findAllProfilesInActorSearchQueryData(queryClient, did)
   yield* findAllProfilesInListConvosQueryData(queryClient, did)

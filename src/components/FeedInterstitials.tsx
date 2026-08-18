@@ -12,7 +12,7 @@ import {Trans, useLingui} from '@lingui/react/macro'
 import {useModerationOpts} from '#/state/preferences/moderation-opts'
 import {type FeedDescriptor} from '#/state/queries/post-feed'
 import {useSuggestedFollowsByActorWithDismiss} from '#/state/queries/suggested-follows'
-import {useGetSuggestedUsersForDiscoverQuery} from '#/state/queries/trending/useGetSuggestedUsersForDiscoverQuery'
+import {useSunnahskySuggestedUsers} from '#/state/queries/sunnahsky-suggested-users'
 import {useSession} from '#/state/session'
 import {BlockDrawerGesture} from '#/view/shell/BlockDrawerGesture'
 import {
@@ -119,7 +119,7 @@ export function SuggestedFollowsProfile({did}: {did: string}) {
 }
 
 export function SuggestedFollowsHome() {
-  const {isLoading, data, error} = useGetSuggestedUsersForDiscoverQuery()
+  const {isLoading, data, error} = useSunnahskySuggestedUsers()
 
   const profiles = data?.actors
 

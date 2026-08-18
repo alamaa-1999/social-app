@@ -8,6 +8,7 @@ import {until} from '#/lib/async/until'
 import {sanitizeDisplayName} from '#/lib/strings/display-names'
 import {sanitizeHandle} from '#/lib/strings/handles'
 import {enforceLen} from '#/lib/strings/helpers'
+import {useSunnahskyDids} from '#/state/queries/sunnahsky-dids'
 import {useAppviewClient, usePdsClient} from '#/state/session'
 import {app, com} from '#/lexicons'
 import type * as bsky from '#/types/bsky'
@@ -54,6 +55,7 @@ export function useGenerateStarterPackMutation({
   const {_} = useLingui()
   const appviewClient = useAppviewClient()
   const pdsClient = usePdsClient()
+  const {data: sunnahskyDids} = useSunnahskyDids()
 
   return useMutation<{uri: string; cid: string}, Error, void>({
     mutationFn: async () => {
@@ -72,7 +74,15 @@ export function useGenerateStarterPackMutation({
               q: encodeURIComponent('*'),
               limit: 49,
             })
-          ).actors.filter(p => p.viewer?.following)
+          ).actors.filter(
+            /*
+             * `sunnahskyDids` undefined (still loading) filters out every
+             * candidate, same fail-closed pattern as everything else today
+             * - that naturally trips the existing `< 7` threshold check
+             * below rather than ever building an unscoped starter pack.
+             */
+            p => p.viewer?.following && sunnahskyDids?.has(p.did),
+          )
         })(),
       ])
 

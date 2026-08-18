@@ -190,14 +190,20 @@ export function useNotificationFeedQuery(opts: {
                   })
                   .filter(item => {
                     /*
-                     * Reply-type notifications render foreign content (the
-                     * reply post itself), unlike like/repost notifications,
-                     * which are count-adjacent per the resolved scope rule.
-                     * `sunnahskyDids` undefined (still loading) hides
-                     * replies rather than flashing unfiltered ones - Phase F
+                     * Reply/mention/quote-type notifications all render
+                     * foreign content (the reply/mentioning/quoting post
+                     * itself), unlike like/repost notifications, which are
+                     * count-adjacent per the resolved scope rule.
+                     * `sunnahskyDids` undefined (still loading) hides all
+                     * three rather than flashing unfiltered ones - Phase F
                      * of `close off external content plan.md`.
                      */
-                    if (item.type !== 'reply') return true
+                    if (
+                      item.type !== 'reply' &&
+                      item.type !== 'mention' &&
+                      item.type !== 'quote'
+                    )
+                      return true
                     return !!sunnahskyDids?.has(item.notification.author.did)
                   })
                   .filter(item => {

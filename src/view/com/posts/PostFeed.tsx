@@ -523,11 +523,12 @@ let PostFeed = ({
                      * Discover is Sunnahsky's own synthetic Striker feed
                      * (StrikerFeedAPI) - deliberately not showing
                      * liveEventFeedsAndTrendingBanner (pulls Bluesky's own
-                     * curated live-event config) or interstitialFollows
-                     * (suggests real Bluesky accounts via
-                     * useGetSuggestedUsersForDiscoverQuery). Suggesting
-                     * Sunnahsky accounts to follow is Phase D's job, not
-                     * this one's.
+                     * curated live-event config) or interstitialFollows.
+                     * The latter's own suggestion source
+                     * (SuggestedFollowsHome, FeedInterstitials.tsx) is now
+                     * Sunnahsky-scoped (useSunnahskySuggestedUsers()), but
+                     * a follow-suggestion interstitial still isn't this
+                     * feed's job - that's Explore's surface, not Discover's.
                      */
                     // Show composer prompt for Discover and Following feeds
                     if (

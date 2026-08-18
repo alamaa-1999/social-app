@@ -8,7 +8,7 @@ import {popularInterests, useInterestsDisplayNames} from '#/lib/interests'
 import {useModerationOpts} from '#/state/preferences/moderation-opts'
 import {useActorSearch} from '#/state/queries/actor-search'
 import {usePreferencesQuery} from '#/state/queries/preferences'
-import {useGetSuggestedUsersForSeeMoreQuery} from '#/state/queries/trending/useGetSuggestedUsersForSeeMoreQuery'
+import {useSunnahskySuggestedUsers} from '#/state/queries/sunnahsky-suggested-users'
 import {useSession} from '#/state/session'
 import {type Follow10ProgressGuide} from '#/state/shell/progress-guide'
 import {type ListMethods} from '#/view/com/util/List'
@@ -148,12 +148,16 @@ function DialogInner({guide}: {guide?: Follow10ProgressGuide}) {
     lastSelectedInterest = selectedInterest
   }, [searchText, selectedInterest])
 
-  const isForYou = selectedInterest === FOR_YOU_TAB
-
-  const seeMoreQuery = useGetSuggestedUsersForSeeMoreQuery({
-    category: isForYou ? undefined : selectedInterest,
-    limit: 50,
-  })
+  /*
+   * `selectedInterest` still drives the InterestTabs bar below, but
+   * useSunnahskySuggestedUsers() deliberately has no `category` param - no
+   * topic/category personalization exists for Sunnahsky accounts (see that
+   * hook's own doc comment). Every tab shows the same list regardless of
+   * selection - the same accepted, deferred-topic-feeds trade-off already
+   * documented for Explore's and onboarding's category tabs, not a new
+   * decision for this dialog specifically.
+   */
+  const seeMoreQuery = useSunnahskySuggestedUsers({limit: 50})
   const suggestions = seeMoreQuery.data
   const isFetchingSuggestions = seeMoreQuery.isFetching
   const suggestionsError = seeMoreQuery.error

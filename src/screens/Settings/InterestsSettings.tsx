@@ -19,8 +19,6 @@ import {
   usePreferencesQuery,
 } from '#/state/queries/preferences'
 import {type UsePreferencesQueryResponse} from '#/state/queries/preferences/types'
-import {createGetSuggestedUsersForDiscoverQueryKey} from '#/state/queries/trending/useGetSuggestedUsersForDiscoverQuery'
-import {createGetSuggestedUsersForSeeMoreQueryKey} from '#/state/queries/trending/useGetSuggestedUsersForSeeMoreQuery'
 import {usePdsClient} from '#/state/session'
 import {atoms as a, useGutters, useTheme} from '#/alf'
 import {Admonition} from '#/components/Admonition'
@@ -118,18 +116,12 @@ function Inner({
           },
         )
         /*
-         * Explore's own suggested-accounts query isn't reset here -
-         * useSunnahskySuggestedUsers() doesn't depend on interests at all
-         * (see state/queries/sunnahsky-suggested-users.ts).
+         * No suggested-accounts query is reset here - every surface
+         * (Explore, the Discover/Home interstitial, FollowDialog's "see
+         * more") now runs on useSunnahskySuggestedUsers(), which doesn't
+         * depend on interests at all (see
+         * state/queries/sunnahsky-suggested-users.ts).
          */
-        await Promise.all([
-          qc.resetQueries({
-            queryKey: createGetSuggestedUsersForDiscoverQueryKey({}),
-          }),
-          qc.resetQueries({
-            queryKey: createGetSuggestedUsersForSeeMoreQueryKey({}),
-          }),
-        ])
 
         Toast.show(
           _(
