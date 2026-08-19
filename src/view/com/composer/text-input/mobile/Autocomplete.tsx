@@ -70,7 +70,7 @@ function AutocompleteProfileCard({
   totalItems,
   onPress,
 }: {
-  profile: app.bsky.actor.defs.ProfileViewBasic
+  profile: app.bsky.actor.defs.ProfileViewDetailed
   itemIndex: number
   totalItems: number
   onPress: () => void
