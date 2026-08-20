@@ -324,6 +324,12 @@ module.exports = function (_config) {
               './assets/fonts/inter/Inter-SemiBoldItalic.otf',
               './assets/fonts/inter/Inter-Bold.otf',
               './assets/fonts/inter/Inter-BoldItalic.otf',
+              // Arabic honorifics + quote/body text in articles (Phase 2a,
+              // `articles client ui plan.md`) - not part of the global
+              // Inter theme system in `src/alf/fonts.ts`, used directly by
+              // markdown-rendered content that needs it.
+              './assets/fonts/scheherazade-new/ScheherazadeNew-Regular.ttf',
+              './assets/fonts/scheherazade-new/ScheherazadeNew-Bold.ttf',
             ],
           },
         ],

@@ -46,6 +46,21 @@ Inter is licensed under the SIL Open Font License, Version 1.1. The license incl
 Font Name provision: a modified or subsetted version of the font may not be distributed under the
 name "Inter."
 
+## Scheherazade New
+
+**Path:** `assets/fonts/scheherazade-new/`
+**License:** SIL Open Font License, Version 1.1 — full text at
+[`assets/fonts/scheherazade-new/OFL.txt`](./assets/fonts/scheherazade-new/OFL.txt)
+
+```
+Copyright (c) 1994-2026, SIL Global (https://www.sil.org/), with Reserved Font Names
+"Scheherazade" and "SIL".
+```
+
+Scheherazade New is licensed under the SIL Open Font License, Version 1.1. The license includes a
+Reserved Font Name provision: a modified or subsetted version of the font may not be distributed
+under the names "Scheherazade" or "SIL."
+
 ## country-flag-icons
 
 **Path:** `assets/icons/flags/`

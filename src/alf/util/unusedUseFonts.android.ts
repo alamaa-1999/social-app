@@ -17,5 +17,7 @@ export function DO_NOT_USE() {
     'Inter-SemiBoldItalic': require('../../../assets/fonts/inter/Inter-SemiBoldItalic.otf'),
     'Inter-Bold': require('../../../assets/fonts/inter/Inter-Bold.otf'),
     'Inter-BoldItalic': require('../../../assets/fonts/inter/Inter-BoldItalic.otf'),
+    'ScheherazadeNew-Regular': require('../../../assets/fonts/scheherazade-new/ScheherazadeNew-Regular.ttf'),
+    'ScheherazadeNew-Bold': require('../../../assets/fonts/scheherazade-new/ScheherazadeNew-Bold.ttf'),
   })
 }

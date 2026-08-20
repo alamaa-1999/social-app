@@ -143,11 +143,13 @@ Their license text travels with the files, and you must keep it there.
 |---|---|---|---|
 | Inter typeface | `assets/fonts/inter/` | SIL Open Font License 1.1 | [`OFL.txt`](./assets/fonts/inter/OFL.txt) |
 | Inter typeface (OG card service) | `bskyogcard/src/assets/fonts/` | SIL Open Font License 1.1 | [`README.md`](./bskyogcard/src/assets/fonts/README.md) |
+| Scheherazade New typeface | `assets/fonts/scheherazade-new/` | SIL Open Font License 1.1 | [`OFL.txt`](./assets/fonts/scheherazade-new/OFL.txt) |
 | country-flag-icons | `assets/icons/flags/` | MIT, © @catamphetamine | [`README.md`](./assets/icons/flags/README.md) |
 | Material Icons | `bskyweb/static/media/MaterialIcons.*.ttf` | Apache License 2.0 | [`NOTICE.md`](./NOTICE.md) |
 
-Build output under `bskyweb/static/media/` also contains compiled Inter files. They are the same
-OFL-licensed typeface, emitted by the web build.
+Build output under `bskyweb/static/media/` also contains compiled Inter files, and will contain
+compiled Scheherazade New files once a web build with it lands. They are the same OFL-licensed
+typefaces, emitted by the web build.
 
 **One thing to watch on Inter:** OFL 1.1 includes a Reserved Font Name provision. If you modify
 or subset the font, the result cannot be distributed under the name "Inter."

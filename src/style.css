@@ -12,6 +12,33 @@
  * HTML & BODY STYLES IN `web/index.html` and `bskyweb/templates/base.html`
  */
 
+/**
+ * Scheherazade New - Arabic honorifics + quote/body text in articles
+ * (Phase 2a, `articles client ui plan.md`). Deliberately NOT duplicated into
+ * `web/index.html`/`bskyweb/templates/base.html` like InterVariable is,
+ * since it isn't needed before the app mounts - only inside article content,
+ * which is never on the splash-critical path. Referenced via a relative
+ * path (not a hand-maintained content-hashed one, unlike the splash-critical
+ * Inter block) so the bundler's own CSS asset pipeline resolves and hashes
+ * it - confirm this resolves correctly on the next real `pnpm build-web`.
+ */
+@font-face {
+  font-family: 'Scheherazade New';
+  src: url('../assets/fonts/scheherazade-new/ScheherazadeNew-Regular.ttf')
+    format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Scheherazade New';
+  src: url('../assets/fonts/scheherazade-new/ScheherazadeNew-Bold.ttf')
+    format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 /* Buttons and inputs have a font set by UA, so we'll have to reset that */
 button,
 input,
