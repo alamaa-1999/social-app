@@ -15,6 +15,7 @@ import * as TextField from '#/components/forms/TextField'
 import {TimesLarge_Stroke2_Corner0_Rounded as XIcon} from '#/components/icons/Times'
 import {Text} from '#/components/Typography'
 import {type site} from '#/lexicons'
+import {isAllowedColorValue} from './colorAllowlist'
 import {Metadata, type MetadataValue} from './Metadata'
 import {
   addFacet,
@@ -113,6 +114,14 @@ export function ArticleCompose({onClose}: {onClose: () => void}) {
   }
 
   const onSetColor = (hex: string) => {
+    // Finding 20 enforcement point: the toolbar's own menu only ever offers
+    // PRESET_COLORS, which already passes this trivially, but that's the
+    // caller being well-behaved, not a structural guarantee. This is the
+    // one place a #color.value actually gets constructed, so the allowlist
+    // has to live here, not upstream - any future caller (a free-text color
+    // input, say) is protected for free instead of having to remember to
+    // re-check.
+    if (!isAllowedColorValue(hex)) return
     const {byteStart, byteEnd} = utf16SelectionToByteRange(
       editor.markdown,
       selection.current.start,

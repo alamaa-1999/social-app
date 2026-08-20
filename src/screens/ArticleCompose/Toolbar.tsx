@@ -20,7 +20,6 @@ import {Underline_Stroke2_Corner0_Rounded as UnderlineIcon} from '#/components/i
 import * as Menu from '#/components/Menu'
 import * as Toast from '#/components/Toast'
 import {Text} from '#/components/Typography'
-import {isAllowedColorValue} from './colorAllowlist'
 
 /**
  * Preset swatches, not a free-typed color input - every value here trivially
@@ -189,13 +188,12 @@ export function Toolbar({
             <Menu.Item
               key={hex}
               label={hex}
-              onPress={() => {
-                // Belt-and-suspenders (finding 20): PRESET_COLORS is a fixed
-                // constant that always passes, but never let a value reach
-                // onSetColor without going through the allowlist - this is
-                // the one call site that ever produces a #color.value.
-                if (isAllowedColorValue(hex)) onSetColor(hex)
-              }}>
+              // Finding 20's allowlist now lives in onSetColor itself (the
+              // actual point of construction, not this call site) - see
+              // index.tsx. PRESET_COLORS is a fixed constant that always
+              // passes it anyway, so nothing changes here, just no
+              // duplicate check to keep in sync.
+              onPress={() => onSetColor(hex)}>
               <View
                 style={[
                   {width: 14, height: 14, backgroundColor: hex},
