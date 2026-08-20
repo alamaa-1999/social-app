@@ -6,7 +6,10 @@ import {STALE} from '#/state/queries'
 import {useAppviewClient} from '#/state/session'
 import {getSunnahskyPublicPdsClient} from '#/state/session/clients'
 import {app, com, site} from '#/lexicons'
+import {selectGenuineCompanionPosts} from './articles-companion'
 import {createQueryKey} from './util'
+
+export {selectGenuineCompanionPosts} from './articles-companion'
 
 const RQKEY_ROOT = 'author-articles'
 export const RQKEY = (did: string) => createQueryKey(RQKEY_ROOT, {did})
@@ -18,13 +21,18 @@ const GET_POSTS_BATCH_SIZE = 25 // app.bsky.feed.getPosts' own `uris` maxLength
  * An author's published articles, resolved to their real companion posts -
  * `site.standard.document` has no AppView indexer (by design), so discovery
  * goes straight to the PDS via `listRecords`; each result's `bskyPostRef` is
- * then batch-resolved through the AppView's `getPosts` to get the actual
+ * then batch-resolved through the AppView's `getPosts` to get the candidate
  * post to render (the one whose `embed.external.associatedRefs` triggers
  * the free `StandardSiteEmbed` card everywhere posts already render - see
  * `articles client ui plan.md`'s Phase 3). A single bounded fetch, not
- * paginated, per that same plan's scoping. Documents whose companion post
- * can't be resolved (deleted, moderation-hidden - `getPosts` just omits
- * missing URIs) are silently dropped rather than shown broken.
+ * paginated, per that same plan's scoping.
+ *
+ * Every candidate is verified via `isGenuineCompanionPost()` before being
+ * rendered - `bskyPostRef` alone is not trustworthy (see that function's
+ * doc comment). Documents whose companion post can't be resolved (deleted,
+ * moderation-hidden), whose resolved post belongs to a different author, or
+ * whose resolved post fails the `associatedRefs` cross-check are all
+ * silently dropped rather than shown broken or spoofed.
  *
  * Returns raw posts, not moderation decisions - moderation depends on live
  * user preferences and is computed downstream by the consuming section,
@@ -45,14 +53,14 @@ export function useAuthorArticlesQuery(did: string | undefined) {
         reverse: true,
       })
 
-      const docs = records
-        .map(record => site.standard.document.$safeParse(record.value))
-        .filter(result => result.success)
-        .map(result => result.value)
-        .filter(doc => !!doc.bskyPostRef?.uri)
+      const docs = records.flatMap(record => {
+        const parsed = site.standard.document.$safeParse(record.value)
+        if (!parsed.success || !parsed.value.bskyPostRef?.uri) return []
+        return [{uri: record.uri, cid: record.cid, doc: parsed.value}]
+      })
       if (!docs.length) return []
 
-      const postUris = docs.map(doc => doc.bskyPostRef!.uri)
+      const postUris = docs.map(entry => entry.doc.bskyPostRef!.uri)
       const posts: app.bsky.feed.defs.PostView[] = []
       for (let i = 0; i < postUris.length; i += GET_POSTS_BATCH_SIZE) {
         const batch = postUris.slice(i, i + GET_POSTS_BATCH_SIZE)
@@ -62,10 +70,7 @@ export function useAuthorArticlesQuery(did: string | undefined) {
         posts.push(...res.posts)
       }
 
-      const byUri = new Map(posts.map(post => [post.uri, post]))
-      return postUris
-        .map(uri => byUri.get(uri))
-        .filter((post): post is app.bsky.feed.defs.PostView => !!post)
+      return selectGenuineCompanionPosts(did!, docs, posts)
     },
   })
 }
