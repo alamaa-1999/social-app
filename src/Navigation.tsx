@@ -72,6 +72,7 @@ import {SupportScreen} from '#/view/screens/Support'
 import {TermsOfServiceScreen} from '#/view/screens/TermsOfService'
 import {BottomBar} from '#/view/shell/bottom-bar/BottomBar'
 import {createNativeStackNavigatorWithAuth} from '#/view/shell/createNativeStackNavigatorWithAuth'
+import {ArticleComposeScreen} from '#/screens/ArticleCompose'
 import {BookmarksScreen} from '#/screens/Bookmarks'
 import {SharedPreferencesTesterScreen} from '#/screens/E2E/SharedPreferencesTesterScreen'
 import {FindContactsFlowScreen} from '#/screens/FindContactsFlowScreen'
@@ -551,6 +552,15 @@ function commonScreens(Stack: typeof Flat, unreadCountLabel?: string) {
         name="StarterPackEdit"
         getComponent={() => Wizard}
         options={{title: title(msg`Edit your starter pack`), requireAuth: true}}
+      />
+      <Stack.Screen
+        name="ArticleCompose"
+        getComponent={() => ArticleComposeScreen}
+        options={{
+          title: title(msg`Write an article`),
+          requireAuth: true,
+          headerShown: false,
+        }}
       />
       <Stack.Screen
         name="VideoFeed"

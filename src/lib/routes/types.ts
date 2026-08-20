@@ -90,6 +90,7 @@ export type CommonNavigatorParams = {
     onSuccess?: () => void
   }
   StarterPackEdit: {rkey?: string}
+  ArticleCompose: undefined
   VideoFeed: VideoFeedSourceContext
   Bookmarks: undefined
   FindContactsFlow: undefined

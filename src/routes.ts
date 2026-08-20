@@ -83,6 +83,7 @@ export const router = new Router<AllNavigatableRoutes>({
   StarterPack: '/starter-pack/:name/:rkey',
   StarterPackShort: '/starter-pack-short/:code',
   StarterPackWizard: '/starter-pack/create',
+  ArticleCompose: '/article/compose',
   VideoFeed: '/video-feed',
   Bookmarks: '/saved',
   FindContactsFlow: '/find-contacts',

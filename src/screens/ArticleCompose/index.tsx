@@ -3,17 +3,24 @@ import {Pressable, TextInput, View} from 'react-native'
 import {msg} from '@lingui/core/macro'
 import {useLingui} from '@lingui/react'
 import {Trans} from '@lingui/react/macro'
+import {useQueryClient} from '@tanstack/react-query'
 
 import {publishArticle} from '#/lib/api/articles'
 import {uploadBlob} from '#/lib/api/upload-blob'
 import {SUNNAHSKY_SERVICE} from '#/lib/constants'
 import {useRequireStrikerForArticleAuthoring} from '#/lib/hooks/useRequireStrikerForArticleAuthoring'
 import {openPicker} from '#/lib/media/picker'
-import {usePdsClient} from '#/state/session'
+import {
+  type CommonNavigatorParams,
+  type NativeStackScreenProps,
+} from '#/lib/routes/types'
+import {RQKEY, waitForArticleIndexed} from '#/state/queries/articles'
+import {useAppviewClient, usePdsClient, useSession} from '#/state/session'
 import {atoms as a, useBreakpoints, useTheme, web} from '#/alf'
 import {Button, ButtonText} from '#/components/Button'
 import * as TextField from '#/components/forms/TextField'
 import {TimesLarge_Stroke2_Corner0_Rounded as XIcon} from '#/components/icons/Times'
+import * as Toast from '#/components/Toast'
 import {Text} from '#/components/Typography'
 import {type site} from '#/lexicons'
 import {isAllowedColorValue} from './colorAllowlist'
@@ -53,15 +60,21 @@ function utf16SelectionToByteRange(
  * (`58:5153`/`58:5222`) - both share this same state and logic, only the
  * outer chrome differs.
  *
- * Entry-point wiring (the Articles tab empty-state CTA, and this screen's
- * actual navigation registration) is Phase 3's job, not this one - this
- * component is self-contained and only needs an `onClose` callback.
+ * Self-contained - only needs an `onClose` callback. Registered as a plain
+ * `Stack.Screen` (`ArticleComposeScreen` below adapts the two), mirroring
+ * `StarterPackWizard`/`Wizard` rather than Composer's global-overlay
+ * architecture - this component already draws its own full-bleed backdrop,
+ * so it needs no extra screen-level chrome (`articles client ui plan.md`
+ * Phase 3).
  */
 export function ArticleCompose({onClose}: {onClose: () => void}) {
   const {_} = useLingui()
   const t = useTheme()
   const {gtMobile} = useBreakpoints()
   const pdsClient = usePdsClient()
+  const appviewClient = useAppviewClient()
+  const {currentAccount} = useSession()
+  const queryClient = useQueryClient()
   const requireStriker = useRequireStrikerForArticleAuthoring()
 
   const [title, setTitle] = useState('')
@@ -224,7 +237,7 @@ export function ArticleCompose({onClose}: {onClose: () => void}) {
     if (isPublishing || !title.trim() || !editor.markdown.trim()) return
     setIsPublishing(true)
     try {
-      await publishArticle({
+      const {postUri} = await publishArticle({
         pdsClient,
         draft: {
           title: title.trim(),
@@ -243,6 +256,24 @@ export function ArticleCompose({onClose}: {onClose: () => void}) {
           coverImage,
         },
       })
+      Toast.show(
+        _(
+          msg`Article published! It may take a few seconds to appear on your profile.`,
+        ),
+        {type: 'success'},
+      )
+      // Best-effort: the AppView needs a moment to index the new companion
+      // post before the Articles tab can resolve it (see
+      // waitForArticleIndexed's doc comment). Not awaited - publish should
+      // close immediately regardless of how long indexing takes.
+      const did = currentAccount?.did
+      if (did) {
+        void waitForArticleIndexed(appviewClient, postUri).then(indexed => {
+          if (indexed) {
+            void queryClient.invalidateQueries({queryKey: RQKEY(did)})
+          }
+        })
+      }
       onClose()
     } finally {
       setIsPublishing(false)
@@ -404,4 +435,11 @@ export function ArticleCompose({onClose}: {onClose: () => void}) {
       </Pressable>
     </View>
   )
+}
+
+/** `Stack.Screen` adapter - see the doc comment on `ArticleCompose` above. */
+export function ArticleComposeScreen({
+  navigation,
+}: NativeStackScreenProps<CommonNavigatorParams, 'ArticleCompose'>) {
+  return <ArticleCompose onClose={() => navigation.goBack()} />
 }
