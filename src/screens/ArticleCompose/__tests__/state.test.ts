@@ -6,6 +6,7 @@ import {
   type EditorFacet,
   type EditorState,
   facetsToWireFormat,
+  getLineByteRange,
   insertLinePrefix,
   insertText,
   utf8Length,
@@ -173,6 +174,32 @@ describe('insertLinePrefix', () => {
   it('inserts at the start of a later line, not the byte index itself', () => {
     const result = insertLinePrefix(state('first line\nsecond line'), 15, '# ')
     expect(result.markdown).toBe('first line\n# second line')
+  })
+})
+
+describe('getLineByteRange', () => {
+  it('returns the whole string for a single-line document', () => {
+    expect(getLineByteRange('hello world', 5)).toEqual({
+      byteStart: 0,
+      byteEnd: 11,
+    })
+  })
+
+  it('returns just the containing line in a multi-line document', () => {
+    const markdown = 'first line\nsecond line\nthird line'
+    // byte index 15 is inside "second line"
+    expect(getLineByteRange(markdown, 15)).toEqual({
+      byteStart: 11,
+      byteEnd: 22,
+    })
+  })
+
+  it('handles the cursor sitting exactly at a line boundary', () => {
+    const markdown = 'first line\nsecond line'
+    expect(getLineByteRange(markdown, 11)).toEqual({
+      byteStart: 11,
+      byteEnd: 22,
+    })
   })
 })
 

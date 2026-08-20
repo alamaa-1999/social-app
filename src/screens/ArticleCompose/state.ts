@@ -168,6 +168,22 @@ export function insertLinePrefix(
   return insertText(state, lineStartByte, prefix)
 }
 
+/** Returns the byte range of the line containing `byteIndex`, for block-level facets (alignment) that must span a whole paragraph, not just the current selection. */
+export function getLineByteRange(
+  markdown: string,
+  byteIndex: number,
+): {byteStart: number; byteEnd: number} {
+  const decoded = decoder.decode(encoder.encode(markdown))
+  const upToIndex = byteSlice(markdown, 0, byteIndex)
+  const lineStartChar = upToIndex.lastIndexOf('\n') + 1
+  const nextNewlineChar = decoded.indexOf('\n', lineStartChar)
+  const lineEndChar = nextNewlineChar === -1 ? decoded.length : nextNewlineChar
+  return {
+    byteStart: utf8Length(decoded.slice(0, lineStartChar)),
+    byteEnd: utf8Length(decoded.slice(0, lineEndChar)),
+  }
+}
+
 /** Records a custom facet (underline/color/alignment) over an existing byte range - no text is inserted. */
 export function addFacet(
   state: EditorState,

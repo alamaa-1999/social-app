@@ -1,6 +1,6 @@
 import {TID} from '@atproto/common-web'
 import {type Client} from '@atproto/lex'
-import {type AtUriString} from '@atproto/syntax'
+import {type AtUriString, toDatetimeString} from '@atproto/syntax'
 
 import {deriveTextContentFromMarkdown} from '#/lib/strings/markdown-strip'
 import {com, type site} from '#/lexicons'
@@ -111,7 +111,7 @@ export async function publishArticle(opts: PublishArticleOpts) {
 
   const path = articlePath(did, docRkey)
   const uri = articleUrl(did, docRkey)
-  const now = new Date().toISOString()
+  const now = toDatetimeString(new Date())
 
   // Provisional post - no `associatedRefs` yet, never submitted, only used
   // to seed `bskyPostRef` (see doc comment above for why this is fine).
@@ -147,6 +147,11 @@ export async function publishArticle(opts: PublishArticleOpts) {
     contributors: draft.contributors,
     coverImage: draft.coverImage,
     textContent: deriveTextContentFromMarkdown(draft.markdown),
+    // `content` is a deliberately open union (`site.standard.document.json`,
+    // Phase 2a) - `l.Unknown$TypedObject` is an opaque branded type on the
+    // TypeScript side, so a plain $type-tagged literal needs an explicit
+    // cast here even though the PDS accepts it unmodified (proven in
+    // atproto/packages/pds/tests/articles.test.ts).
     content: {
       $type: 'at.markpub.markdown',
       flavor: draft.flavor,
@@ -155,7 +160,7 @@ export async function publishArticle(opts: PublishArticleOpts) {
         markdown: draft.markdown,
         facets: draft.facets,
       },
-    },
+    } as unknown as site.standard.document.Main['content'],
     bskyPostRef: {uri: postUri, cid: provisionalPostCid},
   }
   if (draft.author) documentRecord.author = draft.author
