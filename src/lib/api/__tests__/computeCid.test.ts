@@ -10,7 +10,7 @@ jest.unmock('multiformats/hashes/hasher')
 import {CID} from 'multiformats/cid'
 
 import {computeCid} from '#/lib/api/computeCid'
-import {type app, type com} from '#/lexicons'
+import {type app, type com, type site} from '#/lexicons'
 
 /*
  * Golden-CID regression test for the composer post pipeline.
@@ -104,5 +104,25 @@ describe('computeCid', () => {
       const ref = {cid, uri} as com.atproto.repo.strongRef.Main
       reply = {root: reply?.root ?? ref, parent: ref}
     }
+  })
+
+  it('case 4: works generically for a non-post record (site.standard.document, articles write path)', async () => {
+    /*
+     * `computeCid` is generic (Phase 2 of `articles client ui plan.md`
+     * widened it from a post-only signature) precisely so the articles
+     * write path can pre-compute a document's CID before the record is
+     * submitted, the same way a reply pre-computes its parent's. This
+     * proves the widened signature actually works for a real
+     * site.standard.document-shaped record, not just that it compiles.
+     */
+    const record: site.standard.document.Main = {
+      $type: 'site.standard.document',
+      site: 'https://sunnahsky.com',
+      title: 'A test article',
+      publishedAt: '2024-01-01T00:00:00.000Z',
+    }
+    expect(await computeCid(record)).toBe(
+      'bafyreiaqzjzfbmke5ep5t6tggmjs4t2lkla3fcc4cuokktydah7lmxam4y',
+    )
   })
 })

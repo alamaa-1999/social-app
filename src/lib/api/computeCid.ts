@@ -2,13 +2,16 @@ import {sha256} from 'js-sha256'
 import {CID} from 'multiformats/cid'
 import * as Hasher from 'multiformats/hashes/hasher'
 
-import {type app} from '#/lexicons'
-
 /*
- * Client-side CID computation for post records, extracted from the post
- * pipeline so it can be unit-tested in isolation (importing the pipeline pulls
- * in the native gallery/media chain). See `computeCid.test.ts` for the
- * golden-CID regression fixtures that gate any change to this serialization.
+ * Client-side CID computation for atomic pre-computed-ref writes (a reply
+ * referencing an earlier post in the same thread before the server assigns
+ * it; the articles write path referencing a not-yet-submitted document from
+ * its companion post's embed), extracted from the post pipeline so it can be
+ * unit-tested in isolation (importing the pipeline pulls in the native
+ * gallery/media chain). Generic rather than post-specific - the body below
+ * has no post-specific logic, it just DAG-CBOR-encodes and hashes whatever
+ * record shape it's given. See `computeCid.test.ts` for the golden-CID
+ * regression fixtures that gate any change to this serialization.
  */
 
 // The built-in hashing functions from multiformats (`multiformats/hashes/sha2`)
@@ -22,9 +25,7 @@ const mf_sha256 = Hasher.from({
   },
 })
 
-export async function computeCid(
-  record: app.bsky.feed.post.Main,
-): Promise<string> {
+export async function computeCid<T>(record: T): Promise<string> {
   /*
    * Lazily loaded since it's only needed when posting a thread, and its
    * `cborg` dependency is ~190KB that would otherwise be in the initial
