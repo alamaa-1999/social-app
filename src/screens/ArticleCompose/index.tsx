@@ -6,6 +6,7 @@ import {Trans} from '@lingui/react/macro'
 
 import {publishArticle} from '#/lib/api/articles'
 import {uploadBlob} from '#/lib/api/upload-blob'
+import {SUNNAHSKY_SERVICE} from '#/lib/constants'
 import {useRequireStrikerForArticleAuthoring} from '#/lib/hooks/useRequireStrikerForArticleAuthoring'
 import {openPicker} from '#/lib/media/picker'
 import {usePdsClient} from '#/state/session'
@@ -200,12 +201,14 @@ export function ArticleCompose({onClose}: {onClose: () => void}) {
       selection.current.start,
       selection.current.start,
     )
-    // Inline images use plain Markdown image syntax - the blob itself still
-    // needs a fetchable URL, which this app doesn't yet mint for uploaded
-    // blobs (Phase 2's own finding, not solved here). Insert the syntax with
-    // a placeholder the author fills in, same treatment as insert-link.
-    applyEdit(insertText(editor, byteStart, `![image](https://)`))
-    void blob
+    // com.atproto.sync.getBlob is a standard, unauthenticated atproto
+    // endpoint (did+cid, both required) - a real, spec-compliant blob URL,
+    // not a workaround. BlobRef is a union (current TypedBlobRef vs. the
+    // legacy string-cid shape) - a freshly uploaded blob is always the
+    // former, but narrow properly rather than assuming.
+    const cid = 'ref' in blob ? blob.ref.toString() : blob.cid
+    const url = `${SUNNAHSKY_SERVICE}/xrpc/com.atproto.sync.getBlob?did=${encodeURIComponent(pdsClient.assertDid)}&cid=${encodeURIComponent(cid)}`
+    applyEdit(insertText(editor, byteStart, `![image](${url})`))
   }
 
   const onPressCoverImage = async () => {
