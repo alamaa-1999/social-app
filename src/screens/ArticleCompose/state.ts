@@ -32,7 +32,11 @@ export function utf8Length(text: string): number {
   return encoder.encode(text).byteLength
 }
 
-function byteSlice(markdown: string, start: number, end?: number): string {
+export function byteSlice(
+  markdown: string,
+  start: number,
+  end?: number,
+): string {
   return decoder.decode(encoder.encode(markdown).slice(start, end))
 }
 
@@ -49,11 +53,26 @@ export type FacetFeature =
       $type: 'com.sunnahsky.richtext.facets.blocks#textAlign'
       value: 'left' | 'center' | 'right' | 'justify'
     }
+  | {
+      $type: 'com.sunnahsky.richtext.facets.blocks#typography'
+      value: 'arabicParagraph' | 'arabicQuote'
+    }
 
 export interface EditorState {
   markdown: string
   facets: EditorFacet[]
 }
+
+export type ParagraphStyleId =
+  | 'title'
+  | 'subheading1'
+  | 'subheading2'
+  | 'paragraph'
+  | 'arabicParagraph'
+  | 'blockQuote'
+  | 'arabicBlockQuote'
+  | 'bulletedList'
+  | 'numberedList'
 
 /**
  * Inserts `text` at `byteIndex`, shifting every facet's byte range
@@ -184,6 +203,66 @@ export function getLineByteRange(
   }
 }
 
+const ORDERED_LIST_ITEM = /^(\d+)\. /
+
+/**
+ * Inserts a numbered-list prefix at the start of the line containing
+ * `byteIndex`. Unlike `insertLinePrefix` (a fixed literal like `'- '`), the
+ * prefix here depends on context: if the immediately preceding line is
+ * itself a numbered-list item, continues the sequence from it; otherwise
+ * starts a new list at 1.
+ */
+export function insertOrderedListPrefix(
+  state: EditorState,
+  byteIndex: number,
+): EditorState {
+  const decoded = decoder.decode(encoder.encode(state.markdown))
+  const upToIndex = byteSlice(state.markdown, 0, byteIndex)
+  const lineStartChar = upToIndex.lastIndexOf('\n') + 1
+  const linesBefore = decoded.slice(0, lineStartChar).split('\n')
+  const previousLine = linesBefore[linesBefore.length - 2]
+  const match = previousLine?.match(ORDERED_LIST_ITEM)
+  const n = match ? parseInt(match[1], 10) + 1 : 1
+  const lineStartByte = utf8Length(decoded.slice(0, lineStartChar))
+  return insertText(state, lineStartByte, `${n}. `)
+}
+
+/**
+ * Best-effort detection of which of the 9 paragraph styles applies to the
+ * line containing `byteIndex`, for the Paragraph-style dropdown's active-item
+ * checkmark (Figma shows exactly one option checked at a time). Reflects the
+ * line as of the last render, not the live cursor position on every
+ * arrow-key move - the caller's cursor position is tracked in a ref, not
+ * React state, deliberately (see `index.tsx`'s `selection` ref), so this is
+ * an honest approximation, not a fully live indicator.
+ */
+export function detectParagraphStyle(
+  markdown: string,
+  facets: EditorFacet[],
+  byteIndex: number,
+): ParagraphStyleId {
+  const line = getLineByteRange(markdown, byteIndex)
+  const lineText = byteSlice(markdown, line.byteStart, line.byteEnd)
+  const hasTypography = (value: 'arabicParagraph' | 'arabicQuote') =>
+    facets.some(
+      f =>
+        f.feature.$type === 'com.sunnahsky.richtext.facets.blocks#typography' &&
+        f.feature.value === value &&
+        f.byteStart <= line.byteStart &&
+        f.byteEnd >= line.byteEnd,
+    )
+  if (lineText.startsWith('> ')) {
+    return hasTypography('arabicQuote') ? 'arabicBlockQuote' : 'blockQuote'
+  }
+  if (hasTypography('arabicParagraph')) return 'arabicParagraph'
+  if (lineText.startsWith('### ')) return 'subheading2'
+  if (lineText.startsWith('## ')) return 'subheading1'
+  if (lineText.startsWith('# ')) return 'title'
+  if (lineText.startsWith('- ')) return 'bulletedList'
+  if (/^\d+\. /.test(lineText)) return 'numberedList'
+  return 'paragraph'
+}
+
 /** Records a custom facet (underline/color/alignment) over an existing byte range - no text is inserted. */
 export function addFacet(
   state: EditorState,
@@ -200,10 +279,11 @@ export function addFacet(
 /** Converts recorded editor facets into the wire shape `at.markpub.text.facets` expects. */
 export function facetsToWireFormat(facets: EditorFacet[]) {
   return facets.map(f => {
-    const $type =
-      f.feature.$type === 'com.sunnahsky.richtext.facets.blocks#textAlign'
-        ? 'com.sunnahsky.richtext.facets.blocks'
-        : 'com.sunnahsky.richtext.facets.formatting'
+    const $type = f.feature.$type.startsWith(
+      'com.sunnahsky.richtext.facets.blocks#',
+    )
+      ? 'com.sunnahsky.richtext.facets.blocks'
+      : 'com.sunnahsky.richtext.facets.formatting'
     return {
       $type,
       index: {byteStart: f.byteStart, byteEnd: f.byteEnd},

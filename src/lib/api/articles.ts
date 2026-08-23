@@ -1,9 +1,14 @@
 import {TID} from '@atproto/common-web'
 import {type Client} from '@atproto/lex'
-import {type AtUriString, toDatetimeString} from '@atproto/syntax'
+import {
+  type AtUriString,
+  type DatetimeString,
+  toDatetimeString,
+} from '@atproto/syntax'
 
 import {deriveTextContentFromMarkdown} from '#/lib/strings/markdown-strip'
-import {com, type site} from '#/lexicons'
+import {app, com, type site} from '#/lexicons'
+import * as bsky from '#/types/bsky'
 import {computeCid} from './computeCid'
 
 /**
@@ -17,7 +22,6 @@ import {computeCid} from './computeCid'
  * `joinPath`/`canonicalizeHttpUrl` logic) before landing this.
  */
 const PUBLICATION_URL = 'https://sunnahsky.com'
-const PUBLICATION_NAME = 'Sunnahsky'
 const articlePath = (did: string, docRkey: string) =>
   `/article/${did}/${docRkey}`
 const articleUrl = (did: string, docRkey: string) =>
@@ -30,16 +34,45 @@ export interface ArticleDraft {
   flavor: 'gfm' | 'commonmark'
   facets?: unknown[]
   tags?: string[]
-  category?: string
-  author?: string
-  translator?: string
+  /**
+   * Multi-select, per the ArticleCompose Figma design (confirmed against
+   * the design owner - Author/Translator/Category all use the same
+   * search+checklist+add-new picker, not a single free-text value each).
+   * Still Phase 1b/1's extension fields, not real lexicon schema members -
+   * widening to arrays is a TypeScript-only change, no lexicon edit needed.
+   */
+  categories?: string[]
+  authors?: string[]
+  translators?: string[]
   contributors?: site.standard.document.Contributor[]
   coverImage?: site.standard.document.Main['coverImage']
+}
+
+/** Identifies the existing published article/companion post being edited, so `publishArticle` can update in place instead of creating fresh records. */
+export interface ArticleEditRef {
+  documentUri: AtUriString
+  documentRkey: string
+  documentCid: string
+  publishedAt: DatetimeString
+  postUri: AtUriString
+  postRkey: string
 }
 
 interface PublishArticleOpts {
   draft: ArticleDraft
   pdsClient: Client
+  editing?: ArticleEditRef
+}
+
+/** Same shape/purpose as `articles-companion.ts`'s `isGenuineCompanionPost`, but checked against a record already in hand (no extra fetch) - narrows the concurrent-edit race window (same account, two tabs/sessions) between loading an article for editing and publishing the update; doesn't close it, since this check and the write below aren't atomic with each other. */
+function isGenuineCompanionPostRecord(
+  record: app.bsky.feed.post.Main,
+  document: {uri: string; cid: string},
+): boolean {
+  if (!bsky.isType(app.bsky.embed.external.main, record.embed)) return false
+  return !!record.embed.external.associatedRefs?.some(
+    ref => ref.uri === document.uri && ref.cid === document.cid,
+  )
 }
 
 /**
@@ -77,37 +110,115 @@ interface PublishArticleOpts {
  * then finalized (bskyPostRef included, never mutated again) and its real
  * CID is computed. Only then is the real post built, with `associatedRefs`
  * pointing at that exact, final document CID.
+ *
+ * With `opts.editing` set, this same function updates an already-published
+ * article in place instead: `applyWrites#update` at the existing document
+ * and post rkeys (not fresh ones), `publishedAt` preserved, `updatedAt`
+ * newly set, and the companion post's `associatedRefs`/link-preview fields
+ * re-pinned to the edited document's new CID - all in the same atomic
+ * batch, with the same CID-exactness discipline as the create path. The
+ * post's own `text` is never touched either way; only its embed metadata
+ * changes.
  */
 export async function publishArticle(opts: PublishArticleOpts) {
   const {draft, pdsClient} = opts
   const did = pdsClient.assertDid
 
-  const existingPubs = await pdsClient.call(com.atproto.repo.listRecords, {
-    repo: did,
-    collection: 'site.standard.publication',
-    limit: 1,
-  })
+  const [existingPubs, profileRecord, repoDesc, existingPostRecord] =
+    await Promise.all([
+      pdsClient.call(com.atproto.repo.listRecords, {
+        repo: did,
+        collection: 'site.standard.publication',
+        limit: 1,
+      }),
+      // Best-effort: a missing/unreadable profile just falls back to the
+      // handle below, not worth failing the whole publish over.
+      pdsClient
+        .call(com.atproto.repo.getRecord, {
+          repo: did,
+          collection: 'app.bsky.actor.profile',
+          rkey: 'self',
+        })
+        .catch(() => undefined),
+      pdsClient.call(com.atproto.repo.describeRepo, {repo: did}),
+      opts.editing
+        ? pdsClient.call(com.atproto.repo.getRecord, {
+            repo: did,
+            collection: 'app.bsky.feed.post',
+            rkey: opts.editing.postRkey,
+          })
+        : Promise.resolve(undefined),
+    ])
   const hasPublication = existingPubs.records.length > 0
+  const existingPub = hasPublication ? existingPubs.records[0] : undefined
 
-  const publicationRecord: site.standard.publication.Main = {
-    $type: 'site.standard.publication',
-    url: PUBLICATION_URL,
-    name: PUBLICATION_NAME,
+  if (opts.editing && existingPostRecord) {
+    const existingPostValue =
+      existingPostRecord.value as app.bsky.feed.post.Main
+    if (
+      !isGenuineCompanionPostRecord(existingPostValue, {
+        uri: opts.editing.documentUri,
+        cid: opts.editing.documentCid,
+      })
+    ) {
+      throw new Error("This article's companion post could not be verified")
+    }
   }
+
+  // Sunnahsky is infrastructure, not an editorial voice - each Striker's
+  // publication is named after them, not the platform, so every account's
+  // articles read as independently authored rather than one shared voice.
+  // `url` stays fixed to the shared domain regardless. Kept in sync on
+  // every publish (not just set once) so a later display-name change is
+  // reflected rather than going permanently stale.
+  const profileDisplayName = (
+    profileRecord?.value as {displayName?: string} | undefined
+  )?.displayName?.trim()
+  const publicationName = profileDisplayName || repoDesc.handle
+
+  const existingPubValue = existingPub?.value as
+    site.standard.publication.Main | undefined
+  const publicationNeedsRename =
+    hasPublication && existingPubValue?.name !== publicationName
+
+  const publicationRecord: site.standard.publication.Main = hasPublication
+    ? {
+        ...(existingPubValue as site.standard.publication.Main),
+        name: publicationName,
+      }
+    : {
+        $type: 'site.standard.publication',
+        url: PUBLICATION_URL,
+        name: publicationName,
+      }
   const pubRkey = TID.nextStr()
   const pubUri = hasPublication
-    ? existingPubs.records[0].uri
+    ? existingPub!.uri
     : (`at://${did}/site.standard.publication/${pubRkey}` as AtUriString)
-  const pubCid = hasPublication
-    ? existingPubs.records[0].cid
-    : await computeCid(publicationRecord)
+  // Must be recomputed when renaming: the publication's on-chain CID
+  // changes the instant the update write lands, and this value feeds the
+  // companion post's `associatedRefs` below - same exactness requirement
+  // as `documentRecord`'s own CID, per this function's doc comment.
+  const pubCid =
+    hasPublication && !publicationNeedsRename
+      ? existingPub!.cid
+      : await computeCid(publicationRecord)
 
-  let tid = TID.next()
-  const docRkey = tid.toString()
-  tid = TID.next(tid)
-  const postRkey = tid.toString()
-  const docUri = `at://${did}/site.standard.document/${docRkey}` as AtUriString
-  const postUri = `at://${did}/app.bsky.feed.post/${postRkey}` as AtUriString
+  let docRkey: string
+  let postRkey: string
+  if (opts.editing) {
+    docRkey = opts.editing.documentRkey
+    postRkey = opts.editing.postRkey
+  } else {
+    let tid = TID.next()
+    docRkey = tid.toString()
+    tid = TID.next(tid)
+    postRkey = tid.toString()
+  }
+  const docUri: AtUriString =
+    opts.editing?.documentUri ?? `at://${did}/site.standard.document/${docRkey}`
+  const postUri: AtUriString =
+    opts.editing?.postUri ?? `at://${did}/app.bsky.feed.post/${postRkey}`
 
   const path = articlePath(did, docRkey)
   const uri = articleUrl(did, docRkey)
@@ -115,33 +226,54 @@ export async function publishArticle(opts: PublishArticleOpts) {
 
   // Provisional post - no `associatedRefs` yet, never submitted, only used
   // to seed `bskyPostRef` (see doc comment above for why this is fine).
-  const provisionalPost = {
-    $type: 'app.bsky.feed.post',
-    text: draft.title,
-    createdAt: now,
-    embed: {
-      $type: 'app.bsky.embed.external',
-      external: {
-        $type: 'app.bsky.embed.external#external',
-        uri,
-        title: draft.title,
-        description: draft.description,
-        thumb: draft.coverImage,
-      },
-    },
-  }
+  // When editing, this starts from the *existing* post record instead of a
+  // blank one, so its own text/createdAt/reply/etc. carry through untouched
+  // below - only the embed's link-preview fields get overridden.
+  const provisionalPost = opts.editing
+    ? {
+        ...(existingPostRecord!.value as app.bsky.feed.post.Main),
+        embed: {
+          $type: 'app.bsky.embed.external' as const,
+          external: {
+            $type: 'app.bsky.embed.external#external' as const,
+            uri,
+            title: draft.title,
+            description: draft.description,
+            thumb: draft.coverImage,
+          },
+        },
+      }
+    : {
+        $type: 'app.bsky.feed.post',
+        text: draft.title,
+        createdAt: now,
+        embed: {
+          $type: 'app.bsky.embed.external',
+          external: {
+            $type: 'app.bsky.embed.external#external',
+            uri,
+            title: draft.title,
+            description: draft.description,
+            thumb: draft.coverImage,
+          },
+        },
+      }
   const provisionalPostCid = await computeCid(provisionalPost)
 
   const documentRecord: site.standard.document.Main & {
-    author?: string
-    translator?: string
-    category?: string
+    authors?: string[]
+    translators?: string[]
+    categories?: string[]
   } = {
     $type: 'site.standard.document',
     site: pubUri,
     title: draft.title,
     description: draft.description,
-    publishedAt: now,
+    // Preserved across edits, never touched again after the original
+    // publish - `updatedAt` is what tracks edit history instead, and is
+    // deliberately left unset on a fresh publish (no prior edit to show).
+    publishedAt: opts.editing?.publishedAt ?? now,
+    updatedAt: opts.editing ? now : undefined,
     path,
     tags: draft.tags,
     contributors: draft.contributors,
@@ -163,9 +295,9 @@ export async function publishArticle(opts: PublishArticleOpts) {
     } as unknown as site.standard.document.Main['content'],
     bskyPostRef: {uri: postUri, cid: provisionalPostCid},
   }
-  if (draft.author) documentRecord.author = draft.author
-  if (draft.translator) documentRecord.translator = draft.translator
-  if (draft.category) documentRecord.category = draft.category
+  if (draft.authors?.length) documentRecord.authors = draft.authors
+  if (draft.translators?.length) documentRecord.translators = draft.translators
+  if (draft.categories?.length) documentRecord.categories = draft.categories
 
   // Document is now final (never mutated after this point) - its real CID
   // is what `associatedRefs` below must pin exactly.
@@ -193,19 +325,41 @@ export async function publishArticle(opts: PublishArticleOpts) {
       rkey: pubRkey,
       value: publicationRecord,
     })
+  } else if (publicationNeedsRename) {
+    writes.push({
+      $type: 'com.atproto.repo.applyWrites#update',
+      collection: 'site.standard.publication',
+      rkey: existingPub!.uri.split('/').pop()!,
+      value: publicationRecord,
+    })
   }
-  writes.push({
-    $type: 'com.atproto.repo.applyWrites#create',
-    collection: 'app.bsky.feed.post',
-    rkey: postRkey,
-    value: postRecord,
-  })
-  writes.push({
-    $type: 'com.atproto.repo.applyWrites#create',
-    collection: 'site.standard.document',
-    rkey: docRkey,
-    value: documentRecord,
-  })
+  if (opts.editing) {
+    writes.push({
+      $type: 'com.atproto.repo.applyWrites#update',
+      collection: 'app.bsky.feed.post',
+      rkey: postRkey,
+      value: postRecord,
+    })
+    writes.push({
+      $type: 'com.atproto.repo.applyWrites#update',
+      collection: 'site.standard.document',
+      rkey: docRkey,
+      value: documentRecord,
+    })
+  } else {
+    writes.push({
+      $type: 'com.atproto.repo.applyWrites#create',
+      collection: 'app.bsky.feed.post',
+      rkey: postRkey,
+      value: postRecord,
+    })
+    writes.push({
+      $type: 'com.atproto.repo.applyWrites#create',
+      collection: 'site.standard.document',
+      rkey: docRkey,
+      value: documentRecord,
+    })
+  }
 
   await pdsClient.call(com.atproto.repo.applyWrites, {
     repo: did,

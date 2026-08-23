@@ -295,6 +295,13 @@ export function useHostingProvider({
     queryKey: RQKEY(debounced),
     queryFn: () => resolvePdsForIdentifier(debounced),
     staleTime: STALE.MINUTES.FIVE,
+    /*
+     * This resolves the identifier's own host, independent of the
+     * authenticated session, so it must not be gated by TanStack's global
+     * onlineManager belief - see the matching comment in
+     * state/queries/service.ts for the full reasoning.
+     */
+    networkMode: 'always',
   })
 
   let state: HostingProviderState

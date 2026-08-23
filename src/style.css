@@ -39,6 +39,36 @@
   font-display: swap;
 }
 
+/**
+ * Article title/sub-title/body typography (ArticleCompose Figma pass,
+ * `articles client ui plan.md`). Static single-weight instances, not
+ * variable fonts - see assets/fonts/<family>/README.md for why. The
+ * font-family name here matches each file's own internal name table exactly
+ * (confirmed via fontTools), so the same `fontFamily` string used in native
+ * styles resolves correctly on web too, with no platform branching needed.
+ */
+@font-face {
+  font-family: 'Fraunces SemiBold';
+  src: url('../assets/fonts/fraunces/Fraunces-SemiBold.ttf') format('truetype');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Archivo SemiBold';
+  src: url('../assets/fonts/archivo/Archivo-SemiBold.ttf') format('truetype');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Vollkorn';
+  src: url('../assets/fonts/vollkorn/Vollkorn-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 /* Buttons and inputs have a font set by UA, so we'll have to reset that */
 button,
 input,

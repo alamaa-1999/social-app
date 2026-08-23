@@ -72,6 +72,7 @@ import {
   Mute_Stroke2_Corner0_Rounded as Mute,
   Mute_Stroke2_Corner0_Rounded as MuteIcon,
 } from '#/components/icons/Mute'
+import {Pencil_Stroke2_Corner0_Rounded as PencilIcon} from '#/components/icons/Pencil'
 import {PersonX_Stroke2_Corner0_Rounded as PersonX} from '#/components/icons/Person'
 import {Pin_Stroke2_Corner0_Rounded as PinIcon} from '#/components/icons/Pin'
 import {SettingsGear2_Stroke2_Corner0_Rounded as Gear} from '#/components/icons/SettingsGear2'
@@ -88,11 +89,13 @@ import {
   ReportDialog,
   useReportDialogControl,
 } from '#/components/moderation/ReportDialog'
+import {isStandardSiteDocumentUri} from '#/components/Post/Embed/StandardSiteEmbed/utils'
 import * as Prompt from '#/components/Prompt'
 import * as Toast from '#/components/Toast'
 import {useAnalytics} from '#/analytics'
 import {IS_INTERNAL} from '#/env'
-import {type app} from '#/lexicons'
+import {app} from '#/lexicons'
+import * as bsky from '#/types/bsky'
 
 let PostMenuItems = ({
   post,
@@ -167,6 +170,16 @@ let PostMenuItems = ({
   )
   const isPostHidden = hiddenPosts && hiddenPosts.includes(postUri)
   const isAuthor = postAuthor.did === currentAccount?.did
+  // The document's DID is never taken from `documentRef.uri` itself when
+  // navigating below - only its `rkey` survives the trip, and
+  // `ArticleComposeScreen` always substitutes the current signed-in
+  // account's own DID back in. This is deliberate: a malicious account
+  // could otherwise forge their own post's `associatedRefs` to point at
+  // someone else's document and use their own genuinely-authored post to
+  // reach "Edit article" on it.
+  const documentRef = bsky.isType(app.bsky.embed.external.main, record.embed)
+    ? record.embed.external.associatedRefs?.find(isStandardSiteDocumentUri)
+    : undefined
   const isRootPostAuthor = new AtUri(rootUri).host === currentAccount?.did
   const threadgateHiddenReplies = useMergedThreadgateHiddenReplies({
     threadgateRecord,
@@ -803,6 +816,19 @@ let PostMenuItems = ({
                     </Menu.ItemText>
                     <Menu.ItemIcon icon={Gear} position="right" />
                   </Menu.Item>
+                  {documentRef && (
+                    <Menu.Item
+                      testID="postDropdownEditArticleBtn"
+                      label={l`Edit article`}
+                      onPress={() =>
+                        navigation.navigate('ArticleEdit', {
+                          rkey: new AtUri(documentRef.uri).rkey,
+                        })
+                      }>
+                      <Menu.ItemText>{l`Edit article`}</Menu.ItemText>
+                      <Menu.ItemIcon icon={PencilIcon} position="right" />
+                    </Menu.Item>
+                  )}
                   <Menu.Item
                     testID="postDropdownDeleteBtn"
                     label={l`Delete post`}

@@ -122,7 +122,12 @@ export function BackButton({onPress, style, ...props}: Partial<ButtonProps>) {
       if (navigation.canGoBack()) {
         navigation.goBack()
       } else {
-        navigation.navigate('Home')
+        // `replace`, not `navigate`: on a cold direct-URL load Home isn't
+        // in the route stack yet, so `navigate('Home')` would push it on
+        // top instead of jumping to an existing entry - leaving this
+        // screen's own entry (and its still-mounted component) sitting
+        // right underneath, ready to resurface on the next back-press.
+        navigation.replace('Home')
       }
     },
     [onPress, navigation],

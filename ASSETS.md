@@ -144,6 +144,9 @@ Their license text travels with the files, and you must keep it there.
 | Inter typeface | `assets/fonts/inter/` | SIL Open Font License 1.1 | [`OFL.txt`](./assets/fonts/inter/OFL.txt) |
 | Inter typeface (OG card service) | `bskyogcard/src/assets/fonts/` | SIL Open Font License 1.1 | [`README.md`](./bskyogcard/src/assets/fonts/README.md) |
 | Scheherazade New typeface | `assets/fonts/scheherazade-new/` | SIL Open Font License 1.1 | [`OFL.txt`](./assets/fonts/scheherazade-new/OFL.txt) |
+| Fraunces typeface | `assets/fonts/fraunces/` | SIL Open Font License 1.1 | [`OFL.txt`](./assets/fonts/fraunces/OFL.txt) |
+| Archivo typeface | `assets/fonts/archivo/` | SIL Open Font License 1.1 | [`OFL.txt`](./assets/fonts/archivo/OFL.txt) |
+| Vollkorn typeface | `assets/fonts/vollkorn/` | SIL Open Font License 1.1 | [`OFL.txt`](./assets/fonts/vollkorn/OFL.txt) |
 | country-flag-icons | `assets/icons/flags/` | MIT, © @catamphetamine | [`README.md`](./assets/icons/flags/README.md) |
 | Material Icons | `bskyweb/static/media/MaterialIcons.*.ttf` | Apache License 2.0 | [`NOTICE.md`](./NOTICE.md) |
 

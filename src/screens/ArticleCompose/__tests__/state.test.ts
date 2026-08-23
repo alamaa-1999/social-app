@@ -3,11 +3,13 @@ import {describe, expect, it} from '@jest/globals'
 import {
   addFacet,
   deleteRange,
+  detectParagraphStyle,
   type EditorFacet,
   type EditorState,
   facetsToWireFormat,
   getLineByteRange,
   insertLinePrefix,
+  insertOrderedListPrefix,
   insertText,
   utf8Length,
   wrapSelection,
@@ -177,6 +179,85 @@ describe('insertLinePrefix', () => {
   })
 })
 
+describe('insertOrderedListPrefix', () => {
+  it('starts a new list at 1 when the preceding line is not a numbered item', () => {
+    const result = insertOrderedListPrefix(state('first line\nsecond line'), 11)
+    expect(result.markdown).toBe('first line\n1. second line')
+  })
+
+  it('continues the sequence when the preceding line is a numbered item', () => {
+    const result = insertOrderedListPrefix(
+      state('1. first item\nsecond line'),
+      14,
+    )
+    expect(result.markdown).toBe('1. first item\n2. second line')
+  })
+
+  it('continues from a double-digit number correctly', () => {
+    const result = insertOrderedListPrefix(
+      state('9. ninth item\nsecond line'),
+      14,
+    )
+    expect(result.markdown).toBe('9. ninth item\n10. second line')
+  })
+
+  it('starts at 1 for the very first line of the document', () => {
+    const result = insertOrderedListPrefix(state('only line'), 0)
+    expect(result.markdown).toBe('1. only line')
+  })
+})
+
+describe('detectParagraphStyle', () => {
+  it('detects a plain line as paragraph', () => {
+    expect(detectParagraphStyle('Just some text.', [], 5)).toBe('paragraph')
+  })
+
+  it('detects title/subheading1/subheading2 from # prefixes', () => {
+    expect(detectParagraphStyle('# A title', [], 3)).toBe('title')
+    expect(detectParagraphStyle('## A subheading', [], 3)).toBe('subheading1')
+    expect(detectParagraphStyle('### A subheading', [], 3)).toBe('subheading2')
+  })
+
+  it('detects bulleted and numbered lists', () => {
+    expect(detectParagraphStyle('- an item', [], 3)).toBe('bulletedList')
+    expect(detectParagraphStyle('12. an item', [], 3)).toBe('numberedList')
+  })
+
+  it('detects a plain block quote', () => {
+    expect(detectParagraphStyle('> a quote', [], 3)).toBe('blockQuote')
+  })
+
+  it('detects Arabic Block Quote from a > prefix plus an arabicQuote facet covering the line', () => {
+    const markdown = '> Arabic paragraph text.'
+    const facets: EditorFacet[] = [
+      {
+        byteStart: 0,
+        byteEnd: utf8Length(markdown),
+        feature: {
+          $type: 'com.sunnahsky.richtext.facets.blocks#typography',
+          value: 'arabicQuote',
+        },
+      },
+    ]
+    expect(detectParagraphStyle(markdown, facets, 3)).toBe('arabicBlockQuote')
+  })
+
+  it('detects Arabic Paragraph from an arabicParagraph facet with no > prefix', () => {
+    const markdown = 'Arabic paragraph text.'
+    const facets: EditorFacet[] = [
+      {
+        byteStart: 0,
+        byteEnd: utf8Length(markdown),
+        feature: {
+          $type: 'com.sunnahsky.richtext.facets.blocks#typography',
+          value: 'arabicParagraph',
+        },
+      },
+    ]
+    expect(detectParagraphStyle(markdown, facets, 3)).toBe('arabicParagraph')
+  })
+})
+
 describe('getLineByteRange', () => {
   it('returns the whole string for a single-line document', () => {
     expect(getLineByteRange('hello world', 5)).toEqual({
@@ -254,6 +335,68 @@ describe('facetsToWireFormat', () => {
             value: 'center',
           },
         ],
+      },
+    ])
+  })
+
+  it('maps the typography feature to the blocks lexicon too', () => {
+    const facets: EditorFacet[] = [
+      {
+        byteStart: 0,
+        byteEnd: 5,
+        feature: {
+          $type: 'com.sunnahsky.richtext.facets.blocks#typography',
+          value: 'arabicQuote',
+        },
+      },
+    ]
+    expect(facetsToWireFormat(facets)).toEqual([
+      {
+        $type: 'com.sunnahsky.richtext.facets.blocks',
+        index: {byteStart: 0, byteEnd: 5},
+        features: [
+          {
+            $type: 'com.sunnahsky.richtext.facets.blocks#typography',
+            value: 'arabicQuote',
+          },
+        ],
+      },
+    ])
+  })
+})
+
+describe('Arabic Block Quote composition (blockquote prefix + typography facet)', () => {
+  // Security-review-mandated ordering: insert the `>` blockquote prefix
+  // FIRST, then compute the typography facet's byte range against the
+  // now-shifted line - never the reverse, and never computed independently.
+  // This test pins that exact ordering by construction: it calls
+  // `insertLinePrefix` before `getLineByteRange`/`addFacet`, mirroring
+  // `onSetTypography`'s real call order in index.tsx for the "Arabic Block
+  // Quote" paragraph-style option.
+  it('facet byte range lands on the paragraph text after the prefix shifts it, not before', () => {
+    const initial = state('Arabic paragraph text.')
+    const withPrefix = insertLinePrefix(initial, 0, '> ')
+    expect(withPrefix.markdown).toBe('> Arabic paragraph text.')
+
+    // Now compute the typography facet against the prefixed line - the
+    // facet must span the whole line INCLUDING the "> " prefix (byteStart 0),
+    // not just the original pre-prefix text (which would incorrectly start
+    // at byte 2 if computed against the old, unprefixed string).
+    const line = getLineByteRange(withPrefix.markdown, 0)
+    expect(line).toEqual({byteStart: 0, byteEnd: 24})
+
+    const result = addFacet(withPrefix, line.byteStart, line.byteEnd, {
+      $type: 'com.sunnahsky.richtext.facets.blocks#typography',
+      value: 'arabicQuote',
+    })
+    expect(result.facets).toEqual([
+      {
+        byteStart: 0,
+        byteEnd: 24,
+        feature: {
+          $type: 'com.sunnahsky.richtext.facets.blocks#typography',
+          value: 'arabicQuote',
+        },
       },
     ])
   })

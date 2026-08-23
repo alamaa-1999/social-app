@@ -3,6 +3,7 @@ import {type ListRenderItemInfo, View} from 'react-native'
 import {moderatePost, type ModerationOpts} from '@bsky/sdk/moderation'
 import {msg} from '@lingui/core/macro'
 import {useLingui} from '@lingui/react'
+import {Trans} from '@lingui/react/macro'
 import {useNavigation} from '@react-navigation/native'
 
 import {useRequireStrikerForArticleAuthoring} from '#/lib/hooks/useRequireStrikerForArticleAuthoring'
@@ -15,7 +16,8 @@ import {ErrorMessage} from '#/view/com/util/error/ErrorMessage'
 import {List, type ListRef} from '#/view/com/util/List'
 import {findListNativeTag} from '#/view/com/util/listNativeTag'
 import {FeedLoadingPlaceholder} from '#/view/com/util/LoadingPlaceholder'
-import {ios} from '#/alf'
+import {atoms as a, ios} from '#/alf'
+import {Button, ButtonText} from '#/components/Button'
 import {Newspaper_Stroke2_Corner2_Rounded as NewspaperIcon} from '#/components/icons/Newspaper'
 import {IS_IOS, IS_NATIVE} from '#/env'
 import {type app} from '#/lexicons'
@@ -107,6 +109,28 @@ export function ProfileArticlesSection({
     navigation.navigate('ArticleCompose'),
   )
 
+  // Permanent, always visible - distinct from the empty-state "Write an
+  // article" button below, which disappears the moment the account has
+  // published its first article. Same gating as that one: visible for any
+  // isMe viewer regardless of role, with `onPressWriteArticle` (already
+  // wrapped in `requireStriker`) handling the Striker-only block on press.
+  const listHeader = useMemo(() => {
+    if (!isMe) return null
+    return (
+      <View style={[a.px_lg, a.py_md, a.align_start]}>
+        <Button
+          label={_(msg`Write an article`)}
+          size="small"
+          color="primary"
+          onPress={onPressWriteArticle}>
+          <ButtonText>
+            <Trans>Write an article</Trans>
+          </ButtonText>
+        </Button>
+      </View>
+    )
+  }, [isMe, _, onPressWriteArticle])
+
   const renderItem = useCallback(
     ({item, index}: ListRenderItemInfo<Row>) => {
       if (item._reactKey === 'loading') {
@@ -129,17 +153,6 @@ export function ProfileArticlesSection({
                 ? _(msg`You haven't written any articles yet`)
                 : _(msg`No articles yet`)
             }
-            button={
-              isMe
-                ? {
-                    label: _(msg`Write an article`),
-                    text: _(msg`Write an article`),
-                    onPress: onPressWriteArticle,
-                    size: 'small',
-                    color: 'primary',
-                  }
-                : undefined
-            }
           />
         )
       }
@@ -158,7 +171,7 @@ export function ProfileArticlesSection({
         />
       )
     },
-    [_, error, refetch, isMe, onPressWriteArticle],
+    [_, error, refetch, isMe],
   )
 
   return (
@@ -170,6 +183,7 @@ export function ProfileArticlesSection({
         keyExtractor={keyExtractor}
         headerOffset={headerHeight}
         progressViewOffset={ios(0)}
+        ListHeaderComponent={listHeader}
       />
     </View>
   )

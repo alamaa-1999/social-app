@@ -23,11 +23,13 @@ import * as bsky from '#/types/bsky'
  * write time - in practice, only the genuine `publishArticle()` write path
  * that produced them together can satisfy this.
  *
- * Known limitation, not a bug: if document editing is ever added, an edited
- * document's `cid` changes, so it stops matching its original companion
- * post's (CID-pinned) `associatedRefs` until a new companion post is
- * published - consistent with the same version-exact lookup the AppView's
- * hydrator already relies on for this field.
+ * This is no longer a live gap for edited articles: `publishArticle()`'s
+ * `opts.editing` path re-pins the companion post's `associatedRefs` to the
+ * edited document's new CID atomically alongside the document write itself
+ * (same version-exact lookup this function relies on), so a genuinely
+ * edited-through-this-app article still matches post-edit. It would only
+ * go stale for a document mutated through some path *other* than
+ * `publishArticle()`'s edit flow - not a case this app produces.
  */
 export function isGenuineCompanionPost(
   post: app.bsky.feed.defs.PostView,

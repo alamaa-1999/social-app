@@ -330,6 +330,13 @@ module.exports = function (_config) {
               // markdown-rendered content that needs it.
               './assets/fonts/scheherazade-new/ScheherazadeNew-Regular.ttf',
               './assets/fonts/scheherazade-new/ScheherazadeNew-Bold.ttf',
+              // Article title/sub-title/body typography (ArticleCompose
+              // Figma pass, `articles client ui plan.md`) - static
+              // single-weight instances, not variable fonts (see
+              // assets/fonts/<family>/README.md for why).
+              './assets/fonts/fraunces/Fraunces-SemiBold.ttf',
+              './assets/fonts/archivo/Archivo-SemiBold.ttf',
+              './assets/fonts/vollkorn/Vollkorn-Regular.ttf',
             ],
           },
         ],

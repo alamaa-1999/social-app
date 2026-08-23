@@ -563,6 +563,15 @@ function commonScreens(Stack: typeof Flat, unreadCountLabel?: string) {
         }}
       />
       <Stack.Screen
+        name="ArticleEdit"
+        getComponent={() => ArticleComposeScreen}
+        options={{
+          title: title(msg`Edit article`),
+          requireAuth: true,
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
         name="VideoFeed"
         getComponent={() => VideoFeed}
         options={{
