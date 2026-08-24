@@ -10,6 +10,127 @@ packageExtensions:
     peerDependenciesMeta:
       eslint:
         optional: true
+  # Every other @tiptap/* v3 package the serializer/editor-web bundle touches
+  # needs the identical treatment, per the note left in
+  # `Sunnahsky_Week3_Engineering_Notes.md`'s TipTap section - the same
+  # v2-hoisting problem reproduces per-package, not just for the first two
+  # found. Surfaced this time by the serializer's Jest tests constructing a
+  # real `MarkdownManager` directly (Node/Jest module resolution, unlike
+  # Vite's bundler resolution for the actual web build, doesn't happen to
+  # paper over the mismatch the same way).
+  '@tiptap/extension-document':
+    dependencies:
+      '@tiptap/core': ^3.11.0
+  '@tiptap/extension-paragraph':
+    dependencies:
+      '@tiptap/core': ^3.11.0
+  '@tiptap/extension-text':
+    dependencies:
+      '@tiptap/core': ^3.11.0
+  '@tiptap/extension-bold':
+    dependencies:
+      '@tiptap/core': ^3.11.0
+  '@tiptap/extension-italic':
+    dependencies:
+      '@tiptap/core': ^3.11.0
+  '@tiptap/extension-strike':
+    dependencies:
+      '@tiptap/core': ^3.11.0
+  '@tiptap/extension-blockquote':
+    dependencies:
+      '@tiptap/core': ^3.11.0
+  '@tiptap/extension-underline':
+    dependencies:
+      '@tiptap/core': ^3.11.0
+  '@tiptap/extension-text-style':
+    dependencies:
+      '@tiptap/core': ^3.11.0
+  '@tiptap/extension-color':
+    dependencies:
+      '@tiptap/core': ^3.11.0
+  # Real bug found while building the serializer, not just a test-environment
+  # artifact: @10play/tentap-editor's own CoreBridge bare-imports
+  # @tiptap/extension-paragraph/@tiptap/extension-text without declaring
+  # them as its own package.json dependencies (unlike
+  # @tiptap/extension-document, which it DOES declare, and which already
+  # nests a correct v3 copy for exactly that reason). Both bare imports were
+  # silently resolving to this app's pre-existing v2.9.1 pins (kept for the
+  # unrelated web post-composer) - present in the real production webview
+  # runtime too, not just here, simply never triggered before since the
+  # spike never exercised @tiptap/markdown's extension-registration path
+  # (no markdown serialization was attempted until this session). Forcing
+  # the dependency directly onto @10play/tentap-editor mirrors how
+  # extension-document already resolves correctly, without touching this
+  # app's own top-level v2 pins the unrelated post-composer still needs.
+  '@10play/tentap-editor':
+    dependencies:
+      '@tiptap/extension-paragraph': ^3.11.0
+      '@tiptap/extension-text': ^3.11.0
+      # `@tiptap/markdown` and `@tiptap/extension-text-align` are a
+      # different, harder case than paragraph/text above: both declare
+      # `@tiptap/core` as their own peerDependency, AND both already exist
+      # at the correct v3.30.2 themselves at the top level - there is only
+      # ONE physical copy of each anywhere in the tree, so a plain
+      # `dependencies` injection (into either their own manifest, or a new
+      # consumer edge the way paragraph/text was fixed) is a no-op: the
+      # requested range (`^3.11.0`) is already satisfied by the existing
+      # instance, so pnpm just points at it rather than creating a new,
+      # separately-resolved copy. Four different attempts confirmed this
+      # by hand and all failed to change anything: injecting `dependencies`
+      # into the package's own manifest (plain semver and an exact `npm:`
+      # pin), rewriting its `peerDependencies` directly, marking the peer
+      # `optional` via `peerDependenciesMeta`, and routing a fresh
+      # `dependencies` edge through `@10play/tentap-editor` the same way
+      # paragraph/text was fixed - `pnpm list @tiptap/core --depth 10`
+      # showed `@tiptap/core@2.27.2 peer` every single time. This was
+      # believed fixed earlier in this project's history but was never
+      # actually exercised against `@tiptap/markdown`'s own extension-
+      # registration code path until this session - confirmed to be a
+      # real, live bug in the actual Vite-built editor-web bundle too, not
+      # a Jest-only artifact: `pnpm run editor:build` fails outright with
+      # `"attrsEqual" is not exported by "@tiptap/core"` (a real v3-only
+      # utility genuinely absent from the v2 build) the moment
+      # `@tiptap/markdown` is wired into the real bundle.
+      #
+      # The fix that actually works: an explicit pnpm alias (a distinct
+      # dependency NAME pointing at the same package via the `npm:`
+      # protocol). Since the alias name has never existed anywhere in the
+      # tree before, pnpm has no existing instance to reuse and must
+      # install a genuinely separate, independently-resolved copy -
+      # confirmed via `node_modules/tiptap-markdown-fixed/node_modules/
+      # @tiptap/core/package.json` correctly reading `3.30.2`, not `2.x`.
+      # Any real code needing a working `@tiptap/markdown` or
+      # `@tiptap/extension-text-align` MUST import from these alias names,
+      # never the bare package name (which still resolves to the same
+      # broken top-level instance) - `scripts/verify-tiptap-core-versions.mjs`
+      # checks the alias names specifically for exactly this reason.
+      'tiptap-markdown-fixed': 'npm:@tiptap/markdown@3.30.2'
+      'tiptap-extension-text-align-fixed': 'npm:@tiptap/extension-text-align@3.30.2'
+      # Aliases for paragraph/text/document too, for code OUTSIDE
+      # @10play/tentap-editor that needs the same v3 objects its own
+      # CoreBridge uses internally (this serializer's own tests, for one).
+      # `@10play/tentap-editor`'s package.json has a strict `exports` map
+      # with no `./node_modules/*` subpath exposed, so reaching into its
+      # nested copy directly (`@10play/tentap-editor/node_modules/@tiptap/
+      # extension-paragraph`, tried first) is blocked by Node's own
+      # exports enforcement from any consumer outside that package -
+      # confirmed directly (`ERR_PACKAGE_PATH_NOT_EXPORTED`). CoreBridge
+      # itself never hits this, since it resolves these bare from *inside*
+      # its own directory, where normal upward directory-walk resolution
+      # applies with no exports check involved at all.
+      'tiptap-extension-document-fixed': 'npm:@tiptap/extension-document@3.30.2'
+      'tiptap-extension-paragraph-fixed': 'npm:@tiptap/extension-paragraph@3.30.2'
+      'tiptap-extension-text-fixed': 'npm:@tiptap/extension-text@3.30.2'
+      # `@tiptap/core` itself, aliased, for code that needs to call a real
+      # v3 core utility directly (`decodeHtmlEntities`/`encodeHtmlEntities`,
+      # needed by the serializer's load-direction fix for reversing
+      # `encodeTextForMarkdown`'s escaping - see `serializer/index.ts`).
+      # Checked directly, not assumed: v2 doesn't have these two functions
+      # AT ALL (confirmed via `grep` against the real installed v2
+      # `dist/index.js` - no matches), so a bare `@tiptap/core` import for
+      # this purpose would fail exactly like `attrsEqual` did for
+      # `@tiptap/markdown` itself.
+      'tiptap-core-fixed': 'npm:@tiptap/core@3.30.2'
 trustPolicy: 'no-downgrade' # default: off
 trustPolicyIgnoreAfter: 10080 # 7 days, default: undefined
 overrides:
@@ -23,6 +144,27 @@ overrides:
   'psl': '1.9.0'
   '@types/psl': '1.1.1'
   'react-native-screens': '4.24.0'
+  # This app also has TipTap v2 installed for the existing web post-composer
+  # (`@tiptap/core@^2.9.1`, src/view/com/composer/text-input/) - unrelated to
+  # ArticleCompose's TipTap v3 migration. Without these, a directly-installed
+  # v3 package's peer dependency on @tiptap/core silently resolves to the
+  # hoisted v2 instance instead of nesting its own v3 copy, breaking its
+  # types. Add the same override for every new @tiptap/* v3 package this
+  # migration installs.
+  '@tiptap/extension-text-align>@tiptap/core': '^3.11.0'
+  '@tiptap/markdown>@tiptap/core': '^3.11.0'
+  '@tiptap/extension-document>@tiptap/core': '^3.11.0'
+  '@tiptap/extension-paragraph>@tiptap/core': '^3.11.0'
+  '@tiptap/extension-text>@tiptap/core': '^3.11.0'
+  '@tiptap/extension-bold>@tiptap/core': '^3.11.0'
+  '@tiptap/extension-italic>@tiptap/core': '^3.11.0'
+  '@tiptap/extension-strike>@tiptap/core': '^3.11.0'
+  '@tiptap/extension-blockquote>@tiptap/core': '^3.11.0'
+  '@tiptap/extension-underline>@tiptap/core': '^3.11.0'
+  '@tiptap/extension-text-style>@tiptap/core': '^3.11.0'
+  '@tiptap/extension-color>@tiptap/core': '^3.11.0'
+  '@10play/tentap-editor>@tiptap/extension-paragraph': '^3.11.0'
+  '@10play/tentap-editor>@tiptap/extension-text': '^3.11.0'
 allowBuilds:
   '@sentry/cli': true
   'core-js': false
@@ -30,6 +172,8 @@ allowBuilds:
   'esbuild': false
   'unrs-resolver': true
 patchedDependencies:
+  '@10play/react-native-web-webview@0.0.3': patches/@10play__react-native-web-webview@0.0.3.patch
+  '@10play/tentap-editor@1.0.1': patches/@10play__tentap-editor@1.0.1.patch
   '@sentry/expo-upload-sourcemaps@8.18.0': patches/@sentry__expo-upload-sourcemaps@8.18.0.patch
   'expo-age-range@0.2.18': patches/expo-age-range@0.2.18.patch
   'expo-haptics@15.0.8': patches/expo-haptics@15.0.8.patch

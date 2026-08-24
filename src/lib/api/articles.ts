@@ -7,6 +7,11 @@ import {
 } from '@atproto/syntax'
 
 import {deriveTextContentFromMarkdown} from '#/lib/strings/markdown-strip'
+import {
+  type EditorFacet,
+  facetsToWireFormat,
+  validateFacetBounds,
+} from '#/screens/ArticleCompose/state'
 import {app, com, type site} from '#/lexicons'
 import * as bsky from '#/types/bsky'
 import {computeCid} from './computeCid'
@@ -32,7 +37,7 @@ export interface ArticleDraft {
   description: string
   markdown: string
   flavor: 'gfm' | 'commonmark'
-  facets?: unknown[]
+  facets?: EditorFacet[]
   tags?: string[]
   /**
    * Multi-select, per the ArticleCompose Figma design (confirmed against
@@ -123,6 +128,23 @@ function isGenuineCompanionPostRecord(
 export async function publishArticle(opts: PublishArticleOpts) {
   const {draft, pdsClient} = opts
   const did = pdsClient.assertDid
+
+  // Fail closed, before any network round-trip: the PDS never validates
+  // these byte ranges (`site.standard.document`'s facets are an open
+  // extension field), so this is the only check they ever get. Facets
+  // reaching here were just computed by this same app's editor state
+  // immediately before publish, so an invalid range means a real client
+  // bug, not foreign/adversarial data - refusing to publish beats silently
+  // dropping formatting the user believes they still have.
+  const {valid: validFacets, invalidCount} = validateFacetBounds(
+    draft.markdown,
+    draft.facets ?? [],
+  )
+  if (invalidCount > 0) {
+    throw new Error(
+      `Article has ${invalidCount} facet(s) with out-of-range byte offsets - refusing to publish`,
+    )
+  }
 
   const [existingPubs, profileRecord, repoDesc, existingPostRecord] =
     await Promise.all([
@@ -290,7 +312,7 @@ export async function publishArticle(opts: PublishArticleOpts) {
       text: {
         $type: 'at.markpub.text',
         markdown: draft.markdown,
-        facets: draft.facets,
+        facets: facetsToWireFormat(validFacets),
       },
     } as unknown as site.standard.document.Main['content'],
     bskyPostRef: {uri: postUri, cid: provisionalPostCid},

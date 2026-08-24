@@ -7,6 +7,7 @@
    */
   "exclude": [
     "src/platform/*.android-check.d.ts",
-    "src/platform/*.web-check.d.ts"
+    "src/platform/*.web-check.d.ts",
+    "src/screens/ArticleCompose/editor-web"
   ]
 }

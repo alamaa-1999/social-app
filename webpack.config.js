@@ -2,6 +2,7 @@ const path = require('path')
 
 const createExpoWebpackConfigAsync = require('@expo/webpack-config')
 const {withAlias} = require('@expo/webpack-config/addons')
+const webpack = require('webpack')
 const ReactRefreshWebpackPlugin = require('@pmmmwh/react-refresh-webpack-plugin')
 const {BundleAnalyzerPlugin} = require('webpack-bundle-analyzer')
 const {sentryWebpackPlugin} = require('@sentry/webpack-plugin')
@@ -84,6 +85,34 @@ module.exports = async function (env, argv) {
     ...(config.module.rules || []),
     reactNativeWebWebviewConfiguration,
   ]
+
+  /*
+   * TenTap's own web setup (10play.github.io/10tap-editor/docs/setup/expoWeb)
+   * needs `react-native-webview`/`crypto` pointed at its own companion
+   * packages (`@10play/react-native-web-webview`, `expo-crypto`) rather than
+   * the generic `react-native-web-webview` this app already aliases above
+   * for an unrelated feature (ExternalPlayer's video/audio embeds). Scoped
+   * by `NormalModuleReplacementPlugin`'s `contextInfo.issuer` (the requesting
+   * file) so only TenTap's own imports are redirected - the existing global
+   * alias still applies to every other consumer, untouched. This plugin's
+   * `beforeResolve` hook runs before `resolve.alias` is applied, so an
+   * unmatched issuer falls through to the existing alias unchanged.
+   */
+  config.plugins.push(
+    new webpack.NormalModuleReplacementPlugin(
+      /^react-native-webview$/,
+      resource => {
+        if (resource.contextInfo.issuer.includes('@10play/tentap-editor')) {
+          resource.request = '@10play/react-native-web-webview'
+        }
+      },
+    ),
+    new webpack.NormalModuleReplacementPlugin(/^crypto$/, resource => {
+      if (resource.contextInfo.issuer.includes('@10play/tentap-editor')) {
+        resource.request = 'expo-crypto'
+      }
+    }),
+  )
   if (env.mode === 'development') {
     config.plugins.push(new ReactRefreshWebpackPlugin())
     // Reap zombie HMR WebSocket connections that linger after refresh.

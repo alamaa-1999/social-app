@@ -18,5 +18,10 @@
       }
     ]
   },
-  "exclude": ["bskyweb", "bskyembed", "web-build"]
+  "exclude": [
+    "bskyweb",
+    "bskyembed",
+    "web-build",
+    "src/screens/ArticleCompose/editor-web"
+  ]
 }

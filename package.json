@@ -40,6 +40,10 @@
     "prepare": "is-ci || husky",
     "postinstall": "pnpm lexicons:generate && pnpm intl:compile-if-needed",
     "prebuild": "EXPO_NO_GIT_STATUS=1 expo prebuild --clean",
+    "editor:dev": "vite --config ./src/screens/ArticleCompose/editor-web/vite.config.ts -w build",
+    "editor:build": "vite --config ./src/screens/ArticleCompose/editor-web/vite.config.ts build && pnpm editor:post-build",
+    "editor:post-build": "node ./node_modules/@10play/tentap-editor/scripts/buildEditor.js ./src/screens/ArticleCompose/editor-web/build/index.html",
+    "tiptap:verify": "node ./scripts/verify-tiptap-core-versions.mjs",
     "android": "expo run:android --variant debugOptimized",
     "android:prod": "expo run:android --variant release",
     "android:profile": "BSKY_PROFILE=1 expo run:android --variant release",
@@ -100,6 +104,8 @@
     "prettier": "prettier --check ."
   },
   "dependencies": {
+    "@10play/react-native-web-webview": "^0.0.3",
+    "@10play/tentap-editor": "^1.0.1",
     "@atproto/common-web": "0.5.9",
     "@atproto/lex": "0.3.6",
     "@atproto/lex-password-session": "0.2.0",
@@ -150,6 +156,8 @@
     "@tiptap/extension-paragraph": "^2.9.1",
     "@tiptap/extension-placeholder": "^2.9.1",
     "@tiptap/extension-text": "^2.9.1",
+    "@tiptap/extension-text-align": "^3.30.2",
+    "@tiptap/markdown": "^3.30.2",
     "@tiptap/pm": "^2.9.1",
     "@tiptap/react": "^2.9.1",
     "@tiptap/suggestion": "^2.9.1",
@@ -174,6 +182,7 @@
     "expo-camera": "~17.0.10",
     "expo-clipboard": "~8.0.8",
     "expo-contacts": "^15.0.10",
+    "expo-crypto": "^57.0.1",
     "expo-dev-client": "~6.0.20",
     "expo-device": "~8.0.10",
     "expo-file-system": "~19.0.21",
@@ -284,6 +293,7 @@
     "@types/react": "^19.1.17",
     "@types/react-dom": "^19.1.11",
     "@typescript/native": "npm:typescript@^7.0.2",
+    "@vitejs/plugin-react": "^4.7.0",
     "babel-jest": "^29.7.0",
     "babel-plugin-module-resolver": "^5.0.2",
     "babel-plugin-react-compiler": "19.1.0-rc.3",
@@ -307,6 +317,8 @@
     "svgo": "^4.0.2",
     "ts-plugin-sort-import-suggestions": "^1.0.4",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
+    "vite": "^5.4.21",
+    "vite-plugin-singlefile": "^2.3.3",
     "webpack-bundle-analyzer": "^4.10.1"
   },
   "jest": {
@@ -340,7 +352,7 @@
       "^cborg$": "<rootDir>/node_modules/cborg/cborg.js"
     },
     "transformIgnorePatterns": [
-      "node_modules/(?!((jest-)?react-native|@react-native(-community)?)|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|nanoid|@react-navigation/.*|@unimodules/.*|unimodules|sentry-expo|native-base|normalize-url|react-native-svg|@sentry/.*|sentry-expo|bcp-47-match|@atproto/.*|@bsky/sdk|tlds|multiformats|uint8arrays|@ipld/.*|cborg|await-lock)"
+      "node_modules/(?!((jest-)?react-native|@react-native(-community)?)|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|nanoid|@react-navigation/.*|@unimodules/.*|unimodules|sentry-expo|native-base|normalize-url|react-native-svg|@sentry/.*|sentry-expo|bcp-47-match|@atproto/.*|@bsky/sdk|tlds|multiformats|uint8arrays|@ipld/.*|cborg|await-lock|marked|@tiptap/markdown|@10play/tentap-editor)"
     ],
     "modulePathIgnorePatterns": [
       "__tests__/.*/__mocks__",

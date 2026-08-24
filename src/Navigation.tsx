@@ -73,6 +73,7 @@ import {TermsOfServiceScreen} from '#/view/screens/TermsOfService'
 import {BottomBar} from '#/view/shell/bottom-bar/BottomBar'
 import {createNativeStackNavigatorWithAuth} from '#/view/shell/createNativeStackNavigatorWithAuth'
 import {ArticleComposeScreen} from '#/screens/ArticleCompose'
+import {TipTapSpike} from '#/screens/ArticleCompose/TipTapSpike'
 import {BookmarksScreen} from '#/screens/Bookmarks'
 import {SharedPreferencesTesterScreen} from '#/screens/E2E/SharedPreferencesTesterScreen'
 import {FindContactsFlowScreen} from '#/screens/FindContactsFlowScreen'
@@ -134,7 +135,7 @@ import {
 } from '#/components/dialogs/EmailDialog'
 import {useAnalytics} from '#/analytics'
 import {setNavigationMetadata} from '#/analytics/metadata'
-import {IS_LIQUID_GLASS, IS_NATIVE, IS_WEB} from '#/env'
+import {IS_DEV, IS_LIQUID_GLASS, IS_NATIVE, IS_WEB} from '#/env'
 import {InviteScannerScreen} from '#/features/inviteFriends'
 import {router} from '#/routes'
 import {Referrer} from '../modules/expo-bluesky-swiss-army'
@@ -571,6 +572,16 @@ function commonScreens(Stack: typeof Flat, unreadCountLabel?: string) {
           headerShown: false,
         }}
       />
+      {IS_DEV && (
+        <Stack.Screen
+          name="TipTapSpike"
+          getComponent={() => TipTapSpike}
+          options={{
+            title: 'TipTap spike (dev only)',
+            requireAuth: true,
+          }}
+        />
+      )}
       <Stack.Screen
         name="VideoFeed"
         getComponent={() => VideoFeed}

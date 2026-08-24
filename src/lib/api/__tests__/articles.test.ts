@@ -467,4 +467,83 @@ describe('publishArticle - editing an already-published article', () => {
     // No write should have landed at all.
     expect(writes).toHaveLength(0)
   })
+
+  it('writes in-range facets in wire format', async () => {
+    const {client, writes} = makeMockClient({
+      hasExistingPublication: true,
+      existingPublicationName: 'Existing Author',
+      displayName: 'Existing Author',
+    })
+
+    await publishArticle({
+      pdsClient: client,
+      draft: {
+        title: 'A test article',
+        description: 'A description',
+        markdown: 'Hello world',
+        flavor: 'gfm',
+        facets: [
+          {
+            byteStart: 0,
+            byteEnd: 5,
+            feature: {
+              $type: 'com.sunnahsky.richtext.facets.formatting#underline',
+            },
+          },
+        ],
+      },
+    })
+
+    const [batch] = writes as [
+      {collection: string; value: Record<string, unknown>}[],
+    ]
+    const docWrite = batch.find(w => w.collection === 'site.standard.document')!
+    const content = docWrite.value.content as {
+      text: {facets: unknown[]}
+    }
+    expect(content.text.facets).toEqual([
+      {
+        $type: 'com.sunnahsky.richtext.facets.formatting',
+        index: {byteStart: 0, byteEnd: 5},
+        features: [
+          {$type: 'com.sunnahsky.richtext.facets.formatting#underline'},
+        ],
+      },
+    ])
+  })
+
+  it('refuses to publish - no write at all - when a facet byte range exceeds the markdown length', async () => {
+    // The PDS never validates these ranges (open extension field), so this
+    // is the one and only gate - exercised here against the real
+    // `publishArticle`, not just `validateFacetBounds` in isolation, to
+    // prove it's actually wired in and runs before any write is built.
+    const {client, writes} = makeMockClient({
+      hasExistingPublication: true,
+      existingPublicationName: 'Existing Author',
+      displayName: 'Existing Author',
+    })
+
+    await expect(
+      publishArticle({
+        pdsClient: client,
+        draft: {
+          title: 'A test article',
+          description: 'A description',
+          markdown: 'short',
+          flavor: 'gfm',
+          facets: [
+            {
+              byteStart: 0,
+              byteEnd: 999,
+              feature: {
+                $type: 'com.sunnahsky.richtext.facets.formatting#underline',
+              },
+            },
+          ],
+        },
+      }),
+    ).rejects.toThrow(/facet/i)
+
+    expect(writes).toHaveLength(0)
+  })
 })

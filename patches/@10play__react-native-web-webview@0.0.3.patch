@@ -1,0 +1,32 @@
+diff --git a/lib/commonjs/WebView.js b/lib/commonjs/WebView.js
+index 0e7965e7193b0b28853ece9924c9708cae24f599..9ad2fc668ffedf147828a9bec35d9edad873741c 100644
+--- a/lib/commonjs/WebView.js
++++ b/lib/commonjs/WebView.js
+@@ -68,6 +68,11 @@ const WebWebView = exports.WebWebView = /*#__PURE__*/(0, _react.forwardRef)((pro
+     // Listen for messages
+     if (!props.onMessage) return;
+     const onMessage = nativeEvent => {
++      // Only forward messages from this component's own iframe - unfiltered,
++      // this also catches unrelated `window.postMessage` traffic from other
++      // scripts on the page (e.g. a setImmediate polyfill), which isn't the
++      // JSON this library expects and throws downstream.
++      if (nativeEvent.source !== iframeRef.current?.contentWindow) return;
+       // @ts-ignore
+       return props.onMessage({
+         nativeEvent
+diff --git a/lib/module/WebView.js b/lib/module/WebView.js
+index 0b7370fe155c86b32aec847cba6ed2e3bf043886..871b7524f016e18c952ed42e7aeca6ef7dc0419d 100644
+--- a/lib/module/WebView.js
++++ b/lib/module/WebView.js
+@@ -64,6 +64,11 @@ export const WebWebView = /*#__PURE__*/forwardRef((props, ref) => {
+     // Listen for messages
+     if (!props.onMessage) return;
+     const onMessage = nativeEvent => {
++      // Only forward messages from this component's own iframe - unfiltered,
++      // this also catches unrelated `window.postMessage` traffic from other
++      // scripts on the page (e.g. a setImmediate polyfill), which isn't the
++      // JSON this library expects and throws downstream.
++      if (nativeEvent.source !== iframeRef.current?.contentWindow) return;
+       // @ts-ignore
+       return props.onMessage({
+         nativeEvent

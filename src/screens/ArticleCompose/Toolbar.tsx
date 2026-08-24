@@ -147,9 +147,6 @@ const HONORIFICS: {codepoint: number; name: string; meaning: string}[] = [
   },
 ]
 
-/** Mandatory per the honorific spec - keeps the inserted glyph rendering right-to-left regardless of surrounding text direction. */
-const RTL_MARK = '‏'
-
 function ToolbarButton({
   label,
   icon: Icon,
@@ -754,5 +751,3 @@ export function Toolbar({
     </View>
   )
 }
-
-export {RTL_MARK}

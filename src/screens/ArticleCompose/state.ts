@@ -291,3 +291,43 @@ export function facetsToWireFormat(facets: EditorFacet[]) {
     }
   })
 }
+
+/**
+ * Bounds-check every facet's byte range against the actual markdown string,
+ * a hard requirement from this app's security review: the PDS validates
+ * none of this (`site.standard.document`'s facets are open extension
+ * fields), so this is the *only* place these values are ever checked,
+ * client or server. Must run on `publishArticle`'s own input, before any
+ * write - not just on values already round-tripped through the editor-web
+ * serializer.
+ *
+ * Lives here rather than alongside `serializeToMarkdownAndFacets`/
+ * `applyFacetsToParsedDoc` in `editor-web/serializer/` - despite reading
+ * like a natural fit there - because that module's own top-level imports
+ * pull in `@tiptap/core`/`@tiptap/markdown` (the isolated Vite-bundled
+ * web-editor's dependencies). `publishArticle()` runs as native RN code,
+ * bundled by Metro, not Vite; importing from `editor-web/serializer/` would
+ * drag that whole DOM/TipTap-oriented module graph into the native app
+ * bundle for the sake of one pure function. This function only ever needed
+ * `utf8Length`/`EditorFacet`, both already native to this file.
+ */
+export function validateFacetBounds(
+  markdown: string,
+  facets: EditorFacet[],
+): {valid: EditorFacet[]; invalidCount: number} {
+  const byteLength = utf8Length(markdown)
+  const valid: EditorFacet[] = []
+  let invalidCount = 0
+  for (const f of facets) {
+    if (
+      f.byteStart >= 0 &&
+      f.byteStart <= f.byteEnd &&
+      f.byteEnd <= byteLength
+    ) {
+      valid.push(f)
+    } else {
+      invalidCount++
+    }
+  }
+  return {valid, invalidCount}
+}

@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sunnahsky article editor</title>
+  </head>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+    }
+    #root > div:nth-of-type(1) {
+      position: absolute;
+      height: 100%;
+      overflow: auto;
+      width: 100%;
+      top: 0;
+      bottom: 0;
+    }
+    #root div .ProseMirror {
+      height: 100%;
+      overflow: auto;
+    }
+    .ProseMirror:focus {
+      outline: none;
+    }
+    /* article/quote-en and article/quote-ar-verse (Figma node 16:22) share
+       this exact treatment - a fixed physical left border/padding, not a
+       logical inline-start one, so it never flips with an RTL blockquote's
+       own dir attribute. Only the inner paragraph's text-align differs
+       between the two (see bridges/paragraphStyle.ts's arabicBlockQuote
+       case), not this border. */
+    blockquote {
+      margin: 0;
+      border-left: 2px solid #006aff;
+      padding-left: 20px;
+    }
+    /* article/body-ar (Figma node 16:22) is text-align: justify, but CSS's
+       own text-align-last defaults to plain physical `left` on the last
+       (or only) line of a justified paragraph in this engine, not to the
+       element's own `start`/dir - confirmed live: an RTL, justified
+       paragraph's last line was sitting at the left instead of the right.
+       `dir="rtl"` alone doesn't fix this, since text-align-last: auto
+       isn't resolving against it - stated explicitly instead of relying
+       on that resolution. */
+    p[data-typography='arabicParagraph'] {
+      text-align-last: right;
+    }
+  </style>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>

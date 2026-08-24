@@ -85,6 +85,7 @@ export const router = new Router<AllNavigatableRoutes>({
   StarterPackWizard: '/starter-pack/create',
   ArticleCompose: '/article/compose',
   ArticleEdit: '/article/edit/:rkey',
+  TipTapSpike: '/article/tiptap-spike',
   VideoFeed: '/video-feed',
   Bookmarks: '/saved',
   FindContactsFlow: '/find-contacts',
