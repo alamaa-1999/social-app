@@ -1,6 +1,8 @@
-import {useRef, useState} from 'react'
+import {useEffect, useRef, useState} from 'react'
 import {Pressable, TextInput, View} from 'react-native'
 import {
+  ImageBridge as DefaultImageBridge,
+  LinkBridge as DefaultLinkBridge,
   RichText,
   TenTapStartKit,
   UnderlineBridge as DefaultUnderlineBridge,
@@ -14,9 +16,13 @@ import {Trans} from '@lingui/react/macro'
 import {useNavigation} from '@react-navigation/native'
 import {useQueryClient} from '@tanstack/react-query'
 
+import {
+  blobCid,
+  MAX_BODY_IMAGE_BYTES,
+  MAX_BODY_IMAGES,
+} from '#/lib/api/article-assets'
 import {type ArticleEditRef, publishArticle} from '#/lib/api/articles'
 import {uploadBlob} from '#/lib/api/upload-blob'
-import {SUNNAHSKY_SERVICE} from '#/lib/constants'
 import {useRequireStrikerForArticleAuthoring} from '#/lib/hooks/useRequireStrikerForArticleAuthoring'
 import {openPicker} from '#/lib/media/picker'
 import {
@@ -24,7 +30,9 @@ import {
   type NativeStackScreenProps,
   type NavigationProp,
 } from '#/lib/routes/types'
+import {displayFileName} from '#/lib/strings/filename'
 import {niceDate} from '#/lib/strings/time'
+import {logger} from '#/logger'
 import {
   DOCUMENT_RQKEY,
   type LoadedArticleDocument,
@@ -35,22 +43,31 @@ import {
 import {useAppviewClient, usePdsClient, useSession} from '#/state/session'
 import {atoms as a, useBreakpoints, useTheme, web} from '#/alf'
 import {Button, ButtonText} from '#/components/Button'
+import {Attachment01 as AttachmentIcon} from '#/components/icons/Attachment01'
 import {TimesLarge_Stroke2_Corner0_Rounded as XIcon} from '#/components/icons/Times'
+import {Trash_Stroke2_Corner0_Rounded as TrashIcon} from '#/components/icons/Trash'
 import {Loader} from '#/components/Loader'
+import * as Menu from '#/components/Menu'
 import {Portal} from '#/components/Portal'
 import * as Prompt from '#/components/Prompt'
 import * as Toast from '#/components/Toast'
 import {Text} from '#/components/Typography'
-import {type site} from '#/lexicons'
+import {type com, type site} from '#/lexicons'
 import {ContentBridge} from './bridges/content'
 import {HonorificBridge} from './bridges/honorific'
+import {
+  ImageUploadBridge,
+  type MenuRequest,
+  subscribeToImageBlockEvents,
+} from './bridges/imageUpload'
+import {LinkBridge} from './bridges/link'
 import {ParagraphStyleBridge} from './bridges/paragraphStyle'
 import {TextAlignBridge} from './bridges/textAlign'
 import {TypographyBridge} from './bridges/typography'
 import {UnderlineBridge} from './bridges/underline'
 import {isAllowedColorValue} from './colorAllowlist'
 import {DraftsButton} from './drafts/DraftsButton'
-import {draftFacetsToEditorFacets} from './drafts/state/api'
+import {draftBodyImages, draftFacetsToEditorFacets} from './drafts/state/api'
 import {
   useCleanupPublishedArticleDraftMutation,
   useSaveArticleDraftMutation,
@@ -68,6 +85,37 @@ import {type ParagraphStyleId} from './state'
 import {Toolbar} from './Toolbar'
 
 /**
+ * The real byte length of a picked image.
+ *
+ * `PickerImage.size` cannot be trusted for this: it comes from
+ * `getDataUriSize(uri)`, which infers a **data:** URI's size from its string
+ * length. On web the picker returns a `blob:` URL of a few dozen characters,
+ * so every image reports the same tiny number regardless of its actual size.
+ *
+ * Fetching the URI back is the one measurement that works on both platforms -
+ * `blob:`, `data:` and `file:` URLs all resolve, and the bytes are already
+ * local, so nothing goes over the network.
+ *
+ * Returns `undefined` when the size genuinely cannot be determined. Callers
+ * treat that as "allow", deliberately: the PDS enforces its own ceiling, and
+ * refusing an image because we failed to measure it would block a legitimate
+ * upload on our own shortcoming.
+ */
+async function measureImageBytes(image: {
+  path: string
+  size?: number
+}): Promise<number | undefined> {
+  try {
+    const response = await fetch(image.path)
+    const blob = await response.blob()
+    if (blob.size > 0) return blob.size
+  } catch {
+    // Fall through to the picker's own figure below.
+  }
+  return image.size && image.size > 0 ? image.size : undefined
+}
+
+/**
  * `TenTapStartKit` minus its own default `UnderlineBridge`, plus this app's
  * own bridges - must mirror `AdvancedEditor.tsx`'s web `bridges` array
  * exactly by `.name` (confirmed via `RichText/utils.ts`:
@@ -82,11 +130,22 @@ import {Toolbar} from './Toolbar'
  * native code.
  */
 const nativeBridgeExtensions = [
-  ...TenTapStartKit.filter(bridge => bridge !== DefaultUnderlineBridge),
+  ...TenTapStartKit.filter(
+    bridge =>
+      bridge !== DefaultUnderlineBridge &&
+      bridge !== DefaultLinkBridge &&
+      // Must mirror the web side's filter exactly - see AdvancedEditor.tsx
+      // for why the default ImageBridge crashes any image node, and this
+      // array's own doc comment for why a bridge present on one side and
+      // missing on the other silently loses its config entry.
+      bridge !== DefaultImageBridge,
+  ),
   UnderlineBridge,
+  LinkBridge,
   TextAlignBridge,
   TypographyBridge,
   HonorificBridge,
+  ImageUploadBridge,
   ParagraphStyleBridge,
   ContentBridge,
 ]
@@ -170,6 +229,49 @@ export function ArticleCompose({
   const [coverImagePreviewUri, setCoverImagePreviewUri] = useState<
     string | undefined
   >(initial?.coverImagePreviewUri)
+  /**
+   * Blob refs for images embedded in the body, with the filename each was
+   * picked under.
+   *
+   * Held here and persisted onto the draft rather than being derivable on
+   * demand: the markdown only carries each image's CID, and a `BlobRef` needs
+   * `mimeType` and `size` too, neither of which can be read back for a blob
+   * that was never tethered. This list is the only place those live until the
+   * article is published.
+   */
+  const [bodyImages, setBodyImages] = useState<
+    com.sunnahsky.article.draft.defs.BodyImage[]
+  >(initial?.bodyImages ?? [])
+  /**
+   * The editor surface, measured so the image menu can be anchored correctly.
+   *
+   * The rect an image block reports comes from `getBoundingClientRect()`
+   * *inside the WebView*, so it is relative to that document's own viewport -
+   * it knows nothing about where the editor sits on the page. Anchoring
+   * straight to it put the menu near the top-left of the screen instead of on
+   * the block. Adding this surface's own page position converts one coordinate
+   * space to the other.
+   */
+  const editorSurfaceRef = useRef<View>(null)
+  /**
+   * The block whose edit menu is open, and where to anchor it.
+   *
+   * Discriminated by `kind` (see `bridges/imageUpload.ts`'s `MenuRequest`) so
+   * the one menu below can render either an image's Remove/Replace pair or a
+   * placeholder's Select image/Delete block pair, depending on which kind of
+   * block the author clicked.
+   */
+  const [imageMenuTarget, setImageMenuTarget] = useState<
+    MenuRequest | undefined
+  >(undefined)
+  const imageMenuControl = Menu.useMenuControl()
+  /*
+   * Same override as the cover-image menu in `Metadata.tsx`: the design puts
+   * these glyphs at `border_contrast_high` rather than `Menu.ItemIcon`'s own
+   * `text_contrast_medium` default. Referenced through the semantic atom so it
+   * follows the theme, since ALF inverts the palette for dark and dim.
+   */
+  const imageMenuIconFill = () => t.atoms.border_contrast_high.borderColor
   const [flavor] = useState<'gfm' | 'commonmark'>(initial?.flavor ?? 'gfm')
   const [isPublishing, setIsPublishing] = useState(false)
   const [draftId, setDraftId] = useState<string | undefined>(undefined)
@@ -261,30 +363,364 @@ export function ArticleCompose({
   // mark-based schema, so this asks for a selection first instead - a
   // real, if minor, product behavior change worth calling out, not a
   // silent regression.
-  const onInsertLink = () => {
-    if (!bridgeState.canSetLink) {
-      Toast.show(_(msg`Select some text first, then insert a link.`), {
-        type: 'info',
-      })
-      return
-    }
-    editorBridge.setLink('https://')
+  // The popover owns the URL now (see Toolbar's `InsertLinkPopover`); this
+  // just forwards. It used to apply a hardcoded `'https://'` immediately,
+  // which is what produced link-styled text pointing nowhere with no way to
+  // set a destination. `setLink(null)` is TenTap's own remove.
+  const onSetLink = (url: string) => editorBridge.setLink(url)
+  // `''`, not `null` - upstream's own handler treats `null` as "cancelled"
+  // and does nothing at all. `bridges/link.ts` accepts either, but `''`
+  // also works against the stock bridge, so it can't silently regress if
+  // that override is ever removed.
+  const onRemoveLink = () => editorBridge.setLink('')
+  const onLinkUnavailable = () =>
+    Toast.show(_(msg`Select some text first, then apply the link.`), {
+      type: 'info',
+    })
+
+  /**
+   * Public URL for a blob on the PDS that actually holds it.
+   *
+   * `com.atproto.sync.getBlob` is a standard, unauthenticated atproto
+   * endpoint (did+cid, both required) - a real, spec-compliant blob URL,
+   * not a workaround.
+   *
+   * Built from `currentAccount.service` - the PDS this session is actually
+   * signed in to - NOT the hardcoded `SUNNAHSKY_SERVICE` both call sites
+   * used to use. That hardcoding meant any non-production environment
+   * produced URLs for blobs that only existed locally: they 404'd, rendered
+   * as nothing, and looked exactly like "image insert is broken" / "the
+   * cover image vanished".
+   *
+   * Note `pdsClient.service` is NOT the source: it exists on the type but
+   * reads back `null` at runtime here, which produced a literal
+   * `null/xrpc/...` URL - caught by tracing the real value rather than
+   * trusting the property name.
+   */
+  const blobUrl = (blob: {ref?: {toString: () => string}; cid?: string}) => {
+    // BlobRef is a union (current TypedBlobRef vs. the legacy string-cid
+    // shape) - a freshly uploaded blob is always the former, but narrow
+    // properly rather than assuming.
+    const cid = 'ref' in blob && blob.ref ? blob.ref.toString() : blob.cid
+    const base = (currentAccount?.service ?? '').replace(/\/$/, '')
+    return `${base}/xrpc/com.atproto.sync.getBlob?did=${encodeURIComponent(pdsClient.assertDid)}&cid=${encodeURIComponent(cid ?? '')}`
   }
 
-  const onInsertImage = async () => {
-    const images = await openPicker({selectionLimit: 1})
-    const image = images[0]
-    if (!image) return
-    const {blob} = await uploadBlob(pdsClient, image.path, image.mime)
-    // com.atproto.sync.getBlob is a standard, unauthenticated atproto
-    // endpoint (did+cid, both required) - a real, spec-compliant blob URL,
-    // not a workaround. BlobRef is a union (current TypedBlobRef vs. the
-    // legacy string-cid shape) - a freshly uploaded blob is always the
-    // former, but narrow properly rather than assuming.
-    const cid = 'ref' in blob ? blob.ref.toString() : blob.cid
-    const url = `${SUNNAHSKY_SERVICE}/xrpc/com.atproto.sync.getBlob?did=${encodeURIComponent(pdsClient.assertDid)}&cid=${encodeURIComponent(cid)}`
-    editorBridge.setImage(url)
+  /**
+   * The toolbar button inserts the block *and* opens the picker, in one
+   * action.
+   *
+   * This used to be two steps - insert an idle block, then open the picker
+   * when the author clicked it - specifically to avoid a paragraph-split/
+   * double-undo defect that opening on insert has (see `onDeleteImageBlock`).
+   * That defect is real, but a separate, never fully root-caused regression
+   * later made the click itself stop reliably opening the picker in some
+   * sessions. Rather than keep chasing an unreproducible browser-activation
+   * issue, the insert path was changed to never depend on a WebView click at
+   * all: the toolbar is native RN, so it can call the picker directly, with
+   * no round trip through the WebView needed to *start* it. Every other
+   * interaction with a block - retrying an error, deleting - still goes
+   * through the menu, which has a proven, repeatable track record.
+   */
+  const onInsertImage = () => {
+    /*
+     * Checked here rather than only inside the picker flow. Inserting a block
+     * that can only ever fail is a worse experience than refusing up front:
+     * the author would get an error on a block that should never have existed,
+     * and would then have to delete it themselves.
+     */
+    if (bodyImages.length >= MAX_BODY_IMAGES) {
+      Toast.show(
+        _(
+          msg`You can add up to 30 images to an article. Remove one before adding another.`,
+        ),
+        {type: 'error'},
+      )
+      return
+    }
+    const uploadId = `${Date.now()}-${Math.random().toString(36).slice(2)}`
+    editorBridge.insertImageUpload(uploadId)
+    void onImageBlockPicker(uploadId)
   }
+
+  /**
+   * Picks an image and uploads it into the placeholder `uploadId` names.
+   *
+   * Two callers: `onInsertImage` runs this immediately after inserting a
+   * fresh block, and `onSelectImageForPlaceholder` reruns it from the menu's
+   * "Select image" action - either a retry after an error, or picking for a
+   * block that, for whatever reason, is still idle. Both end up here because
+   * the flow itself doesn't care how the block got selected, only that it
+   * has an `uploadId` to report progress against.
+   *
+   * The file never crosses the bridge: the picker and the authenticated upload
+   * both stay here, and only the resulting URL goes back. See
+   * `bridges/imageUpload.ts` for why that boundary is where it is.
+   */
+  const onImageBlockPicker = async (uploadId: string | null) => {
+    if (!uploadId) return
+    try {
+      const images = await openPicker({selectionLimit: 1})
+      const image = images[0]
+      // Dismissing the picker leaves the block exactly as it was, idle and
+      // clickable. Nothing to undo.
+      if (!image) return
+
+      /*
+       * Measured, not taken from `image.size`. The picker fills that in with
+       * `getDataUriSize(uri)`, which estimates a **data:** URI's length -
+       * meaningful on native, meaningless on web, where the picker hands back
+       * a `blob:` URL about fifty characters long. Every web image therefore
+       * reported roughly 37 bytes and sailed past this check, only to be
+       * rejected later by the PDS's own 5 MB limit with an error the author
+       * could not act on.
+       */
+      const bytes = await measureImageBytes(image)
+      if (bytes !== undefined && bytes > MAX_BODY_IMAGE_BYTES) {
+        /*
+         * Shown on the block, not as a toast (Figma 263:4172). With several
+         * blocks in a document a toast cannot say *which* one failed, and it
+         * disappears after three seconds - whereas the block is the thing that
+         * failed and is already the retry target.
+         */
+        editorBridge.setImageError(
+          uploadId,
+          'too-large',
+          `${(bytes / 1_000_000).toFixed(1)} MB`,
+        )
+        return
+      }
+
+      // Clears any error left from a previous attempt on this block.
+      editorBridge.setImageError(uploadId, null)
+      editorBridge.setImageUploading(uploadId, true)
+      const {blob} = await uploadBlob(pdsClient, image.path, image.mime)
+      const cid = blobCid(blob)
+
+      /*
+       * Retained before the editor is told about the image. This ref is the
+       * only copy of the blob's mimeType and size until publish - the markdown
+       * carries just a URL - so losing it means the image cannot be tethered
+       * and silently vanishes from the published article.
+       */
+      if (cid) {
+        setBodyImages(prev => [
+          ...prev.filter(entry => blobCid(entry.image) !== cid),
+          {image: blob, ...(image.fileName ? {name: image.fileName} : {})},
+        ])
+      }
+      editorBridge.resolveImageUpload(uploadId, blobUrl(blob))
+    } catch (err) {
+      /*
+       * The block carries the failure (Figma 263:4205) rather than a toast, for
+       * the same reason as the size error above. It stays in place and stays
+       * clickable, so retrying is one click on the thing that failed.
+       */
+      editorBridge.setImageError(uploadId, 'upload-failed')
+      logger.error('ArticleCompose: image upload failed', {safeMessage: err})
+    }
+  }
+
+  /**
+   * Removes the image the menu was opened on.
+   *
+   * The blob ref is dropped from `bodyImages` at the same time, so the next
+   * publish simply will not include it. Nothing is dereferenced on the PDS
+   * here, because for an unpublished article nothing was ever tethered.
+   */
+  const onRemoveBodyImage = () => {
+    const target = imageMenuTarget
+    if (!target || target.kind !== 'image') return
+    editorBridge.removeImageBySrc(target.src)
+    if (target.cid) {
+      setBodyImages(prev =>
+        prev.filter(entry => blobCid(entry.image) !== target.cid),
+      )
+    }
+    setImageMenuTarget(undefined)
+  }
+
+  /** Swaps the image in place, keeping the block and its position. */
+  const onReplaceBodyImage = async () => {
+    const target = imageMenuTarget
+    setImageMenuTarget(undefined)
+    if (!target || target.kind !== 'image') return
+    try {
+      const images = await openPicker({selectionLimit: 1})
+      const image = images[0]
+      if (!image) return
+      // Same measured check as the insert path - `image.size` is not usable
+      // on web, see `measureImageBytes`.
+      const bytes = await measureImageBytes(image)
+      if (bytes !== undefined && bytes > MAX_BODY_IMAGE_BYTES) {
+        const mb = (bytes / 1_000_000).toFixed(1)
+        Toast.show(
+          _(
+            msg`That image is ${mb} MB. Images must be under 3 MB - try a smaller file or reduce its quality.`,
+          ),
+          {type: 'error'},
+        )
+        return
+      }
+      const {blob} = await uploadBlob(pdsClient, image.path, image.mime)
+      const cid = blobCid(blob)
+      editorBridge.replaceImageSrc(target.src, blobUrl(blob))
+      setBodyImages(prev => [
+        // The outgoing ref goes now rather than at publish: leaving it would
+        // keep tethering a blob the article no longer shows.
+        ...prev.filter(
+          entry =>
+            blobCid(entry.image) !== target.cid && blobCid(entry.image) !== cid,
+        ),
+        {image: blob, ...(image.fileName ? {name: image.fileName} : {})},
+      ])
+    } catch (err) {
+      Toast.show(_(msg`Could not upload that image. Please try again.`), {
+        type: 'error',
+      })
+      logger.error('ArticleCompose: image replace failed', {safeMessage: err})
+    }
+  }
+
+  /**
+   * The placeholder menu's "Select image" action - retrying after an error,
+   * or picking for a block that is otherwise still idle.
+   *
+   * Just reruns `onImageBlockPicker` against the same `uploadId` the menu was
+   * opened on. The block itself doesn't need to know *why* it's being picked
+   * for again; `onImageBlockPicker` already handles clearing a previous error
+   * and re-entering the uploading state.
+   */
+  const onSelectImageForPlaceholder = () => {
+    const target = imageMenuTarget
+    setImageMenuTarget(undefined)
+    if (!target || target.kind !== 'placeholder') return
+    void onImageBlockPicker(target.uploadId)
+  }
+
+  /**
+   * The placeholder menu's "Delete block" action.
+   *
+   * Deliberately does not attempt to rejoin a paragraph the block's insert
+   * may have split - the project owner's own call, made explicitly to keep
+   * this simple: repairing a split paragraph is something the author can do
+   * themselves with an ordinary Backspace, the same as any other unwanted
+   * paragraph break. See `bridges/imageUpload.ts`'s `deleteImageUpload`.
+   */
+  const onDeleteImageBlock = () => {
+    const target = imageMenuTarget
+    setImageMenuTarget(undefined)
+    if (!target || target.kind !== 'placeholder' || !target.uploadId) return
+    editorBridge.deleteImageUpload(target.uploadId)
+  }
+
+  /*
+   * Latest handler for the click that happens inside the WebView, held in a
+   * ref so the subscription effect below can mount exactly once. It used to
+   * re-run on every render instead - meaning every render tore the
+   * subscription down and rebuilt it - and this component re-renders on
+   * essentially every keystroke (`onChange` below, and `bridgeState`). That
+   * opened a real window, however brief, between teardown and rebuild where a
+   * click arriving as an async message could land while nothing was
+   * subscribed and do nothing at all - silently, with no error. This is the
+   * same shape of bug as the filename race fixed earlier in this file: a
+   * value read once instead of kept live. (There used to be a second ref
+   * here, for a `picker` event - removed along with the event itself once
+   * every WebView click started asking for the menu instead; see
+   * `bridges/imageUpload.ts`'s doc comment for why.)
+   */
+  const onImageBlockMenuRef = useRef((_request: MenuRequest) => {})
+  onImageBlockMenuRef.current = request => {
+    /*
+     * Translate the WebView-relative rect into page coordinates before
+     * anchoring. `measureInWindow` is async, so the menu opens in its
+     * callback rather than on a timer - the anchor must be mounted at its
+     * final position before the dropdown measures against it, or web
+     * positions it at the origin.
+     */
+    const surface = editorSurfaceRef.current
+    if (!surface) {
+      setImageMenuTarget(request)
+      requestAnimationFrame(() => imageMenuControl.open())
+      return
+    }
+    surface.measureInWindow((surfaceX, surfaceY) => {
+      setImageMenuTarget({
+        ...request,
+        rect: {
+          ...request.rect,
+          x: request.rect.x + surfaceX,
+          y: request.rect.y + surfaceY,
+        },
+      })
+      requestAnimationFrame(() => imageMenuControl.open())
+    })
+  }
+
+  /**
+   * Clears `imageMenuTarget` whenever the menu closes for *any* reason.
+   *
+   * The four menu actions above already clear it themselves on success, but
+   * that only covers choosing an item. Dismissing the menu without choosing
+   * one - clicking the backdrop, pressing Escape - closes `imageMenuControl`
+   * (Radix's own mechanism) without ever running any of those handlers, and
+   * nothing else was watching for that. Left alone, `imageMenuTarget` stayed
+   * set indefinitely: the absolutely-positioned trigger `View` it renders
+   * covers the clicked block's last-known screen rect and keeps intercepting
+   * pointer events there - through the surrounding text, since it has no idea
+   * the document has moved on - until some other block's click happened to
+   * overwrite it. That is the real cause of clicks silently failing to reach
+   * the editor after opening a menu and clicking away from it, which is far
+   * more likely to happen now that idle and error blocks open this same menu
+   * too, not just filled images.
+   *
+   * Watches the closing edge specifically (`true` -> `false`), not just
+   * "closed": `imageMenuTarget` is set one render before `imageMenuControl`
+   * actually opens (see above - the rAF gap for `measureInWindow`), and a
+   * naive `if (!isOpen)` would wipe it out again during that gap, before the
+   * menu ever had a chance to open.
+   */
+  const wasImageMenuOpenRef = useRef(false)
+  useEffect(() => {
+    if (wasImageMenuOpenRef.current && !imageMenuControl.isOpen) {
+      setImageMenuTarget(undefined)
+    }
+    wasImageMenuOpenRef.current = imageMenuControl.isOpen
+  }, [imageMenuControl.isOpen])
+
+  /**
+   * Wires the click that happens inside the WebView back to this screen.
+   *
+   * The block and the image live in the editor document, but the menu is
+   * React Native, so the click has to cross the bridge to reach anything that
+   * can act on it. Subscribes once, for the lifetime of the screen - never
+   * re-subscribed - and dispatches through the ref above so it is always
+   * acting on current state without needing to churn.
+   */
+  useEffect(() => {
+    return subscribeToImageBlockEvents({
+      menu: request => onImageBlockMenuRef.current(request),
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  /**
+   * Publishes filenames into the editor whenever the set changes.
+   *
+   * Sanitised and truncated here rather than in the WebView so there is one
+   * implementation of those rules for every surface - see
+   * `#/lib/strings/filename`. Entries with no usable name are simply omitted,
+   * and the block falls back to its format hint.
+   */
+  useEffect(() => {
+    const names: Record<string, string> = {}
+    for (const entry of bodyImages) {
+      const cid = blobCid(entry.image)
+      const name = displayFileName(entry.name)
+      if (cid && name) names[cid] = name
+    }
+    editorBridge.setImageFileNames(names)
+  }, [bodyImages, editorBridge])
 
   const onPressCoverImage = async () => {
     const images = await openPicker({selectionLimit: 1})
@@ -293,6 +729,18 @@ export function ArticleCompose({
     const {blob} = await uploadBlob(pdsClient, image.path, image.mime)
     setCoverImage(blob)
     setCoverImagePreviewUri(image.path)
+  }
+
+  // Clears both halves together. `coverImage` is what gets published and
+  // `coverImagePreviewUri` is what the button renders - leaving either
+  // behind would either keep publishing a removed image or keep showing a
+  // thumbnail for one that's gone. The uploaded blob itself isn't deleted:
+  // nothing references it once it's off the record, and the PDS has no
+  // caller-facing blob-delete anyway (unreferenced blobs are collected
+  // server-side).
+  const onRemoveCoverImage = () => {
+    setCoverImage(undefined)
+    setCoverImagePreviewUri(undefined)
   }
 
   const doSaveDraft = async (): Promise<{success: boolean}> => {
@@ -306,6 +754,7 @@ export function ArticleCompose({
           facets,
           metadata,
           coverImage,
+          bodyImages,
         },
         existingDraftId: draftId,
       })
@@ -314,7 +763,16 @@ export function ArticleCompose({
       baselineRef.current = snapshot()
       setBodyTouched(false)
       return {success: true}
-    } catch {
+    } catch (err) {
+      /*
+       * Logged, not swallowed. This used to be a bare `catch {}`, which made a
+       * failing draft save indistinguishable from any other - the author saw
+       * "couldn't save" and the actual cause (a 501 from an endpoint the dev
+       * PDS does not implement, a validation rejection, an expired session)
+       * was gone. Anything that can fail for several unrelated reasons has to
+       * say which one.
+       */
+      logger.error('ArticleCompose: draft save failed', {safeMessage: err})
       Toast.show(_(msg`Couldn't save draft. Please try again.`), {
         type: 'error',
       })
@@ -361,6 +819,12 @@ export function ArticleCompose({
         tags: draft.tags ?? [],
       },
       coverImage: draft.coverImage,
+      /*
+       * The half of this screen's state that cannot be recovered from anything
+       * else. Without it, reopening a draft and publishing writes an assets
+       * record missing every image, and those blobs are then deleted.
+       */
+      bodyImages: draftBodyImages(draft.bodyImages),
     }
     setTitle(next.title)
     setSubtitle(next.subtitle)
@@ -370,14 +834,9 @@ export function ArticleCompose({
     )
     setMetadata(next.metadata)
     setCoverImage(next.coverImage)
+    setBodyImages(next.bodyImages)
     if (next.coverImage) {
-      const cid =
-        'ref' in next.coverImage
-          ? next.coverImage.ref.toString()
-          : next.coverImage.cid
-      setCoverImagePreviewUri(
-        `${SUNNAHSKY_SERVICE}/xrpc/com.atproto.sync.getBlob?did=${encodeURIComponent(pdsClient.assertDid)}&cid=${encodeURIComponent(cid)}`,
-      )
+      setCoverImagePreviewUri(blobUrl(next.coverImage))
     } else {
       setCoverImagePreviewUri(undefined)
     }
@@ -445,6 +904,7 @@ export function ArticleCompose({
             : undefined,
           contributors: [],
           coverImage,
+          bodyImages,
         },
         editing,
       })
@@ -498,6 +958,36 @@ export function ArticleCompose({
   const wordCount = bridgeState.wordCount
   const charCount = bridgeState.charCount
   const activeParagraphStyle = bridgeState.activeParagraphStyle
+
+  // Live formatting state for the toolbar's own active indicators. Arrives on
+  // the same debounced push as the counts above (including on plain cursor
+  // moves, via `onSelectionUpdate`), so moving the caret into already-bold
+  // text lights the Bold button without any extra plumbing. Bold/italic/
+  // strike/underline and the list flag are TenTap's own bridge state -
+  // underline included, since `bridges/underline.ts` is a `.clone()` of
+  // TenTap's bridge and keeps its active-state tracking; `activeTextAlign`
+  // comes from this app's own `textAlign` bridge.
+  const activeMarks = {
+    bold: bridgeState.isBoldActive,
+    italic: bridgeState.isItalicActive,
+    underline: bridgeState.isUnderlineActive,
+    strikethrough: bridgeState.isStrikeActive,
+  }
+  const activeTextAlign = bridgeState.activeTextAlign
+  const isBulletListActive = bridgeState.isBulletListActive
+
+  // Allowlist-checked before it reaches the toolbar, not after: this value
+  // originates in the document, and a document authored by a different
+  // client can carry any color string at all. The toolbar renders it as a
+  // real fill on the trigger swatch, so it's untrusted input reaching a
+  // style - the same fail-closed treatment `onSetColor` already applies on
+  // the way in (`colorAllowlist.ts`). Anything unrecognised reads as "no
+  // color", which is exactly how the renderer treats it too.
+  const rawActiveColor = bridgeState.activeColor
+  const activeColor =
+    typeof rawActiveColor === 'string' && isAllowedColorValue(rawActiveColor)
+      ? rawActiveColor
+      : undefined
 
   // Never "Save and close" while editing a published article - there's
   // deliberately no save-progress-without-publishing path for that mode
@@ -671,6 +1161,7 @@ export function ArticleCompose({
         onChange={setMetadata}
         coverImagePreviewUri={coverImagePreviewUri}
         onPressCoverImage={() => void onPressCoverImage()}
+        onRemoveCoverImage={onRemoveCoverImage}
       />
 
       <View style={[a.flex_1, {padding: 18}, a.gap_md]}>
@@ -678,6 +1169,10 @@ export function ArticleCompose({
           onToggleMark={onToggleMark}
           onToggleUnderline={onToggleUnderline}
           activeParagraphStyle={activeParagraphStyle}
+          activeMarks={activeMarks}
+          activeTextAlign={activeTextAlign}
+          activeColor={activeColor}
+          isBulletListActive={isBulletListActive}
           onSelectParagraphStyle={onSelectParagraphStyle}
           onInsertList={onInsertList}
           onSetAlign={onSetAlign}
@@ -694,7 +1189,12 @@ export function ArticleCompose({
             // is already exactly where it should be by the time this runs.
             editorBridge.focus(null)
           }}
-          onInsertLink={onInsertLink}
+          activeLink={bridgeState.activeLink}
+          canSetLink={bridgeState.canSetLink}
+          isLinkActive={bridgeState.isLinkActive}
+          onSetLink={onSetLink}
+          onRemoveLink={onRemoveLink}
+          onLinkUnavailable={onLinkUnavailable}
           onInsertImage={() => void onInsertImage()}
         />
 
@@ -769,7 +1269,9 @@ export function ArticleCompose({
            * CSS now, not as RN style props here - there's no RN text node
            * to style directly once content renders inside the WebView.
            */}
-          <RichText editor={editorBridge} style={[a.flex_1]} />
+          <View ref={editorSurfaceRef} style={[a.flex_1]} collapsable={false}>
+            <RichText editor={editorBridge} style={[a.flex_1]} />
+          </View>
         </View>
         <Text style={[a.text_sm, t.atoms.text_contrast_medium]}>
           <Trans>
@@ -781,7 +1283,118 @@ export function ArticleCompose({
   )
 
   return (
-    <ComposerOverlay onPressCancel={onPressCancel}>{content}</ComposerOverlay>
+    <ComposerOverlay onPressCancel={onPressCancel}>
+      {content}
+      {imageMenuTarget ? (
+        /*
+         * Anchored over the block the author clicked - an image (Remove/
+         * Replace) or a placeholder (Select image/Delete block), branching on
+         * `imageMenuTarget.kind`. One mechanism serves both, since both
+         * report the same shape of rect. The rect arrives from inside the
+         * WebView, so it is in *that* document's viewport coordinates;
+         * `onImageBlockMenuRef` above already converts it into page
+         * coordinates via `editorSurfaceRef.measureInWindow` before it gets
+         * here - confirmed live on web after an earlier version anchored near
+         * the top-left of the screen instead of on the block.
+         */
+        <View
+          style={[
+            a.absolute,
+            {
+              left: imageMenuTarget.rect.x,
+              top: imageMenuTarget.rect.y,
+              width: imageMenuTarget.rect.width,
+              height: imageMenuTarget.rect.height,
+            },
+          ]}
+          pointerEvents="box-none">
+          <Menu.Root control={imageMenuControl}>
+            {/* Zero-affordance trigger: the real affordance is the block
+                itself, inside the editor. This exists only to give the
+                dropdown something to anchor to and the control something to
+                open. */}
+            <Menu.Trigger
+              label={
+                imageMenuTarget.kind === 'image'
+                  ? _(msg`Edit image`)
+                  : _(msg`Image options`)
+              }>
+              {({props}) => (
+                /*
+                 * The explicit `{null}` child is load-bearing. On web the
+                 * trigger's `props` include Radix's own `children`, which is a
+                 * *function* - spreading them onto an element with no children
+                 * of its own hands React that function as a child and it
+                 * throws "Functions are not valid as a React child". The
+                 * cover-image menu in `Metadata.tsx` never hits this only
+                 * because its trigger renders real content, which shadows the
+                 * spread value.
+                 */
+                <View {...props} style={[a.w_full, a.h_full]}>
+                  {null}
+                </View>
+              )}
+            </Menu.Trigger>
+            <Menu.Outer>
+              {imageMenuTarget.kind === 'image' ? (
+                <>
+                  <Menu.Item
+                    label={_(msg`Remove image`)}
+                    onPress={onRemoveBodyImage}>
+                    <Menu.ItemIcon icon={TrashIcon} fill={imageMenuIconFill} />
+                    <Menu.ItemText>
+                      <Trans>Remove image</Trans>
+                    </Menu.ItemText>
+                  </Menu.Item>
+                  <Menu.Item
+                    label={_(msg`Replace image`)}
+                    onPress={() => {
+                      void onReplaceBodyImage()
+                    }}>
+                    <Menu.ItemIcon
+                      icon={AttachmentIcon}
+                      fill={imageMenuIconFill}
+                    />
+                    <Menu.ItemText>
+                      <Trans>Replace image</Trans>
+                    </Menu.ItemText>
+                  </Menu.Item>
+                </>
+              ) : (
+                <>
+                  {/*
+                   * "Select image" covers both a retry after an error and
+                   * picking for a block that is simply still idle - see
+                   * `onSelectImageForPlaceholder`. "Delete block" removes the
+                   * block outright, with no attempt to rejoin a paragraph its
+                   * insert may have split; see `onDeleteImageBlock`.
+                   */}
+                  <Menu.Item
+                    label={_(msg`Select image`)}
+                    onPress={onSelectImageForPlaceholder}>
+                    <Menu.ItemIcon
+                      icon={AttachmentIcon}
+                      fill={imageMenuIconFill}
+                    />
+                    <Menu.ItemText>
+                      <Trans>Select image</Trans>
+                    </Menu.ItemText>
+                  </Menu.Item>
+                  <Menu.Item
+                    label={_(msg`Delete block`)}
+                    onPress={onDeleteImageBlock}>
+                    <Menu.ItemIcon icon={TrashIcon} fill={imageMenuIconFill} />
+                    <Menu.ItemText>
+                      <Trans>Delete block</Trans>
+                    </Menu.ItemText>
+                  </Menu.Item>
+                </>
+              )}
+            </Menu.Outer>
+          </Menu.Root>
+        </View>
+      ) : null}
+    </ComposerOverlay>
   )
 }
 

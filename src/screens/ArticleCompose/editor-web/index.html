@@ -47,6 +47,134 @@
     p[data-typography='arabicParagraph'] {
       text-align-last: right;
     }
+    /* Honorific glyphs (see bridges/honorific.ts). `unicode-bidi: isolate`
+       is the load-bearing half: it resolves this run's bidi independently
+       and makes the run opaque to the surrounding paragraph's resolution,
+       replacing the invisible U+200F character this used to append - which
+       leaked into copy-paste and acted as an extra caret stop. `direction:
+       rtl` states the truth about the content (these are Arabic glyphs);
+       for a lone strong-RTL character the glyph governs its own rendering
+       regardless, so the isolation is what actually matters. */
+    [data-bidi-isolate] {
+      direction: rtl;
+      unicode-bidi: isolate;
+    }
+    /* Body-image block, per Figma "Photo upload" (252:3893 idle, 253:3919
+       uploaded, 252:3894 filled). Worn by both the transient placeholder
+       (imageUploadNode.ts) and the real image node (imageNodeView.ts), so
+       swapping one for the other is invisible.
+
+       Design tokens are inlined as the hex they resolve to: this document is
+       the editor WebView, which has no access to ALF, exactly as the rules
+       above already assume. */
+    [data-image-block] {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      margin: 12px 0;
+      padding: 16px 24px;
+      /* Dashed while the block is still a slot waiting to be filled - idle and
+         both error states. Becomes solid once an image is actually attached
+         (see [data-has-image] below), which is what distinguishes "nothing
+         here yet" from "something here you cannot currently see". */
+      border: 1px dashed #c0cad8;
+      border-radius: 12px;
+      background: #fff;
+      user-select: none;
+    }
+    /* Filled state is a row: image on the left, text block beside it. */
+    [data-image-block][data-has-image] {
+      flex-direction: row;
+      align-items: flex-start;
+      justify-content: center;
+      gap: 4px;
+      border-style: solid;
+    }
+    [data-image-block-preview] {
+      max-height: 130px;
+      max-width: 45%;
+      object-fit: cover;
+      border-radius: 8px;
+      flex: 0 1 auto;
+    }
+    /* The explanatory state hides the image entirely rather than letting a
+       404 render as a broken-image glyph. Set by default and removed only
+       once the image really decodes - see imageNodeView.ts. */
+    [data-image-unavailable] [data-image-block-preview] {
+      display: none;
+    }
+    [data-image-unavailable] {
+      flex-direction: column;
+      align-items: center;
+    }
+    [data-image-block-content] {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+    /* 40px featured icon with the design's skeuomorphic inset shadows. */
+    [data-image-block-icon] {
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid #c0cad8;
+      border-radius: 8px;
+      background: #fff;
+      color: #405168;
+      box-shadow:
+        0 1px 2px 0 rgba(0, 0, 0, 0.05),
+        inset 0 0 0 1px rgba(0, 0, 0, 0.18),
+        inset 0 -2px 0 0 rgba(0, 0, 0, 0.05);
+      flex-shrink: 0;
+    }
+    [data-image-block-icon] svg {
+      width: 20px;
+      height: 20px;
+      display: block;
+    }
+    [data-image-block-text] {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      width: 100%;
+      min-width: 0;
+    }
+    [data-image-block-action] {
+      font-size: 14px;
+      line-height: 20px;
+      font-weight: 500;
+      color: #232e3e;
+      text-align: center;
+    }
+    [data-image-block-supporting] {
+      font-size: 12px;
+      line-height: 18px;
+      font-weight: 500;
+      color: #8798b0;
+      text-align: center;
+      /* A filename is arbitrary text and can be a single very long token, so
+         it must be allowed to break rather than widening the block. */
+      overflow-wrap: anywhere;
+      max-width: 100%;
+    }
+    /* Error lines. Same metrics as the supporting text, in the error colour
+       the rest of the app already uses for error toasts. */
+    [data-image-block-error] {
+      font-size: 12px;
+      line-height: 18px;
+      font-weight: 500;
+      color: #a71134;
+      text-align: center;
+      overflow-wrap: anywhere;
+      max-width: 100%;
+    }
   </style>
   <body>
     <div id="root"></div>

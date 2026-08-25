@@ -70,6 +70,7 @@ export function articleDocumentToComposeState(
   coverImagePreviewUri: string | undefined
   flavor: 'gfm' | 'commonmark'
   editingArticle: EditingArticleState
+  bodyImages: com.sunnahsky.article.draft.defs.BodyImage[]
 } {
   const {document} = loaded
   const parsedContent = parseDocumentContent(document.content)
@@ -115,6 +116,18 @@ export function articleDocumentToComposeState(
     },
     coverImage,
     coverImagePreviewUri,
+    /*
+     * Deliberately empty when editing an already-published article, rather
+     * than populated from the assets record.
+     *
+     * This list only ever holds refs uploaded during *this* session.
+     * Everything already published is carried forward by `publishArticle`,
+     * which reads the existing assets record at write time - see the fetch in
+     * its `Promise.all`. Reading it here as well would duplicate that
+     * responsibility, and would go stale the moment the article were edited
+     * from somewhere else.
+     */
+    bodyImages: [],
     flavor: parsedContent?.flavor ?? 'gfm',
     editingArticle: {
       uri: loaded.uri,

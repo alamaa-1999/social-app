@@ -38,6 +38,10 @@ function makeMockClient(opts: {
   /** Existing companion post record, returned for `getRecord` calls against
    * `app.bsky.feed.post` - only relevant for `opts.editing` test cases. */
   existingPost?: Record<string, unknown>
+  /** Existing `com.sunnahsky.article.assets` record. Absent by default, which
+   * is what the PDS really does for an article with no body images - the
+   * record simply does not exist and `getRecord` 404s. */
+  existingAssets?: Record<string, unknown>
 }) {
   const writes: unknown[] = []
   const call = jest.fn((endpoint: unknown, params: unknown) => {
@@ -61,6 +65,17 @@ function makeMockClient(opts: {
       const {collection} = params as {collection: string}
       if (collection === 'app.bsky.feed.post') {
         return Promise.resolve({value: opts.existingPost})
+      }
+      /*
+       * Must reject rather than fall through to the generic success below.
+       * `publishArticle` treats a resolved assets fetch as "a record exists
+       * here", and would otherwise emit a delete write for a record that was
+       * never created.
+       */
+      if (collection === 'com.sunnahsky.article.assets') {
+        return opts.existingAssets
+          ? Promise.resolve({value: opts.existingAssets})
+          : Promise.reject(new Error('Could not locate record'))
       }
       return Promise.resolve({value: {displayName: opts.displayName ?? ''}})
     }
@@ -545,5 +560,175 @@ describe('publishArticle - editing an already-published article', () => {
     ).rejects.toThrow(/facet/i)
 
     expect(writes).toHaveLength(0)
+  })
+})
+
+describe('publishArticle - body image assets record', () => {
+  const HOST = 'https://pds.example'
+
+  function blobUrl(cid: string) {
+    return `${HOST}/xrpc/com.atproto.sync.getBlob?did=${DID}&cid=${cid}`
+  }
+
+  function bodyImage(cid: string, name?: string) {
+    return {
+      image: {
+        $type: 'blob' as const,
+        ref: {toString: () => cid},
+        mimeType: 'image/jpeg',
+        size: 1000,
+      } as never,
+      ...(name ? {name} : {}),
+    }
+  }
+
+  /** The assets entries of the applyWrites batch, in order. */
+  function assetWrites(writes: unknown[]) {
+    return (writes[0] as {collection: string}[]).filter(
+      w => w.collection === 'com.sunnahsky.article.assets',
+    )
+  }
+
+  it('creates the assets record alongside the document, sharing its rkey', async () => {
+    const {client, writes} = makeMockClient({hasExistingPublication: true})
+
+    await publishArticle({
+      pdsClient: client,
+      draft: {
+        title: 'With images',
+        description: 'd',
+        markdown: `Text\n\n![](${blobUrl('cidA')})`,
+        flavor: 'gfm',
+        bodyImages: [bodyImage('cidA', 'scan.jpg')],
+      },
+    })
+
+    const batch = writes[0] as {
+      $type: string
+      collection: string
+      rkey: string
+      value?: {images?: {image: {ref: {toString(): string}}}[]}
+    }[]
+    const assets = batch.find(
+      w => w.collection === 'com.sunnahsky.article.assets',
+    )!
+    const doc = batch.find(w => w.collection === 'site.standard.document')!
+
+    expect(assets.$type).toBe('com.atproto.repo.applyWrites#create')
+    // Shared rkey is what lets the edit path find this record without a scan.
+    expect(assets.rkey).toBe(doc.rkey)
+    expect(assets.value!.images).toHaveLength(1)
+    expect(assets.value!.images![0].image.ref.toString()).toBe('cidA')
+  })
+
+  it('writes no assets record at all when the body has no images', async () => {
+    const {client, writes} = makeMockClient({hasExistingPublication: true})
+
+    await publishArticle({
+      pdsClient: client,
+      draft: {
+        title: 'No images',
+        description: 'd',
+        markdown: 'Just words.',
+        flavor: 'gfm',
+      },
+    })
+
+    expect(assetWrites(writes)).toHaveLength(0)
+  })
+
+  it('omits an image the author removed, so its blob stops being tethered', async () => {
+    const {client, writes} = makeMockClient({hasExistingPublication: true})
+
+    await publishArticle({
+      pdsClient: client,
+      draft: {
+        title: 'One removed',
+        description: 'd',
+        markdown: `Only ![](${blobUrl('cidA')}) survives`,
+        flavor: 'gfm',
+        bodyImages: [bodyImage('cidA'), bodyImage('cidB')],
+      },
+    })
+
+    const assets = assetWrites(writes)[0] as unknown as {
+      value: {images: {image: {ref: {toString(): string}}}[]}
+    }
+    expect(assets.value.images.map(i => i.image.ref.toString())).toEqual([
+      'cidA',
+    ])
+  })
+
+  /*
+   * The failure this guards against destroys the author's image: on edit the
+   * app holds no BlobRef for an image it did not re-upload this session, so if
+   * the existing record is not read and carried forward, that blob is dropped
+   * from the write and `deleteDereferencedBlobs` deletes the bytes for good.
+   */
+  it('carries forward a published image the editing session never re-uploaded', async () => {
+    const EDITING = {
+      documentUri: `at://${DID}/site.standard.document/existingdoc` as const,
+      documentRkey: 'existingdoc',
+      documentCid: 'bafyreioriginaldoccid00000000000000000000000000000',
+      publishedAt: '2024-01-01T00:00:00.000Z' as const,
+      postUri: `at://${DID}/app.bsky.feed.post/existingpost` as const,
+      postRkey: 'existingpost',
+    }
+
+    const {client, writes} = makeMockClient({
+      hasExistingPublication: true,
+      existingPublicationName: 'Unchanged Name',
+      displayName: 'Unchanged Name',
+      existingPost: {
+        $type: 'app.bsky.feed.post',
+        text: 'x',
+        createdAt: '2024-01-01T00:00:00.000Z',
+        embed: {
+          $type: 'app.bsky.embed.external',
+          external: {
+            $type: 'app.bsky.embed.external#external',
+            uri: 'https://sunnahsky.com/article/original',
+            title: 't',
+            description: 'd',
+            associatedRefs: [
+              {uri: EDITING.documentUri, cid: EDITING.documentCid},
+              {
+                uri: `at://${DID}/site.standard.publication/existingpub`,
+                cid: 'bafyreiexistingpubcid000000000000000000000000000000',
+              },
+            ],
+          },
+        },
+      },
+      existingAssets: {
+        $type: 'com.sunnahsky.article.assets',
+        document: EDITING.documentUri,
+        images: [bodyImage('publishedCid')],
+      },
+    })
+
+    await publishArticle({
+      pdsClient: client,
+      draft: {
+        title: 'Edited',
+        description: 'd',
+        markdown: `![](${blobUrl('publishedCid')}) and ![](${blobUrl('freshCid')})`,
+        flavor: 'gfm',
+        // Only the freshly-uploaded image is in session state.
+        bodyImages: [bodyImage('freshCid')],
+      },
+      editing: EDITING,
+    })
+
+    const assets = assetWrites(writes)[0] as unknown as {
+      $type: string
+      rkey: string
+      value: {images: {image: {ref: {toString(): string}}}[]}
+    }
+    expect(assets.$type).toBe('com.atproto.repo.applyWrites#update')
+    expect(assets.rkey).toBe(EDITING.documentRkey)
+    expect(assets.value.images.map(i => i.image.ref.toString()).sort()).toEqual(
+      ['freshCid', 'publishedCid'],
+    )
   })
 })

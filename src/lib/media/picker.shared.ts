@@ -42,6 +42,19 @@ export async function openPicker(opts?: ImagePickerOptions) {
       width: image.width,
       path: image.uri,
       size: getDataUriSize(image.uri),
+      /*
+       * Additive, and optional on purpose. The article composer shows this in
+       * the body-image placeholder so an author can tell which image sits
+       * where while it cannot be rendered. Expo reports it as
+       * `string | null | undefined` and genuinely omits it for some
+       * camera-roll assets, so every consumer has to cope with its absence
+       * rather than assume a name is always there.
+       *
+       * Display only. It is never used to build a path or a URL, and any
+       * surface that renders it must sanitise first - see
+       * `#/lib/strings/filename`.
+       */
+      fileName: image.fileName ?? undefined,
     }))
 }
 

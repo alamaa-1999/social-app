@@ -7,6 +7,7 @@ import {
 } from '@atproto/syntax'
 
 import {deriveTextContentFromMarkdown} from '#/lib/strings/markdown-strip'
+import {logger} from '#/logger'
 import {
   type EditorFacet,
   facetsToWireFormat,
@@ -14,6 +15,7 @@ import {
 } from '#/screens/ArticleCompose/state'
 import {app, com, type site} from '#/lexicons'
 import * as bsky from '#/types/bsky'
+import {resolveBodyImages} from './article-assets'
 import {computeCid} from './computeCid'
 
 /**
@@ -51,6 +53,14 @@ export interface ArticleDraft {
   translators?: string[]
   contributors?: site.standard.document.Contributor[]
   coverImage?: site.standard.document.Main['coverImage']
+  /**
+   * Blob refs for images embedded in `markdown`, carried on the draft because
+   * a `BlobRef` cannot be rebuilt from the CID in a `getBlob` URL alone -
+   * `mimeType` and `size` are unreadable for a blob that was never tethered.
+   * Without them a draft reopened in a new session would publish with its
+   * images silently missing. See `article-assets.ts`.
+   */
+  bodyImages?: com.sunnahsky.article.draft.defs.BodyImage[]
 }
 
 /** Identifies the existing published article/companion post being edited, so `publishArticle` can update in place instead of creating fresh records. */
@@ -146,31 +156,60 @@ export async function publishArticle(opts: PublishArticleOpts) {
     )
   }
 
-  const [existingPubs, profileRecord, repoDesc, existingPostRecord] =
-    await Promise.all([
-      pdsClient.call(com.atproto.repo.listRecords, {
+  const [
+    existingPubs,
+    profileRecord,
+    repoDesc,
+    existingPostRecord,
+    existingAssetsRecord,
+  ] = await Promise.all([
+    pdsClient.call(com.atproto.repo.listRecords, {
+      repo: did,
+      collection: 'site.standard.publication',
+      limit: 1,
+    }),
+    // Best-effort: a missing/unreadable profile just falls back to the
+    // handle below, not worth failing the whole publish over.
+    pdsClient
+      .call(com.atproto.repo.getRecord, {
         repo: did,
-        collection: 'site.standard.publication',
-        limit: 1,
-      }),
-      // Best-effort: a missing/unreadable profile just falls back to the
-      // handle below, not worth failing the whole publish over.
-      pdsClient
-        .call(com.atproto.repo.getRecord, {
+        collection: 'app.bsky.actor.profile',
+        rkey: 'self',
+      })
+      .catch(() => undefined),
+    pdsClient.call(com.atproto.repo.describeRepo, {repo: did}),
+    opts.editing
+      ? pdsClient.call(com.atproto.repo.getRecord, {
           repo: did,
-          collection: 'app.bsky.actor.profile',
-          rkey: 'self',
+          collection: 'app.bsky.feed.post',
+          rkey: opts.editing.postRkey,
         })
-        .catch(() => undefined),
-      pdsClient.call(com.atproto.repo.describeRepo, {repo: did}),
-      opts.editing
-        ? pdsClient.call(com.atproto.repo.getRecord, {
+      : Promise.resolve(undefined),
+    /*
+     * The existing assets record, on the edit path only.
+     *
+     * This is load-bearing rather than an optimisation. For an image the
+     * author did not re-upload during this editing session, the app holds
+     * only the CID parsed out of the markdown URL - not the `BlobRef` the
+     * record needs. Those refs exist nowhere else, so omitting this fetch
+     * would silently drop every previously-published image from the record,
+     * and `deleteDereferencedBlobs` would then delete the bytes from the
+     * blobstore permanently.
+     *
+     * Absent is a normal outcome, not an error: an article published before
+     * this feature existed, or one that simply has no body images, has no
+     * assets record at all.
+     */
+    opts.editing
+      ? pdsClient
+          .call(com.atproto.repo.getRecord, {
             repo: did,
-            collection: 'app.bsky.feed.post',
-            rkey: opts.editing.postRkey,
+            collection: 'com.sunnahsky.article.assets',
+            rkey: opts.editing.documentRkey,
           })
-        : Promise.resolve(undefined),
-    ])
+          .catch(() => undefined)
+      : Promise.resolve(undefined),
+  ])
   const hasPublication = existingPubs.records.length > 0
   const existingPub = hasPublication ? existingPubs.records[0] : undefined
 
@@ -325,6 +364,52 @@ export async function publishArticle(opts: PublishArticleOpts) {
   // is what `associatedRefs` below must pin exactly.
   const docCid = await computeCid(documentRecord)
 
+  /*
+   * Body-image blobs.
+   *
+   * Order matters: refs already in the published assets record come first, and
+   * this session's draft refs overlay them, so a re-uploaded image wins while
+   * everything the author has not touched is carried forward untouched. Losing
+   * an entry here is not a cosmetic bug - `deleteDereferencedBlobs` deletes the
+   * dropped blob from the blobstore permanently.
+   *
+   * The list itself is derived from the *final* markdown rather than from
+   * session state, so images the author removed are pruned and stop being
+   * tethered.
+   */
+  const existingAssetImages =
+    (
+      existingAssetsRecord?.value as
+        com.sunnahsky.article.assets.Main | undefined
+    )?.images ?? []
+  const knownBodyImages = [
+    ...existingAssetImages.map(entry => ({image: entry.image})),
+    ...(draft.bodyImages ?? []),
+  ]
+  const {images: bodyImages, missing: missingBodyImages} = resolveBodyImages(
+    draft.markdown,
+    knownBodyImages,
+  )
+  if (missingBodyImages.length > 0) {
+    /*
+     * The body references a blob we hold no ref for, so it cannot be tethered
+     * and will not load once published. In practice this means a draft created
+     * before `bodyImages` existed. Not fatal - the rest of the article is
+     * fine - but it must not pass silently, because the symptom (an image that
+     * renders while drafting and 404s after publishing) is otherwise very hard
+     * to trace back to its cause.
+     */
+    logger.warn('publishArticle: body image with no known blob ref', {
+      count: missingBodyImages.length,
+    })
+  }
+
+  const assetsRecord: com.sunnahsky.article.assets.Main = {
+    $type: 'com.sunnahsky.article.assets',
+    document: docUri,
+    images: bodyImages,
+  }
+
   const postRecord = {
     ...provisionalPost,
     embed: {
@@ -368,6 +453,22 @@ export async function publishArticle(opts: PublishArticleOpts) {
       rkey: docRkey,
       value: documentRecord,
     })
+    if (bodyImages.length > 0) {
+      writes.push({
+        $type: 'com.atproto.repo.applyWrites#update',
+        collection: 'com.sunnahsky.article.assets',
+        rkey: docRkey,
+        value: assetsRecord,
+      })
+    } else if (existingAssetsRecord) {
+      // Every image was removed from the body. Delete the record rather than
+      // leaving an empty one behind; this is also what dereferences the blobs.
+      writes.push({
+        $type: 'com.atproto.repo.applyWrites#delete',
+        collection: 'com.sunnahsky.article.assets',
+        rkey: docRkey,
+      })
+    }
   } else {
     writes.push({
       $type: 'com.atproto.repo.applyWrites#create',
@@ -381,6 +482,14 @@ export async function publishArticle(opts: PublishArticleOpts) {
       rkey: docRkey,
       value: documentRecord,
     })
+    if (bodyImages.length > 0) {
+      writes.push({
+        $type: 'com.atproto.repo.applyWrites#create',
+        collection: 'com.sunnahsky.article.assets',
+        rkey: docRkey,
+        value: assetsRecord,
+      })
+    }
   }
 
   await pdsClient.call(com.atproto.repo.applyWrites, {

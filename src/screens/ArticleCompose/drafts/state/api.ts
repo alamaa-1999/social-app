@@ -17,6 +17,17 @@ export type ArticleComposeState = {
   facets: EditorFacet[]
   metadata: MetadataValue
   coverImage: site.standard.document.Main['coverImage']
+  /**
+   * Blob refs for images embedded in `markdown`, with the filename each was
+   * picked under.
+   *
+   * These have to be persisted rather than held in component state: a
+   * `BlobRef` cannot be rebuilt from the CID in a `getBlob` URL, because
+   * `mimeType` and `size` are unreadable for a blob that was never tethered.
+   * Drop them and a draft reopened tomorrow publishes with its images silently
+   * missing.
+   */
+  bodyImages: com.sunnahsky.article.draft.defs.BodyImage[]
 }
 
 /** Builds the `#draft` payload directly from `ArticleCompose`'s local state - no `localRefPaths` bookkeeping needed, unlike the post composer's `composerStateToDraft` (see the doc comment on `ArticleDraftSummary`). */
@@ -44,7 +55,25 @@ export function articleStateToDraft(
       ? state.metadata.translators
       : undefined,
     coverImage: state.coverImage,
+    bodyImages: state.bodyImages.length ? state.bodyImages : undefined,
   }
+}
+
+/**
+ * Inverse of the `bodyImages` half of `articleStateToDraft`.
+ *
+ * Defensive in the same spirit as `draftFacetsToEditorFacets`: an entry
+ * without a usable blob ref is dropped rather than carried, since it could
+ * only ever produce a broken write later. The `name` is passed through
+ * untouched - it is stored raw and sanitised at each render site (see
+ * `#/lib/strings/filename`), so cleaning it here would both duplicate that
+ * responsibility and quietly rewrite what the author actually picked.
+ */
+export function draftBodyImages(
+  bodyImages: com.sunnahsky.article.draft.defs.Draft['bodyImages'],
+): com.sunnahsky.article.draft.defs.BodyImage[] {
+  if (!bodyImages) return []
+  return bodyImages.filter(entry => entry?.image != null)
 }
 
 const KNOWN_FACET_FEATURE_TYPES = new Set<FacetFeature['$type']>([

@@ -1,16 +1,18 @@
 import {useState} from 'react'
-import {Pressable, View} from 'react-native'
+import {Linking, Pressable, View} from 'react-native'
 import {msg} from '@lingui/core/macro'
 import {useLingui} from '@lingui/react'
 import {Trans} from '@lingui/react/macro'
 
 import {atoms as a, useTheme, web} from '#/alf'
+import * as TextField from '#/components/forms/TextField'
 import {AlignCenter_Stroke2_Corner0_Rounded as AlignCenterIcon} from '#/components/icons/AlignCenter'
 import {AlignLeft_Stroke2_Corner0_Rounded as AlignLeftIcon} from '#/components/icons/AlignLeft'
 import {AlignRight_Stroke2_Corner0_Rounded as AlignRightIcon} from '#/components/icons/AlignRight'
 import {AudioWaveform_Stroke2_Corner0_Rounded as AudioIcon} from '#/components/icons/AudioWaveform'
 import {Bold_Stroke2_Corner0_Rounded as BoldIcon} from '#/components/icons/Bold'
 import {BulletList_Stroke2_Corner0_Rounded as BulletListIcon} from '#/components/icons/BulletList'
+import {CheckCircleBroken as CircleCheckIcon} from '#/components/icons/CheckCircleBroken'
 import {ChevronDown_Small as ChevronDownIcon} from '#/components/icons/ChevronDownSmall'
 import {type Props as IconProps} from '#/components/icons/common'
 import {FootnoteA_Filled} from '#/components/icons/FootnoteA'
@@ -20,11 +22,14 @@ import {Italic_Stroke2_Corner0_Rounded as ItalicIcon} from '#/components/icons/I
 import {MenuItemCheck} from '#/components/icons/MenuItemCheck'
 import {Paragraph_Stroke2_Corner0_Rounded as ParagraphIcon} from '#/components/icons/Paragraph'
 import {Photo_Stroke2_Corner0_Rounded as PhotoIcon} from '#/components/icons/Photo'
+import {Share04 as ShareIcon} from '#/components/icons/Share04'
 import {Strikethrough_Stroke2_Corner0_Rounded as StrikethroughIcon} from '#/components/icons/Strikethrough'
+import {Trash_Stroke2_Corner0_Rounded as TrashIcon} from '#/components/icons/Trash'
 import {Underline_Stroke2_Corner0_Rounded as UnderlineIcon} from '#/components/icons/Underline'
 import * as Menu from '#/components/Menu'
 import * as Toast from '#/components/Toast'
 import {Text} from '#/components/Typography'
+import {HONORIFICS} from './honorifics'
 import {type ParagraphStyleId} from './state'
 
 /**
@@ -44,117 +49,35 @@ const PRESET_COLORS = [
 ]
 
 /**
- * Exact codepoint/name/meaning data for the 16-glyph Insert Honorific grid,
- * supplied directly by the project owner - not re-derived from glyph
- * rendering. Rendered via Scheherazade New (already loaded, Phase 2a). A
- * further 8+ entries from the owner's own reference list are deliberately
- * not included here - reference/future, not part of this build.
+ * `isActive` reflects live editor state (bold applied at the cursor, the
+ * current alignment, and so on) so the toolbar shows what the caret is
+ * sitting in, not just what it can do. Every value behind it already
+ * travelled to native on `useBridgeState`'s existing debounced state push -
+ * see `index.tsx` - so this costs no extra round trip.
+ *
+ * Active styling is a background fill and nothing else - the icon keeps its
+ * resting color. Specified directly by the project owner ("a background
+ * hover colour behind each icon is enough of an indication", then `#E5F0FF`)
+ * rather than taken from Figma, whose Article Compose page has no
+ * active/selected variant for these icon buttons. Don't add a second signal
+ * (icon tint, border, weight) without asking.
+ *
+ * `palette.primary_50` is that exact `#E5F0FF`, used as the token rather
+ * than the literal so dark/dim themes stay correct - ALF builds those by
+ * running `invertPalette` over this same palette, so a hardcoded light blue
+ * would sit unreadably on a dark toolbar. Hover/press keep the neutral
+ * `bg_contrast_25` on top, so an active control still reacts to the pointer.
  */
-const HONORIFICS: {codepoint: number; name: string; meaning: string}[] = [
-  {
-    codepoint: 0xfdfe,
-    name: 'Subhaanahu wa Taaalaa',
-    meaning:
-      'May He be praised and exalted (Glorified and Lofty). The most common honorific for God.',
-  },
-  {
-    codepoint: 0xfdff,
-    name: 'Azza wa Jall',
-    meaning:
-      'The Glorified/Exalted/Mighty and Sublime. The second most common honorific for God.',
-  },
-  {
-    codepoint: 0xfd4e,
-    name: 'Tabaaraka wa-Taaalaa',
-    meaning:
-      'May he be blessed and exalted. One of the honorifics used only for God himself.',
-  },
-  {
-    codepoint: 0xfdfa,
-    name: 'Sallallahou Alayhe Wasallam',
-    meaning:
-      'The blessings and peace of God be upon him. Used after the name of a major prophet, especially the Prophet of Islam.',
-  },
-  {
-    codepoint: 0xfd4a,
-    name: 'Alayhi as-Salaatu was-Salaam',
-    meaning:
-      'Blessings and Peace be upon him. A lesser-used honorific for a prophet/Archangel.',
-  },
-  {
-    codepoint: 0xfd47,
-    name: 'Alayhi as-Salaam',
-    meaning:
-      "Peace be upon him. The normal honorific after a prophet's/Archangel's name.",
-  },
-  {
-    codepoint: 0xfd49,
-    name: 'Alayhimaa as-Salaam',
-    meaning: 'Peace be upon them (both). Used for prophets and angels.',
-  },
-  {
-    codepoint: 0xfd4d,
-    name: 'Alayhaa as-Salaam',
-    meaning:
-      'Peace be upon her. Used after the name of a woman who was the mother of a prophet.',
-  },
-  {
-    codepoint: 0xfd48,
-    name: 'Alayhim as-Salaam',
-    meaning:
-      'Peace be upon them (masculine plural). Used for two or more prophets.',
-  },
-  {
-    codepoint: 0xfd41,
-    name: 'Radi Allaahu Anh',
-    meaning: 'May God be pleased with him. Used for companions of the Prophet.',
-  },
-  {
-    codepoint: 0xfd42,
-    name: 'Radi Allaahu Anhaa',
-    meaning:
-      "May God be pleased with her. Companions of the Prophet, also Mary/Jesus' apostles in some regions.",
-  },
-  {
-    codepoint: 0xfd44,
-    name: 'Radi Allaahu Anhumaa',
-    meaning:
-      'May God be pleased with them (both). Used for companions of the Prophet.',
-  },
-  {
-    codepoint: 0xfd43,
-    name: 'Radi Allaahu Anhum',
-    meaning:
-      'May God be pleased with them (masc. plural, or mixed group). Used for companions of the Prophet.',
-  },
-  {
-    codepoint: 0xfd45,
-    name: 'Radi Allaahu Anhunna',
-    meaning:
-      'May God be pleased with them (feminine). Used for companions of the Prophet.',
-  },
-  {
-    codepoint: 0xfd40,
-    name: 'Rahimahu Allaah',
-    meaning:
-      'May God have mercy upon him. Companions of the Prophet, widely recognized scholars, or any deceased believer.',
-  },
-  {
-    codepoint: 0xfd4f,
-    name: 'Rahimahum Allaah',
-    meaning:
-      'God have mercy upon them (masculine). Widely recognized scholars, also ordinary believers.',
-  },
-]
-
 function ToolbarButton({
   label,
   icon: Icon,
   onPress,
+  isActive = false,
 }: {
   label: string
   icon: React.ComponentType<IconProps>
   onPress: () => void
+  isActive?: boolean
 }) {
   const t = useTheme()
   return (
@@ -162,10 +85,12 @@ function ToolbarButton({
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityHint=""
+      accessibilityState={{selected: isActive}}
       onPress={onPress}
       style={({pressed, hovered}) => [
         {padding: 6},
         a.rounded_xs,
+        isActive && {backgroundColor: t.palette.primary_50},
         (pressed || hovered) && t.atoms.bg_contrast_25,
       ]}>
       <Icon style={[t.atoms.text_contrast_low]} width={20} />
@@ -442,29 +367,240 @@ function InsertHonorificPopover({
   )
 }
 
+/**
+ * Scheme allowlist for links this composer creates, deliberately identical
+ * to the one `editor-web/serializer/sanitize.ts` enforces when a document is
+ * loaded - so the composer can never author a link the renderer would later
+ * strip, which would look like the link silently vanishing.
+ */
+const LINK_SCHEMES = new Set(['http:', 'https:', 'mailto:', 'tel:'])
+
+/**
+ * Returns the URL to actually apply, or `undefined` if what's typed isn't
+ * one. A bare `example.com` gets `https://`, which is what "Paste a link"
+ * implies; anything with an unsupported scheme (`javascript:` above all)
+ * fails closed rather than being written as an href.
+ */
+function normalizeLinkUrl(raw: string): string | undefined {
+  const trimmed = raw.trim()
+  if (!trimmed) return undefined
+  const candidate = /^[a-z][a-z0-9+.-]*:/i.test(trimmed)
+    ? trimmed
+    : `https://${trimmed}`
+  try {
+    if (!LINK_SCHEMES.has(new URL(candidate).protocol)) return undefined
+    return candidate
+  } catch {
+    return undefined
+  }
+}
+
+/**
+ * Insert-link popover - Figma nodes 243:3299 and 243:3439 (file
+ * pxYtWNgjV2VOLMGYr0ujlL). Those two frames are two *states* of one
+ * component, not two components: the field's text colour is just
+ * placeholder-vs-value (which `TextField` already handles), and the confirm
+ * button is `primary_200` with a dimmed glyph until there's a usable URL,
+ * `primary_500` once there is.
+ *
+ * Behaviour follows TipTap's own link-popover contract - set, remove, open,
+ * prefill from the active link, Enter applies, Escape closes - driven
+ * through TenTap's `LinkBridge`, where `setLink(url)` applies and
+ * `setLink(null)` removes.
+ *
+ * The input is the app's real `TextField`, not a hand-rolled one: the Figma
+ * component's own description names `src/components/forms/TextField.tsx` as
+ * its source of truth, and the chrome the design draws (primary_25 fill,
+ * primary_500 border) is precisely that component's *focus* state, which it
+ * reaches by itself because the field autofocuses when the popover opens.
+ * `LabelText` likewise already carries the design's `text_sm`/`font_medium`/
+ * `text_contrast_medium` and its own 8px bottom margin, so the label needs
+ * no restyling and the group needs no explicit gap.
+ */
+function InsertLinkPopover({
+  initialUrl,
+  canRemove,
+  onSubmit,
+  onRemove,
+  onRequestBodyFocus,
+}: {
+  initialUrl: string | undefined
+  canRemove: boolean
+  onSubmit: (url: string) => void
+  onRemove: () => void
+  onRequestBodyFocus: () => void
+}) {
+  const {_} = useLingui()
+  const t = useTheme()
+  const {control} = Menu.useMenuContext()
+  const [value, setValue] = useState(initialUrl ?? '')
+  const normalized = normalizeLinkUrl(value)
+
+  const submit = () => {
+    if (!normalized) return
+    onSubmit(normalized)
+    control.close()
+  }
+
+  return (
+    <Menu.Outer
+      style={[{width: 334, padding: 0}]}
+      // Same interception as InsertHonorificPopover: Radix pulls focus back
+      // to the trigger on close, which would leave the caret out of the
+      // article body right after the author applied a link to it.
+      onCloseAutoFocus={e => {
+        e.preventDefault()
+        onRequestBodyFocus()
+      }}>
+      <View style={[{padding: 12}, a.border_b, t.atoms.border_contrast_low]}>
+        <TextField.LabelText>
+          <Trans>Paste a link.</Trans>
+        </TextField.LabelText>
+        <TextField.Root>
+          <TextField.Input
+            label={_(msg`Type here...`)}
+            value={value}
+            onChangeText={setValue}
+            autoFocus
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="url"
+            returnKeyType="done"
+            onSubmitEditing={submit}
+          />
+        </TextField.Root>
+      </View>
+      <View
+        style={[
+          a.flex_row,
+          a.align_center,
+          a.justify_between,
+          {paddingTop: 12, paddingBottom: 16, paddingHorizontal: 12},
+        ]}>
+        <View style={[a.flex_row, a.align_center, {gap: 8}]}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={_(msg`Remove link`)}
+            accessibilityHint=""
+            disabled={!canRemove}
+            onPress={() => {
+              onRemove()
+              control.close()
+            }}
+            style={({pressed, hovered}) => [
+              a.align_center,
+              a.justify_center,
+              {padding: 6, borderRadius: 6},
+              !canRemove && {opacity: 0.5},
+              (pressed || hovered) && t.atoms.bg_contrast_25,
+            ]}>
+            <TrashIcon width={20} style={[t.atoms.text_contrast_low]} />
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={_(msg`Open link`)}
+            accessibilityHint=""
+            disabled={!normalized}
+            onPress={() => {
+              if (normalized) void Linking.openURL(normalized)
+            }}
+            style={({pressed, hovered}) => [
+              a.align_center,
+              a.justify_center,
+              {padding: 6, borderRadius: 6},
+              !normalized && {opacity: 0.5},
+              (pressed || hovered) && t.atoms.bg_contrast_25,
+            ]}>
+            <ShareIcon width={20} style={[t.atoms.text_contrast_low]} />
+          </Pressable>
+        </View>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={_(msg`Apply link`)}
+          accessibilityHint=""
+          disabled={!normalized}
+          onPress={submit}
+          style={[
+            a.align_center,
+            a.justify_center,
+            {
+              paddingHorizontal: 14,
+              paddingVertical: 8,
+              borderRadius: 999,
+              backgroundColor: normalized
+                ? t.palette.primary_500
+                : t.palette.primary_200,
+            },
+          ]}>
+          <CircleCheckIcon
+            width={20}
+            style={[{color: t.palette.white}, !normalized && {opacity: 0.6}]}
+          />
+        </Pressable>
+      </View>
+    </Menu.Outer>
+  )
+}
+
 export function Toolbar({
   onToggleMark,
   onToggleUnderline,
   activeParagraphStyle,
+  activeMarks,
+  activeTextAlign,
+  activeColor,
+  isBulletListActive,
   onSelectParagraphStyle,
   onInsertList,
   onSetAlign,
   onSetColor,
   onInsertHonorific,
   onRequestBodyFocus,
-  onInsertLink,
+  activeLink,
+  canSetLink,
+  isLinkActive,
+  onSetLink,
+  onRemoveLink,
+  onLinkUnavailable,
   onInsertImage,
 }: {
   onToggleMark: (mark: 'bold' | 'italic' | 'strikethrough') => void
   onToggleUnderline: () => void
   activeParagraphStyle: ParagraphStyleId
+  /**
+   * Which inline marks apply at the caret. Sourced from the editor's own
+   * live state (`useBridgeState`), so it tracks cursor movement into
+   * already-formatted text, not just presses of these buttons.
+   */
+  activeMarks: {
+    bold: boolean
+    italic: boolean
+    underline: boolean
+    strikethrough: boolean
+  }
+  activeTextAlign: 'left' | 'center' | 'right' | 'justify'
+  /**
+   * The color mark applied at the caret, or `undefined` for unstyled text.
+   * Already allowlist-checked by `index.tsx` - a document authored elsewhere
+   * can carry any color string, and this one gets rendered as a real fill.
+   */
+  activeColor: string | undefined
+  isBulletListActive: boolean
   onSelectParagraphStyle: (style: ParagraphStyleId) => void
   onInsertList: () => void
   onSetAlign: (align: 'left' | 'center' | 'right' | 'justify') => void
   onSetColor: (hex: string) => void
   onInsertHonorific: (codepoint: number) => void
   onRequestBodyFocus: () => void
-  onInsertLink: () => void
+  /** The href on the link at the caret, if the caret is inside one. */
+  activeLink: string | undefined
+  /** False when there's no selection to attach a link to. */
+  canSetLink: boolean
+  isLinkActive: boolean
+  onSetLink: (url: string) => void
+  onRemoveLink: () => void
+  /** Called when the link button is pressed with nothing to link. */
+  onLinkUnavailable: () => void
   onInsertImage: () => void
 }) {
   const t = useTheme()
@@ -568,21 +704,25 @@ export function Toolbar({
         <ToolbarButton
           label={_(msg`Bold`)}
           icon={BoldIcon}
+          isActive={activeMarks.bold}
           onPress={() => onToggleMark('bold')}
         />
         <ToolbarButton
           label={_(msg`Italic`)}
           icon={ItalicIcon}
+          isActive={activeMarks.italic}
           onPress={() => onToggleMark('italic')}
         />
         <ToolbarButton
           label={_(msg`Underline`)}
           icon={UnderlineIcon}
+          isActive={activeMarks.underline}
           onPress={onToggleUnderline}
         />
         <ToolbarButton
           label={_(msg`Strikethrough`)}
           icon={StrikethroughIcon}
+          isActive={activeMarks.strikethrough}
           onPress={() => onToggleMark('strikethrough')}
         />
 
@@ -636,12 +776,18 @@ export function Toolbar({
           <Menu.Trigger label={_(msg`Text color`)}>
             {({props}) => (
               <Pressable {...props} style={[a.p_sm, a.rounded_xs]}>
+                {/* Shows the color actually applied at the caret, falling
+                    back to the theme's own text color when no color mark is
+                    set - which is what unstyled text really renders as, so
+                    the swatch stays truthful rather than implying a choice
+                    the author never made. `activeColor` is allowlist-checked
+                    in `index.tsx` before it ever reaches here. */}
                 <View
                   style={[
                     {
                       width: 16,
                       height: 16,
-                      backgroundColor: t.atoms.text.color,
+                      backgroundColor: activeColor ?? t.atoms.text.color,
                     },
                     a.rounded_full,
                     a.border,
@@ -670,6 +816,12 @@ export function Toolbar({
                   ]}
                 />
                 <Menu.ItemText>{hex}</Menu.ItemText>
+                {/* Case-insensitive: `PRESET_COLORS` are uppercase, but the
+                    value comes back from the editor's own attribute store
+                    and there's no guarantee it preserves case. */}
+                {activeColor?.toLowerCase() === hex.toLowerCase() && (
+                  <Menu.ItemIcon icon={MenuItemCheck} />
+                )}
               </Menu.Item>
             ))}
           </Menu.Outer>
@@ -680,16 +832,19 @@ export function Toolbar({
         <ToolbarButton
           label={_(msg`Align left`)}
           icon={AlignLeftIcon}
+          isActive={activeTextAlign === 'left'}
           onPress={() => onSetAlign('left')}
         />
         <ToolbarButton
           label={_(msg`Align center`)}
           icon={AlignCenterIcon}
+          isActive={activeTextAlign === 'center'}
           onPress={() => onSetAlign('center')}
         />
         <ToolbarButton
           label={_(msg`Align right`)}
           icon={AlignRightIcon}
+          isActive={activeTextAlign === 'right'}
           onPress={() => onSetAlign('right')}
         />
 
@@ -698,6 +853,7 @@ export function Toolbar({
         <ToolbarButton
           label={_(msg`Bulleted list`)}
           icon={BulletListIcon}
+          isActive={isBulletListActive}
           onPress={onInsertList}
         />
         <Pressable
@@ -725,11 +881,48 @@ export function Toolbar({
 
         <ToolbarDivider />
 
-        <ToolbarButton
-          label={_(msg`Insert link`)}
-          icon={LinkIcon}
-          onPress={onInsertLink}
-        />
+        <Menu.Root>
+          <Menu.Trigger label={_(msg`Insert link`)}>
+            {({props}) => (
+              <Pressable
+                {...props}
+                accessibilityState={{selected: isLinkActive}}
+                // Deliberately always pressable, never disabled. A disabled
+                // control explains nothing; the project owner asked for the
+                // toast back because being told *what to do* ("select some
+                // text first") is more use than a button that silently
+                // refuses. Matches TipTap's own `useLinkPopover`, whose
+                // `hideWhenUnavailable` defaults to false for the same
+                // reason. The guard itself lives in the press handler.
+                onPress={() => {
+                  if (!canSetLink && !isLinkActive) {
+                    onLinkUnavailable()
+                    return
+                  }
+                  props.onPress?.()
+                }}
+                style={({pressed, hovered}) => [
+                  {padding: 6},
+                  a.rounded_xs,
+                  isLinkActive && {backgroundColor: t.palette.primary_50},
+                  (pressed || hovered) && t.atoms.bg_contrast_25,
+                ]}>
+                <LinkIcon width={20} style={[t.atoms.text_contrast_low]} />
+              </Pressable>
+            )}
+          </Menu.Trigger>
+          <InsertLinkPopover
+            // Remounts the popover per link context, so the field always
+            // opens showing the href actually at the caret rather than
+            // whatever was typed the last time it was opened.
+            key={activeLink ?? ''}
+            initialUrl={activeLink}
+            canRemove={isLinkActive}
+            onSubmit={onSetLink}
+            onRemove={onRemoveLink}
+            onRequestBodyFocus={onRequestBodyFocus}
+          />
+        </Menu.Root>
         <ToolbarButton
           label={_(msg`Insert audio`)}
           icon={AudioIcon}

@@ -8,11 +8,13 @@ import {useOwnArticleMetadataHistoryQuery} from '#/state/queries/articles'
 import {EventStopper} from '#/view/com/util/EventStopper'
 import {atoms as a, useBreakpoints, useTheme, web} from '#/alf'
 import * as Toggle from '#/components/forms/Toggle'
+import {Attachment01 as AttachmentIcon} from '#/components/icons/Attachment01'
 import {CheckThick_Stroke2_Corner0_Rounded as CheckIcon} from '#/components/icons/Check'
 import {ChevronDown_Small as ChevronDownIcon} from '#/components/icons/ChevronDownSmall'
 import {MagnifyingGlass_Stroke2_Corner0_Rounded as SearchIcon} from '#/components/icons/MagnifyingGlass'
 import {Photo_Stroke2_Corner0_Rounded as PhotoIcon} from '#/components/icons/Photo'
 import {TimesLarge_Stroke2_Corner0_Rounded as XIcon} from '#/components/icons/Times'
+import {Trash_Stroke2_Corner0_Rounded as TrashIcon} from '#/components/icons/Trash'
 import * as Menu from '#/components/Menu'
 import {Text} from '#/components/Typography'
 
@@ -544,11 +546,14 @@ export function Metadata({
   onChange,
   coverImagePreviewUri,
   onPressCoverImage,
+  onRemoveCoverImage,
 }: {
   value: MetadataValue
   onChange: (next: MetadataValue) => void
   coverImagePreviewUri?: string
+  /** Opens the picker. Reached directly when there's no cover image yet. */
   onPressCoverImage: () => void
+  onRemoveCoverImage: () => void
 }) {
   const {_} = useLingui()
   const t = useTheme()
@@ -624,23 +629,30 @@ export function Metadata({
       fullWidth={!gtMobile}
     />
   )
-  const coverImageButton = (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={_(msg`Edit cover image`)}
-      accessibilityHint=""
-      onPress={onPressCoverImage}
-      style={[
-        a.flex_row,
-        a.align_center,
-        a.justify_center,
-        {gap: 8, paddingLeft: 4, paddingRight: 8, paddingVertical: 4},
-        a.border,
-        {borderStyle: 'dashed', borderRadius: 6},
-        t.atoms.border_contrast_high,
-        t.atoms.bg_contrast_25,
-        !gtMobile && a.w_full,
-      ]}>
+  /**
+   * Style and inner content are shared rather than the whole `Pressable`,
+   * so the menu case can spread `Menu.Trigger`'s props onto *this* element
+   * instead of wrapping it. Nesting a second `Pressable` around it looks
+   * harmless but isn't: the inner one captures the click and the outer
+   * trigger never fires, which is exactly how this button went dead after
+   * a cover image was set.
+   */
+  const menuIconFill = () => t.atoms.border_contrast_high.borderColor
+
+  const coverImageButtonStyle = [
+    a.flex_row,
+    a.align_center,
+    a.justify_center,
+    {gap: 8, paddingLeft: 4, paddingRight: 8, paddingVertical: 4},
+    a.border,
+    {borderStyle: 'dashed' as const, borderRadius: 6},
+    t.atoms.border_contrast_high,
+    t.atoms.bg_contrast_25,
+    !gtMobile && a.w_full,
+  ]
+
+  const coverImageButtonContent = (
+    <>
       {coverImagePreviewUri ? (
         <Image
           source={{uri: coverImagePreviewUri}}
@@ -666,6 +678,67 @@ export function Metadata({
           <Trans>Add cover image</Trans>
         )}
       </Text>
+    </>
+  )
+
+  /**
+   * With a cover image set, the button opens a Remove/Change menu (Figma
+   * node 246:3457) rather than jumping straight to the file picker - there
+   * was previously no way to remove a cover image at all, only replace it.
+   *
+   * With no image yet there's nothing to remove and only one thing the
+   * button could mean, so it still opens the picker directly; an
+   * interstitial offering a single option would be pure friction.
+   *
+   * Standard `Menu.Item`/`ItemIcon`/`ItemText` at their own spec, per the
+   * project owner - the design's slightly tighter gap and 6px radius are
+   * deliberately not overridden, so this menu stays consistent with every
+   * other dropdown in the app.
+   */
+  const coverImageButton = coverImagePreviewUri ? (
+    <Menu.Root>
+      <Menu.Trigger label={_(msg`Edit cover image`)}>
+        {({props}) => (
+          <Pressable {...props} style={coverImageButtonStyle}>
+            {coverImageButtonContent}
+          </Pressable>
+        )}
+      </Menu.Trigger>
+      <Menu.Outer>
+        {/* `fill` overrides only the glyph colour - size, spacing and the
+            optical -2 nudge all stay `Menu.ItemIcon`'s own. The library
+            defaults icons to `text_contrast_medium` (contrast_700), but
+            this menu's design specifies `border_contrast_high`
+            (contrast_300, #A5B2C5) - four steps lighter, and visibly so.
+            Referenced through the same semantic atom Figma names rather
+            than a raw palette step, so it follows the theme (ALF inverts
+            the palette for dark/dim). */}
+        <Menu.Item
+          label={_(msg`Remove cover image`)}
+          onPress={onRemoveCoverImage}>
+          <Menu.ItemIcon icon={TrashIcon} fill={menuIconFill} />
+          <Menu.ItemText>
+            <Trans>Remove cover image</Trans>
+          </Menu.ItemText>
+        </Menu.Item>
+        <Menu.Item
+          label={_(msg`Change cover image`)}
+          onPress={onPressCoverImage}>
+          <Menu.ItemIcon icon={AttachmentIcon} fill={menuIconFill} />
+          <Menu.ItemText>
+            <Trans>Change cover image</Trans>
+          </Menu.ItemText>
+        </Menu.Item>
+      </Menu.Outer>
+    </Menu.Root>
+  ) : (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={_(msg`Add cover image`)}
+      accessibilityHint=""
+      onPress={onPressCoverImage}
+      style={coverImageButtonStyle}>
+      {coverImageButtonContent}
     </Pressable>
   )
 

@@ -2,7 +2,6 @@ import Blockquote from '@tiptap/extension-blockquote'
 import Bold from '@tiptap/extension-bold'
 import {Color} from '@tiptap/extension-color'
 import Heading from '@tiptap/extension-heading'
-import Image from '@tiptap/extension-image'
 import Italic from '@tiptap/extension-italic'
 import Link from '@tiptap/extension-link'
 import BulletList from '@tiptap/extension-bullet-list'
@@ -15,6 +14,9 @@ import {MarkdownManager} from 'tiptap-markdown-fixed'
 import Document from 'tiptap-extension-document-fixed'
 import Paragraph from 'tiptap-extension-paragraph-fixed'
 import Text from 'tiptap-extension-text-fixed'
+import {bidiIsolateMark} from '../bidiIsolate'
+import {imageNode} from './imageNodeView'
+import {imageUploadNode} from './imageUploadNode'
 import {UnderlineBridge} from '../bridges/underline'
 
 /**
@@ -27,10 +29,12 @@ import {UnderlineBridge} from '../bridges/underline'
  *
  * Extension list mirrors what `AdvancedEditor.tsx`'s real `bridges` array
  * actually registers as node/mark types (not attribute-only extensions
- * like `TextAlignBridge`/`TypographyBridge`/`HonorificBridge`/
- * `ParagraphStyleBridge` - those add attributes or orchestrate existing
- * nodes, they don't introduce a node/mark type of their own, so they need
- * no entry here; `serializeToMarkdownAndFacets`/`applyFacetsToParsedDoc`
+ * like `TextAlignBridge`/`TypographyBridge`/`ParagraphStyleBridge` - those
+ * add attributes or orchestrate existing nodes, they don't introduce a
+ * node/mark type of their own, so they need no entry here.
+ * `HonorificBridge` used to belong in that list too, but no longer does:
+ * it now registers a real `bidiIsolate` mark (see `bridges/honorific.ts`),
+ * so its mark is included below; `serializeToMarkdownAndFacets`/`applyFacetsToParsedDoc`
  * read/write their attributes directly off the parsed JSON, not through
  * the manager's own schema awareness). `OrderedList` is included even
  * though the pre-existing test-fixture `makeManager()` helpers in this
@@ -57,6 +61,7 @@ export const manager = new MarkdownManager({
     Strike,
     Blockquote,
     UnderlineBridge.tiptapExtension,
+    bidiIsolateMark,
     TextStyle,
     Color,
     Heading,
@@ -64,6 +69,12 @@ export const manager = new MarkdownManager({
     BulletList,
     OrderedList,
     ListItem,
-    Image,
+    // `imageNode` rather than the bare `@tiptap/extension-image`: same node and
+    // same markdown behaviour, extended with the designed frame (see
+    // `imageNodeView.ts`). Registering the bare one here would give the
+    // serializer a different extension list from the real editor, which is the
+    // drift this shared manager exists to prevent.
+    imageNode,
+    imageUploadNode,
   ] as never,
 })
