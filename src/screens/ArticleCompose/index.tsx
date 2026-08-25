@@ -685,7 +685,11 @@ export function ArticleCompose({
     if (wasImageMenuOpenRef.current && !imageMenuControl.isOpen) {
       setImageMenuTarget(undefined)
     }
-    wasImageMenuOpenRef.current = imageMenuControl.isOpen
+    // `isOpen` is declared optional on `DialogControlProps` (some other
+    // implementation can leave it unset); this control always provides a
+    // real boolean, but coerce anyway so the ref's own type stays boolean
+    // rather than accepting a value this file never actually produces.
+    wasImageMenuOpenRef.current = !!imageMenuControl.isOpen
   }, [imageMenuControl.isOpen])
 
   /**
