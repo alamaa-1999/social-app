@@ -45,6 +45,7 @@ import Document from 'tiptap-extension-document-fixed'
 import Paragraph from 'tiptap-extension-paragraph-fixed'
 import Text from 'tiptap-extension-text-fixed'
 
+import {bidiIsolateMark} from '../../../bidiIsolate'
 import {anchoredIndexOf} from '../anchoredSearch'
 import {applyFacetsToParsedDoc, serializeToMarkdownAndFacets} from '../index'
 import {validateFacetBounds} from '../../../state'
@@ -83,6 +84,7 @@ function makeManager() {
       Strike,
       Blockquote,
       PlainUnderline,
+      bidiIsolateMark,
       TextStyle,
       Color,
       Heading,
@@ -711,5 +713,155 @@ describe('save -> load round trip', () => {
     const resaved = serializeToMarkdownAndFacets(manager, loaded.doc)
     expect(resaved.facets).toHaveLength(2)
     expect(resaved.facets[0].byteStart).not.toBe(resaved.facets[1].byteStart)
+  })
+})
+
+/**
+ * `applyHonorificIsolation` isn't exported - it's an internal normalization
+ * pass, exercised the way it actually runs: through `applyFacetsToParsedDoc`,
+ * the single load-path function every caller uses.
+ */
+describe('honorific bidi isolation (load path)', () => {
+  const SALLALLAHOU = String.fromCodePoint(0xfdfa)
+  const RADI_ANH = String.fromCodePoint(0xfd41)
+
+  function textNodesOf(node: JSONNodeLike): JSONNodeLike[] {
+    if (node.type === 'text') return [node]
+    return (node.content ?? []).flatMap(textNodesOf)
+  }
+
+  type JSONNodeLike = {
+    type?: string
+    text?: string
+    marks?: {type: string}[]
+    content?: JSONNodeLike[]
+  }
+
+  it('isolates a honorific glyph and leaves the surrounding text unmarked', () => {
+    const manager = makeManager()
+    const {doc} = applyFacetsToParsedDoc(
+      manager,
+      `The Prophet ${SALLALLAHOU} said`,
+      [],
+    )
+    const runs = textNodesOf(doc as JSONNodeLike)
+    const isolated = runs.filter(r =>
+      r.marks?.some(m => m.type === 'bidiIsolate'),
+    )
+    expect(isolated).toHaveLength(1)
+    expect(isolated[0].text).toBe(SALLALLAHOU)
+    // Surrounding text survives intact and carries no isolation mark.
+    expect(runs.map(r => r.text).join('')).toBe(
+      `The Prophet ${SALLALLAHOU} said`,
+    )
+    for (const run of runs) {
+      if (run.text === SALLALLAHOU) continue
+      expect(run.marks?.some(m => m.type === 'bidiIsolate') ?? false).toBe(
+        false,
+      )
+    }
+  })
+
+  it('isolates each of several honorifics separately, not as one run', () => {
+    const manager = makeManager()
+    const {doc} = applyFacetsToParsedDoc(
+      manager,
+      `A ${SALLALLAHOU} b ${RADI_ANH} c`,
+      [],
+    )
+    const isolated = textNodesOf(doc as JSONNodeLike).filter(r =>
+      r.marks?.some(m => m.type === 'bidiIsolate'),
+    )
+    expect(isolated.map(r => r.text)).toEqual([SALLALLAHOU, RADI_ANH])
+  })
+
+  it('leaves text with no honorific completely untouched', () => {
+    const manager = makeManager()
+    const {doc} = applyFacetsToParsedDoc(manager, 'ordinary text only', [])
+    const runs = textNodesOf(doc as JSONNodeLike)
+    expect(runs.map(r => r.text).join('')).toBe('ordinary text only')
+    expect(runs.some(r => r.marks?.some(m => m.type === 'bidiIsolate'))).toBe(
+      false,
+    )
+  })
+
+  it('does not double-isolate across a save/load round trip', () => {
+    const manager = makeManager()
+    const first = applyFacetsToParsedDoc(
+      manager,
+      `Peace ${SALLALLAHOU} be upon him`,
+      [],
+    )
+    const saved = serializeToMarkdownAndFacets(manager, first.doc)
+    const second = applyFacetsToParsedDoc(manager, saved.markdown, saved.facets)
+    const isolated = textNodesOf(second.doc as JSONNodeLike).filter(r =>
+      r.marks?.some(m => m.type === 'bidiIsolate'),
+    )
+    expect(isolated).toHaveLength(1)
+    // Exactly one isolate mark on it, never a nested/duplicated pair.
+    expect(
+      isolated[0].marks?.filter(m => m.type === 'bidiIsolate'),
+    ).toHaveLength(1)
+    // And the round trip preserves the text itself byte-for-byte.
+    expect(
+      textNodesOf(second.doc as JSONNodeLike)
+        .map(r => r.text)
+        .join(''),
+    ).toBe(`Peace ${SALLALLAHOU} be upon him`)
+  })
+
+  it('preserves an existing mark on the run it splits', () => {
+    const manager = makeManager()
+    const {doc} = applyFacetsToParsedDoc(
+      manager,
+      `**bold ${SALLALLAHOU} bold**`,
+      [],
+    )
+    const runs = textNodesOf(doc as JSONNodeLike)
+    const isolated = runs.find(r =>
+      r.marks?.some(m => m.type === 'bidiIsolate'),
+    )
+    expect(isolated).toBeDefined()
+    // The glyph keeps bold as well as gaining the isolate.
+    expect(isolated!.marks?.some(m => m.type === 'bold')).toBe(true)
+  })
+})
+
+/**
+ * Regression: an empty editor silently discarded the first paragraph style
+ * the author picked. `manager.parse('')` yields a doc with no block node at
+ * all, so the toolbar's `clearNodes().updateAttributes('paragraph', ...)`
+ * chain matched nothing and no-opped; ProseMirror then built a fresh
+ * paragraph with default attrs on the first keypress. Reported from a real
+ * click-through as "selecting a style at the start of typing doesn't apply -
+ * I have to type something first."
+ */
+describe('empty document always has a block to style', () => {
+  it('gives an empty markdown source a real paragraph node', () => {
+    const manager = makeManager()
+    const {doc} = applyFacetsToParsedDoc(manager, '', [])
+    expect(doc.content).toBeDefined()
+    expect(doc.content).toHaveLength(1)
+    expect(doc.content![0].type).toBe('paragraph')
+  })
+
+  it('leaves a document that already has content untouched', () => {
+    const manager = makeManager()
+    const {doc} = applyFacetsToParsedDoc(manager, 'hello', [])
+    expect(doc.content).toHaveLength(1)
+    expect(doc.content![0].type).toBe('paragraph')
+    expect(doc.content![0].content?.[0].text).toBe('hello')
+  })
+
+  it('round-trips an empty document back to empty markdown, not a stray blank', () => {
+    const manager = makeManager()
+    const {doc} = applyFacetsToParsedDoc(manager, '', [])
+    const {markdown, facets, droppedCount} = serializeToMarkdownAndFacets(
+      manager,
+      doc,
+    )
+    expect(markdown.trim()).toBe('')
+    expect(facets).toHaveLength(0)
+    expect(droppedCount).toBe(0)
   })
 })

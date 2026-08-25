@@ -9,21 +9,20 @@ import {Extension} from '@tiptap/core'
  *
  * Not a distinct node type - a custom global attribute on the existing
  * `paragraph`/`blockquote` nodes, the same treatment `textAlign.ts` already
- * gives alignment. RTL rendering itself comes from TipTap core's own
- * `TextDirection` extension (confirmed directly against `@tiptap/core`'s
- * source: a real core extension, enabled by default via
- * `enableCoreExtensions`, adding a global `dir` attribute to every node
- * type - not something this needs to reimplement), set as a plain attribute
- * alongside `typography` in the same `updateAttributes` call rather than via
- * a separate `setTextDirection` chain command.
+ * gives alignment. `dir` is written here as a plain attribute in the same
+ * `updateAttributes` call, never via a separate chain command (an earlier
+ * version used `.setTextDirection(...)`, which throws a live `TypeError` on
+ * the real editor - see `paragraphStyle.ts`, which had the identical bug).
  *
- * That last point was wrong in an earlier draft of this comment, which
- * claimed the v2/v3 `@tiptap/core` peer mismatch was "confirmed not to
- * affect runtime behavior via live device testing" - a real live click-
- * through later in the same project (see `paragraphStyle.ts`, which had the
- * identical `.setTextDirection(...)` pattern) found this false:
- * `setTextDirection` throws `TypeError: ... is not a function` on the real
- * interactive editor, not just a type-visibility gap. Fixed here to match.
+ * **What makes `dir` a real attribute at all is `editor-web/dirExtension.ts`
+ * - see that file's doc comment, which is the single authoritative account.**
+ * Deliberately not restated here, even in summary: this comment has now been
+ * wrong about that exact mechanism three separate times (claiming
+ * `setTextDirection` was callable; then claiming `enableCoreExtensions`
+ * registered `dir` by default; then citing a `tiptapOptions.textDirection`
+ * setting that the implementation moved past and no longer exists). Each
+ * version was accurate when written and went stale one step later, because
+ * it restated a mechanism owned by another file. Point at it instead.
  */
 
 export type TypographyValue = 'arabicParagraph' | 'arabicQuote'
@@ -94,11 +93,9 @@ export const TypographyBridge = new BridgeExtension<
         // identical bug) that `setTextDirection` is not actually a callable
         // command on the real interactive editor's chain, despite reading
         // as a real @tiptap/core v3 command in source - a live TypeError,
-        // not just the type-only mismatch this file's comment used to
-        // assume. `dir` itself is a real global attribute (TipTap core's
-        // own TextDirection extension, enabled by default), so setting it
-        // as a plain attribute alongside `typography` works the same way
-        // `typography` itself already does.
+        // not just a type-only mismatch. What makes `dir` a real attribute
+        // at all is editor-web/dirExtension.ts (see that file - deliberately
+        // not restated here, see this file's own top comment for why).
         const chain = editor.chain().focus() as unknown as {
           updateAttributes: (
             typeOrName: string,
@@ -108,7 +105,12 @@ export const TypographyBridge = new BridgeExtension<
         chain
           .updateAttributes(nodeType, {
             typography: payload ?? null,
-            dir: payload ? 'rtl' : 'ltr',
+            // `null`, not `'ltr'`, when clearing - see `dirExtension.ts`'s
+            // own doc comment: `dir` is an inherited attribute, so writing
+            // an explicit `ltr` here would override a legitimately RTL
+            // ancestor (an Arabic block quote) rather than returning this
+            // node to "no opinion, inherit normally".
+            dir: payload ? 'rtl' : null,
           })
           .run()
         break

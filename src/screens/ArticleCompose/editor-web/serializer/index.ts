@@ -17,6 +17,7 @@ import type {MarkdownManager} from 'tiptap-markdown-fixed'
 
 import {byteSlice, type EditorFacet, utf8Length} from '../../state'
 import {isAllowedColorValue} from '../../colorAllowlist'
+import {HONORIFIC_CODEPOINTS} from '../../honorifics'
 import {anchoredIndexOf} from './anchoredSearch'
 import {sanitizeParsedDoc} from './sanitize'
 
@@ -366,6 +367,72 @@ export interface DeserializeResult {
 }
 
 /**
+ * Re-applies the `bidiIsolate` mark to every honorific glyph in a
+ * freshly-parsed document.
+ *
+ * Deliberately derived, never persisted: the isolation is presentation, not
+ * authored content, and it's a pure function of the codepoints already in
+ * the text - so there is no facet, no lexicon field, and nothing on the
+ * wire to version or validate. A document authored anywhere (including by
+ * a non-Sunnahsky client, or by this app before `bridges/honorific.ts`
+ * stopped writing invisible U+200F characters) gets correct isolation on
+ * load purely from its own text.
+ *
+ * Splits per glyph rather than per run: honorifics are single codepoints
+ * (all sixteen are in the Arabic Presentation Forms-A block, above the BMP
+ * boundary only in the sense of being 3-byte UTF-8 - each is one UTF-16
+ * code unit, so plain indexing is safe), and each wants its own isolate
+ * rather than one isolate spanning intervening ordinary text.
+ */
+function applyHonorificIsolation(node: JSONNode): void {
+  if (!node.content) return
+  const next: JSONNode[] = []
+  for (const child of node.content) {
+    if (child.type !== 'text' || !child.text) {
+      applyHonorificIsolation(child)
+      next.push(child)
+      continue
+    }
+    // Already isolated (a re-load of a document this app itself saved) -
+    // leave it exactly as-is rather than nesting a second mark.
+    if (child.marks?.some(m => m.type === 'bidiIsolate')) {
+      next.push(child)
+      continue
+    }
+    const text = child.text
+    let buffer = ''
+    let produced = false
+    for (const ch of text) {
+      const isHonorific = HONORIFIC_CODEPOINTS.has(ch.codePointAt(0) ?? -1)
+      if (!isHonorific) {
+        buffer += ch
+        continue
+      }
+      if (buffer) {
+        next.push({type: 'text', text: buffer, marks: child.marks})
+        buffer = ''
+      }
+      next.push({
+        type: 'text',
+        text: ch,
+        marks: [...(child.marks ?? []), {type: 'bidiIsolate'}],
+      })
+      produced = true
+    }
+    if (!produced) {
+      // No honorific in this run - push the original node untouched rather
+      // than an equal-but-rebuilt copy.
+      next.push(child)
+      continue
+    }
+    if (buffer) {
+      next.push({type: 'text', text: buffer, marks: child.marks})
+    }
+  }
+  node.content = next
+}
+
+/**
  * Load direction: markdown + facets -> doc. Structurally parses via the
  * manager's own default parse first (`manager.parse`) - correct list/
  * blockquote/heading handling for free - then applies each stored facet by
@@ -386,12 +453,41 @@ export interface DeserializeResult {
  * same four-round review as the save direction above - flagged here as a
  * first implementation pass, not presented as equivalently vetted.
  */
+/**
+ * Guarantees the parsed document contains at least one block node.
+ *
+ * `manager.parse('')` returns `{type: 'doc', content: []}` - a document with
+ * no paragraph at all - which is not a valid instance of this schema (`doc`
+ * requires `block+`) and, more importantly, breaks the toolbar in a way that
+ * looks like nothing happened. Confirmed by reproducing it against a real
+ * `Editor` rather than by reading code: with a blockless doc,
+ * `chain().clearNodes().updateAttributes('paragraph', ...)` walks
+ * `nodesBetween` over a document with nothing in it, matches no node, and
+ * silently succeeds having changed nothing. ProseMirror then creates a fresh
+ * paragraph with *default* attributes on the first keypress, so the style the
+ * author picked is discarded without any error. Selecting a style again once
+ * that paragraph exists works normally - which is exactly why the bug only
+ * ever showed up on the very first interaction with an empty editor, and was
+ * reported as "I have to type something first, then it applies."
+ *
+ * Fixed at the load path rather than in the toolbar because this is the one
+ * function every entry point shares - initial mount via `AdvancedEditor.tsx`
+ * and every later `loadMarkdownAndFacets` call (switching drafts, and the
+ * "clear composer" path, which produced the identical blockless doc).
+ */
+function ensureBlockContent(doc: JSONNode): void {
+  if (!doc.content || doc.content.length === 0) {
+    doc.content = [{type: 'paragraph'}]
+  }
+}
+
 export function applyFacetsToParsedDoc(
   manager: MarkdownManager,
   markdown: string,
   facets: EditorFacet[],
 ): DeserializeResult {
   const doc = manager.parse(markdown) as JSONNode
+  ensureBlockContent(doc)
   let droppedCount = 0
 
   const blockFacets = facets
@@ -530,6 +626,14 @@ export function applyFacetsToParsedDoc(
       droppedCount++
     }
   }
+
+  // Strictly after facet correlation (it splits text nodes, which would
+  // shift the positions the loops above walk) and strictly before
+  // `sanitizeParsedDoc` (so anything it adds still passes through the
+  // security gate rather than around it). The `bidiIsolate` mark it
+  // applies carries no attributes, so it needs no `MARK_ATTR_ALLOWLIST`
+  // entry and passes through sanitization untouched.
+  applyHonorificIsolation(doc)
 
   // Sanitize last, strictly after all facet correlation above - see
   // `sanitize.ts`'s own doc comment for why this order is load-bearing,
