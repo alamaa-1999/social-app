@@ -636,12 +636,17 @@ export function ArticleCompose({
       // on web, see `measureImageBytes`.
       const bytes = await measureImageBytes(image)
       if (bytes !== undefined && bytes > MAX_BODY_IMAGE_BYTES) {
-        const mb = (bytes / 1_000_000).toFixed(1)
-        Toast.show(
-          _(
-            msg`That image is ${mb} MB. Images must be under 3 MB - try a smaller file or reduce its quality.`,
-          ),
-          {type: 'error'},
+        /*
+         * Shown on the block (Figma 263:4172), same reasoning as the insert
+         * path's own too-large check - and the same fix this one used to be
+         * missing: a toast here quietly contradicted that reasoning, since
+         * this block is exactly as much "the thing that failed and is
+         * already the retry target" as an idle placeholder is.
+         */
+        editorBridge.setImageNodeError(
+          target.src,
+          'too-large',
+          `${(bytes / 1_000_000).toFixed(1)} MB`,
         )
         return
       }
@@ -658,9 +663,9 @@ export function ArticleCompose({
         {image: blob, ...(image.fileName ? {name: image.fileName} : {})},
       ])
     } catch (err) {
-      Toast.show(_(msg`Could not upload that image. Please try again.`), {
-        type: 'error',
-      })
+      // Shown on the block (Figma 263:4205), not a toast - see the too-large
+      // check above for why.
+      editorBridge.setImageNodeError(target.src, 'upload-failed')
       logger.error('ArticleCompose: image replace failed', {safeMessage: err})
     }
   }

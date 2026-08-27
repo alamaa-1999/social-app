@@ -167,7 +167,7 @@ export const IMAGE_BLOCK_COPY = {
    */
   tooLarge: (size: string) =>
     `That image is too large (${size}). Click to choose another.`,
-  tooLargeLimit: 'Images must be under 3 MB.',
+  tooLargeLimit: 'images must be under 3 MB.',
   /** Figma 263:4205 keeps the idle action line and adds this beneath it. */
   uploadFailed: "Couldn't upload that image. Click to try again.",
   notVisible:

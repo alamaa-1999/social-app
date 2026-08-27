@@ -296,6 +296,21 @@
       font-style: normal;
       font-display: swap;
     }
+    /* Image-upload block chrome (Figma "Photo upload" component, nodes
+       252:3893/253:3919/263:4172/263:4205) - Inter Medium, the app's own UI
+       body font everywhere else, not one of the article-content faces
+       above. Not a new asset: `assets/fonts/inter/Inter-Medium.otf` is
+       already bundled for the native app (app.config.js) - this is the only
+       `@font-face` needed to bring it into this WebView too, since nothing
+       loaded outside this document is visible inside it. */
+    @font-face {
+      font-family: 'Inter';
+      src: url('../../../../assets/fonts/inter/Inter-Medium.otf')
+        format('opentype');
+      font-weight: 500;
+      font-style: normal;
+      font-display: swap;
+    }
     /* article/body-en. The default for any paragraph with no typography
        override - arabicParagraph below is more specific and wins for that
        case (its own margin included - both sides are re-declared there, not
@@ -451,8 +466,15 @@
       flex: 1 1 auto;
       min-width: 0;
     }
-    /* 40px featured icon with the design's skeuomorphic inset shadows. */
+    /* 40px featured icon with the design's skeuomorphic inset shadows.
+       `box-sizing: border-box` is load-bearing, not defensive: the design
+       specs this square as exactly 40x40 with its 1px line drawn *inside*
+       that boundary (Figma's own export uses an inset `outline` for
+       precisely this reason). This file sets no global box-sizing reset, so
+       the plain `border` below would otherwise add 1px per side on top of
+       the 40px - a 42x42 box instead of the specified 40x40. */
     [data-image-block-icon] {
+      box-sizing: border-box;
       width: 40px;
       height: 40px;
       display: flex;
@@ -482,6 +504,7 @@
       min-width: 0;
     }
     [data-image-block-action] {
+      font-family: 'Inter', sans-serif;
       font-size: 14px;
       line-height: 20px;
       font-weight: 500;
@@ -489,6 +512,7 @@
       text-align: center;
     }
     [data-image-block-supporting] {
+      font-family: 'Inter', sans-serif;
       font-size: 12px;
       line-height: 18px;
       font-weight: 500;
@@ -502,6 +526,7 @@
     /* Error lines. Same metrics as the supporting text, in the error colour
        the rest of the app already uses for error toasts. */
     [data-image-block-error] {
+      font-family: 'Inter', sans-serif;
       font-size: 12px;
       line-height: 18px;
       font-weight: 500;

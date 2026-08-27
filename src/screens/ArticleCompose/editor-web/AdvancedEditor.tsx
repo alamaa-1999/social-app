@@ -27,6 +27,7 @@ import {
   applyFacetsToParsedDoc,
   serializeToMarkdownAndFacets,
 } from './serializer'
+import {trailingParagraph} from './trailingParagraph'
 
 /**
  * `TenTapStartKit` minus three of its own bridges.
@@ -147,8 +148,10 @@ export function AdvancedEditor() {
       // `@tiptap/extension-image`, but with a node view that actually returns
       // one, plus the designed frame. Registered here rather than as a bridge
       // because it needs no native command surface of its own - the image
-      // lifecycle is driven entirely through `ImageUploadBridge`.
-      extensions: [dirExtension, imageNode],
+      // lifecycle is driven entirely through `ImageUploadBridge`. `trailingParagraph`
+      // is the same kind of registration for the same reason: no command
+      // surface of its own, just a standing invariant on the live document.
+      extensions: [dirExtension, imageNode, trailingParagraph],
     },
     bridges: [
       ...startKitWithoutDefaultUnderline,

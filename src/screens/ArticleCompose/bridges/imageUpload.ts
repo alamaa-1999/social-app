@@ -118,6 +118,19 @@ type ImageUploadEditorInstance = {
   removeImageBySrc: (src: string) => void
   /** Points an existing image at a different blob. */
   replaceImageSrc: (src: string, nextSrc: string) => void
+  /**
+   * Puts an existing, already-uploaded image into an error state, or clears
+   * it with `null` - the *replace* flow's counterpart to `setImageError`
+   * above. Never touches `src`: the image stays exactly as it was, so a
+   * failed replace attempt cannot lose it. See `imageNodeView.ts`'s own
+   * `errorKind` attribute comment for why this is a separate command from
+   * `setImageError` rather than the same one reused.
+   */
+  setImageNodeError: (
+    src: string,
+    kind: 'too-large' | 'upload-failed' | null,
+    size?: string,
+  ) => void
   /** Publishes filenames, keyed by blob CID, for the explanatory state. */
   setImageFileNames: (names: Record<string, string>) => void
 }
@@ -136,6 +149,7 @@ enum ImageUploadActionType {
   RemoveBySrc = 'image-remove-by-src',
   ReplaceSrc = 'image-replace-src',
   SetFileNames = 'image-set-file-names',
+  SetImageNodeError = 'image-set-node-error',
 }
 
 type ImageUploadMessage =
@@ -161,6 +175,10 @@ type ImageUploadMessage =
   | {
       type: ImageUploadActionType.SetFileNames
       payload: {names: Record<string, string>}
+    }
+  | {
+      type: ImageUploadActionType.SetImageNodeError
+      payload: {src: string; kind: string | null; size?: string}
     }
 
 /** ProseMirror's own shape, narrowed to what this file actually touches. */
@@ -339,6 +357,11 @@ export const ImageUploadBridge = new BridgeExtension<
           type: ImageUploadActionType.SetFileNames,
           payload: {names},
         }),
+      setImageNodeError: (src, kind, size) =>
+        sendBridgeMessage({
+          type: ImageUploadActionType.SetImageNodeError,
+          payload: {src, kind, size},
+        }),
     }
   },
 })
@@ -467,6 +490,22 @@ function applyImageUploadMessage(
         ed.commands.insertContentAt(found, {
           type: 'image',
           attrs: {src: payload.nextSrc},
+        })
+        break
+      }
+      case ImageUploadActionType.SetImageNodeError: {
+        const found = findNode(
+          ed.state.doc,
+          n => n.type.name === 'image' && n.attrs.src === payload.src,
+        )
+        if (!found) break
+        // Select first, same reasoning as `SetError` above: without this the
+        // update could land on whichever node the caret happens to sit in
+        // rather than the one the replace attempt actually failed on.
+        ed.commands.setNodeSelection(found.from)
+        ed.commands.updateAttributes('image', {
+          errorKind: payload.kind ?? null,
+          errorSize: payload.size ?? null,
         })
         break
       }

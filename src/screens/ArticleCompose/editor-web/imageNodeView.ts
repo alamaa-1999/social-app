@@ -108,11 +108,55 @@ function cidFromSrc(src: string): string | undefined {
 }
 
 export const imageNode = Image.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      /*
+       * `'too-large'`, `'upload-failed'`, or absent - set only by a failed
+       * *replace* attempt (`bridges/imageUpload.ts`'s `setImageNodeError`).
+       * Never touches `src`, so the image this node already has stays fully
+       * intact and still publishes correctly even if the author never
+       * retries: converting to an `imageUpload` placeholder instead (the
+       * mechanism the *insert* path's own errors use) would have meant
+       * losing the working image the moment a replace failed, for a state
+       * neither Figma error mockup (263:4172/263:4205) actually depicts -
+       * both show a slot with nothing attached yet, not a replace attempt
+       * on top of an existing one.
+       */
+      errorKind: {
+        default: null,
+        parseHTML: (element: HTMLElement) =>
+          element.getAttribute('data-error-kind'),
+        renderHTML: (attributes: {errorKind?: string | null}) => {
+          if (!attributes.errorKind) return {}
+          return {'data-error-kind': attributes.errorKind}
+        },
+      },
+      /** Formatted size, e.g. "7.7 MB". Only meaningful with 'too-large'. */
+      errorSize: {
+        default: null,
+        parseHTML: (element: HTMLElement) =>
+          element.getAttribute('data-error-size'),
+        renderHTML: (attributes: {errorSize?: string | null}) => {
+          if (!attributes.errorSize) return {}
+          return {'data-error-size': attributes.errorSize}
+        },
+      },
+    }
+  },
+
   addNodeView() {
     return ({
       node,
     }: {
-      node: {attrs: {src?: string | null; alt?: string | null}}
+      node: {
+        attrs: {
+          src?: string | null
+          alt?: string | null
+          errorKind?: string | null
+          errorSize?: string | null
+        }
+      }
     }) => {
       const src = node.attrs.src ?? ''
       const cid = cidFromSrc(src)
@@ -124,6 +168,22 @@ export const imageNode = Image.extend({
       // Alt text is author-controlled and, like the filename, is only ever set
       // as an attribute value - never interpolated into markup.
       if (node.attrs.alt) img.alt = node.attrs.alt
+
+      /*
+       * Per Figma 263:4172/263:4205's copy, appended below this node's own
+       * uploaded-state lines rather than replacing them - the image and its
+       * filename are still genuinely there, so `icon`/`action` stay exactly
+       * as the successful case below; only a failed *replace* adds this.
+       */
+      const error: string[] =
+        node.attrs.errorKind === 'too-large'
+          ? [
+              IMAGE_BLOCK_COPY.tooLarge(node.attrs.errorSize ?? ''),
+              IMAGE_BLOCK_COPY.tooLargeLimit,
+            ]
+          : node.attrs.errorKind === 'upload-failed'
+            ? [IMAGE_BLOCK_COPY.uploadFailed]
+            : []
 
       const dom = buildImageBlockFrame({
         icon: 'image-check',
@@ -144,8 +204,12 @@ export const imageNode = Image.extend({
           fileName ?? IMAGE_BLOCK_COPY.uploadedNoName,
           IMAGE_BLOCK_COPY.notVisible,
         ],
+        error,
         image: img,
       })
+      if (node.attrs.errorKind) {
+        dom.setAttribute('data-error-kind', node.attrs.errorKind)
+      }
       dom.setAttribute('data-image-node', '')
       dom.style.cursor = 'pointer'
 
