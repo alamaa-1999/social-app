@@ -15,6 +15,14 @@ Scheherazade New) rather than shipping a variable font — React Native's font-w
 for variable fonts is known to be unreliable, especially on Android. The `fvar` variable-font
 table is fully dropped from the result.
 
+`Archivo-SemiBoldItalic.ttf` is a real italic cut, not a synthetic slant — confirmed by
+`post.italicAngle` being `-10` (vs. `0` on the upright) and by Google Fonts shipping Archivo's
+italic as its own separate upstream variable font, `Archivo-Italic[wdth,wght].ttf`. Instanced at
+the same `wght=600, wdth=100` as `Archivo-SemiBold.ttf`, with `--update-name-table`. Same naming
+artifact as Vollkorn's italic cuts (the source file's own `ArchivoItalic-` PS-name-prefix bled
+into the full/PostScript names) — patched by hand to `Archivo-SemiBoldItalic`, matching the
+upright's naming.
+
 **You may redistribute this file.** Nothing in [`ASSETS.md`](../../../ASSETS.md) restricts it —
 it is here because the OFL requires the license text to accompany the font, not because it is
 carved out of our [MIT license](../../../LICENSE).

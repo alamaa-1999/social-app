@@ -18,6 +18,21 @@ coordinates) and freezing it as a static file — not a redistribution of an ups
 build, since none exists. The `fvar` variable-font table is fully dropped from the result; this
 is a true static single-weight font, not a variable font with one axis pinned at runtime.
 
+`Fraunces-Regular.ttf` (`article/sub-title`, Figma node `279:4334`) was instanced the same way,
+at `wght=400`, but at `opsz=9` rather than a custom in-between value — the STAT table registers
+optical-size cuts as *ranges*, not single points (`9pt` covers `[9, 40.5]`, `72pt` covers
+`[40.5, 108]`, `144pt` covers `[108, 144]`, confirmed by reading the source variable font's own
+STAT table, not assumed), and both this file's 24px use and SemiBold's 32px use fall inside the
+same `9pt` range - there is no real optical-size distinction to draw between them in this
+typeface's own design. Using the exact STAT-registered value, rather than an arbitrary point
+within its range, let `--update-name-table` succeed and generate a fully correct name on its own
+(`opsz=24` was tried first and rejected outright: `fontTools` requires the requested coordinate to
+match a registered STAT Axis Value before it can derive a name from it). Confirmed consistent with
+`Fraunces-SemiBold.ttf` - despite that file's own note above claiming a different `opsz` - by
+matching glyph count exactly (698) and near-identical file size (73084 vs. 73068 bytes); a
+same-family, same-axis-region instance shouldn't gain or lose reachable glyphs, so an identical
+count is the right thing to see, not a coincidence.
+
 **You may redistribute this file.** Nothing in [`ASSETS.md`](../../../ASSETS.md) restricts it —
 it is here because the OFL requires the license text to accompany the font, not because it is
 carved out of our [MIT license](../../../LICENSE).

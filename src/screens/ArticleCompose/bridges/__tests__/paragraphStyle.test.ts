@@ -111,21 +111,9 @@ function methodSequence(calls: RecordedCall[]): string[] {
 describe('ParagraphStyleBridge.onBridgeMessage - dispatch logic per target style', () => {
   it('always starts with focus().clearNodes(), regardless of target', () => {
     const {editor, calls} = makeMockEditor()
-    dispatch(editor, 'title')
+    dispatch(editor, 'subheading1')
     expect(calls[0]).toEqual({method: 'focus', args: []})
     expect(calls[1]).toEqual({method: 'clearNodes', args: []})
-  })
-
-  it('title -> setHeading({level: 1})', () => {
-    const {editor, calls} = makeMockEditor()
-    dispatch(editor, 'title')
-    expect(methodSequence(calls)).toEqual([
-      'focus',
-      'clearNodes',
-      'setHeading',
-      'run',
-    ])
-    expect(calls[2].args).toEqual([{level: 1}])
   })
 
   it('subheading1 -> setHeading({level: 2})', () => {
@@ -216,14 +204,14 @@ describe('ParagraphStyleBridge.onBridgeMessage - dispatch logic per target style
     const {editor, calls} = makeMockEditor()
     ParagraphStyleBridge.onBridgeMessage?.(
       editor as never,
-      {type: 'some-other-type' as never, payload: 'title'},
+      {type: 'some-other-type' as never, payload: 'paragraph'},
       () => {},
     )
     expect(calls).toEqual([])
   })
 })
 
-describe('ParagraphStyleBridge.extendEditorState - activeParagraphStyle precedence, mirrors the retired detectParagraphStyle exactly', () => {
+describe('ParagraphStyleBridge.extendEditorState - activeParagraphStyle precedence', () => {
   function state(options?: {
     isActive?: (name: string, attrs?: Record<string, unknown>) => boolean
     attrs?: Record<string, Record<string, unknown>>
@@ -261,7 +249,6 @@ describe('ParagraphStyleBridge.extendEditorState - activeParagraphStyle preceden
   })
 
   it.each([
-    [1, 'title'],
     [2, 'subheading1'],
     [3, 'subheading2'],
   ] as const)('heading level %d reads as %s', (level, expected) => {
@@ -272,13 +259,19 @@ describe('ParagraphStyleBridge.extendEditorState - activeParagraphStyle preceden
     ).toBe(expected)
   })
 
-  it('heading level 2 does not get mistaken for level 1 or 3 - exact attrs match required', () => {
+  it('heading level 2 does not get mistaken for level 3 - exact attrs match required', () => {
     const s = state({
       isActive: (name, attrs) => name === 'heading' && attrs?.level === 2,
     })
     expect(s.activeParagraphStyle).toBe('subheading1')
-    expect(s.activeParagraphStyle).not.toBe('title')
     expect(s.activeParagraphStyle).not.toBe('subheading2')
+  })
+
+  it('a level-1 heading (no dropdown option creates one anymore) falls through to plain paragraph, not a dedicated style', () => {
+    const s = state({
+      isActive: (name, attrs) => name === 'heading' && attrs?.level === 1,
+    })
+    expect(s.activeParagraphStyle).toBe('paragraph')
   })
 
   it('bulletList reads as bulletedList', () => {

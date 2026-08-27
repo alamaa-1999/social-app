@@ -102,6 +102,12 @@ export function Outer({
   showCancel?: boolean
   style?: StyleProp<ViewStyle>
   onCloseAutoFocus?: (event: Event) => void
+  // Web-only (Radix dropdown auto-focus interception) - accepted here
+  // purely so callers shared between web and native (this whole file's
+  // reason for existing) typecheck without a platform branch. No native
+  // equivalent: a native bottom sheet has no ARIA-menu open-focus behavior
+  // to prevent.
+  onOpenAutoFocus?: (event: Event) => void
 }>) {
   const context = useMenuContext()
   const {t: l} = useLingui()

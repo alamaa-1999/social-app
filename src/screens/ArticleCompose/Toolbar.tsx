@@ -1,4 +1,4 @@
-import {useState} from 'react'
+import {useEffect, useState} from 'react'
 import {Linking, Pressable, View} from 'react-native'
 import {msg} from '@lingui/core/macro'
 import {useLingui} from '@lingui/react'
@@ -87,9 +87,23 @@ function ToolbarButton({
       accessibilityHint=""
       accessibilityState={{selected: isActive}}
       onPress={onPress}
+      // Every toolbar control shares this: on mobile, tapping a button
+      // outside the WebView shifts DOM focus to it, which closes the
+      // on-screen keyboard - a jarring flicker even for a direct command
+      // like Bold, since it happens before the bridge round-trip can
+      // refocus the editor. `preventDefault` on mousedown (not the
+      // click/onPress itself) stops that focus shift before it happens;
+      // web-only, a no-op on native. Same fix already established for the
+      // honorific grid cells below - this is the shared component every
+      // mark/align/list button in this file goes through, so fixing it
+      // here covers all of them at once.
+      {...web({
+        onMouseDown: (e: {preventDefault: () => void}) => e.preventDefault(),
+      })}
       style={({pressed, hovered}) => [
-        {padding: 6},
-        a.rounded_xs,
+        // Figma's own `radius-sm` token (6px) on every toolbar icon button -
+        // ALF's closest atom, `rounded_xs`, is 4px, a different scale.
+        {padding: 6, borderRadius: 6},
         isActive && {backgroundColor: t.palette.primary_50},
         (pressed || hovered) && t.atoms.bg_contrast_25,
       ]}>
@@ -143,16 +157,31 @@ function ParagraphStyleMenu({
   options,
   activeId,
   onSelect,
+  onRequestBodyFocus,
 }: {
   options: {id: ParagraphStyleId; label: string}[]
   activeId: ParagraphStyleId
   onSelect: (id: ParagraphStyleId) => void
+  onRequestBodyFocus: () => void
 }) {
   const t = useTheme()
   const {control} = Menu.useMenuContext()
 
   return (
-    <Menu.Outer style={[{width: 240, padding: 0}]}>
+    <Menu.Outer
+      style={[{width: 240, padding: 0}]}
+      // Same interception as InsertHonorificPopover, and for the same
+      // confirmed-live reason: Radix's default open-time behavior moves
+      // focus into this menu the moment it mounts, which closes the
+      // on-screen keyboard before the user has picked anything.
+      onOpenAutoFocus={e => e.preventDefault()}
+      // Separately, Radix pulls focus back to the trigger on close by
+      // default, which would leave the caret out of the article body right
+      // after selecting a paragraph style.
+      onCloseAutoFocus={e => {
+        e.preventDefault()
+        onRequestBodyFocus()
+      }}>
       <View style={[{paddingVertical: 4}]}>
         {options.map(({id, label}) => (
           <View key={id} style={[{paddingHorizontal: 6, paddingVertical: 1}]}>
@@ -164,6 +193,12 @@ function ParagraphStyleMenu({
                 onSelect(id)
                 control.close()
               }}
+              // Keeps focus on the article body throughout - see
+              // `ToolbarButton`'s identical comment for why.
+              {...web({
+                onMouseDown: (e: {preventDefault: () => void}) =>
+                  e.preventDefault(),
+              })}
               style={({pressed, hovered}) => [
                 a.flex_row,
                 a.align_center,
@@ -220,6 +255,16 @@ function InsertHonorificPopover({
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null)
   const hovered = hoveredIndex != null ? HONORIFICS[hoveredIndex] : null
 
+  // This popover's content stays mounted across opens (Radix keeps it in the
+  // tree, just hidden), so `hoveredIndex` otherwise survives close/reopen -
+  // the cell that was under the cursor at click time (or last hovered before
+  // an Escape/outside-click close) stays visually "hovered" until a fresh
+  // onHoverIn fires. Resetting on close, not on click, covers every way the
+  // popover can close, not just insert-then-close.
+  useEffect(() => {
+    if (!control.isOpen) setHoveredIndex(null)
+  }, [control.isOpen])
+
   // padding: 0 overrides Menu.Outer's own default 4px shell padding
   // (a.p_xs) - this popover builds its own complete header/grid/footer
   // padding matching Figma's spec exactly, so the shared component's
@@ -227,12 +272,22 @@ function InsertHonorificPopover({
   return (
     <Menu.Outer
       style={[{width: 308, padding: 0}]}
-      // Radix's DropdownMenu.Content auto-focuses the trigger button when
-      // it closes, by design - that's what was actually stealing focus
-      // from the article body (the onMouseDown/preventDefault fix above
-      // only stops the *click* from stealing focus, not this separate
-      // close-time behavior). Preventing the default here and explicitly
-      // asking for the body input back is the correct interception point.
+      // The actual cause of a real, reported bug: on mobile, tapping this
+      // trigger closed the on-screen keyboard *before* the grid even
+      // opened. Confirmed live it wasn't the trigger's own tap (the
+      // onMouseDown fix below already covers that, and alone didn't help)
+      // - it's Radix's own default open-time behavior, moving focus into
+      // the just-opened content per the standard ARIA menu pattern. That
+      // focus move happens inside the WebView's parent document, which
+      // blurs the iframe's `.ProseMirror` and closes the keyboard, all
+      // before the user has touched anything inside the grid. Preventing
+      // the default here stops it at the source.
+      onOpenAutoFocus={e => e.preventDefault()}
+      // Separately: Radix also auto-focuses the trigger button when the
+      // popover *closes*, by design - that would leave the caret out of
+      // the article body right after inserting a symbol. Preventing the
+      // default here and explicitly asking for the body input back is the
+      // correct interception point for that side.
       onCloseAutoFocus={e => {
         e.preventDefault()
         onRequestBodyFocus()
@@ -445,6 +500,16 @@ function InsertLinkPopover({
   return (
     <Menu.Outer
       style={[{width: 334, padding: 0}]}
+      // Unlike the other toolbar popovers, this one *should* end up with
+      // focus somewhere inside it - the URL field below - so Radix's
+      // default open-focus isn't the bug here the way it is for
+      // InsertHonorificPopover/ParagraphStyleMenu/colorPicker. Preventing
+      // it anyway: the field's own `autoFocus` prop is what actually
+      // delivers that (a separate, explicit mechanism, not dependent on
+      // Radix's default), so skipping Radix's own attempt just removes one
+      // less-predictable source of where focus lands first, without
+      // changing the outcome.
+      onOpenAutoFocus={e => e.preventDefault()}
       // Same interception as InsertHonorificPopover: Radix pulls focus back
       // to the trigger on close, which would leave the caret out of the
       // article body right after the author applied a link to it.
@@ -543,6 +608,8 @@ function InsertLinkPopover({
 }
 
 export function Toolbar({
+  isDisabled = false,
+  part = 'all',
   onToggleMark,
   onToggleUnderline,
   activeParagraphStyle,
@@ -564,6 +631,30 @@ export function Toolbar({
   onLinkUnavailable,
   onInsertImage,
 }: {
+  /**
+   * Title and Sub-title moved into the same WebView as the body, as plain
+   * `<textarea>`s with no rich-text capability of their own - this disables
+   * the whole formatting surface whenever the caret isn't in the body, so a
+   * press while typing a title doesn't dispatch a mark toggle to whatever
+   * stale selection is still sitting in the (now offscreen) body. `index.tsx`
+   * derives this from `activeField !== 'body'`, itself driven by focus
+   * events from `bridges/titleSubtitle.ts` - see that file's own doc comment
+   * for why it's focus-only, never blur, so opening one of this toolbar's
+   * own popovers can never disable itself.
+   */
+  isDisabled?: boolean
+  /**
+   * Mobile splits the single toolbar into two bars (Figma 58:5153): a
+   * "bottom" bar (paragraph style + Bold/Italic/Underline/Strikethrough/
+   * honorific) sitting just above the keyboard, and a "top" bar (everything
+   * else) staying where the toolbar lives today, under "Article details".
+   * `index.tsx` renders two `<Toolbar>` instances for that split, each with
+   * its own `isDisabled`; desktop renders a single instance at the default
+   * `'all'`, which reproduces the previous single-toolbar layout exactly -
+   * this prop only changes *which* controls render and how they're grouped,
+   * never the controls' own behavior.
+   */
+  part?: 'all' | 'top' | 'bottom'
   onToggleMark: (mark: 'bold' | 'italic' | 'strikethrough') => void
   onToggleUnderline: () => void
   activeParagraphStyle: ParagraphStyleId
@@ -607,7 +698,6 @@ export function Toolbar({
   const {_} = useLingui()
 
   const paragraphStyleOptions: {id: ParagraphStyleId; label: string}[] = [
-    {id: 'title', label: _(msg`Title`)},
     {id: 'subheading1', label: _(msg`Sub-Heading 1`)},
     {id: 'subheading2', label: _(msg`Sub-Heading 2`)},
     {id: 'paragraph', label: _(msg`Paragraph`)},
@@ -621,325 +711,521 @@ export function Toolbar({
     paragraphStyleOptions.find(o => o.id === activeParagraphStyle)?.label ??
     _(msg`Paragraph`)
 
-  return (
-    // Two real sibling groups, matching Figma's "Text editor toolbar" DOM
-    // exactly (node 58:5063): Paragraph-style select and "Formatting
-    // buttons" are direct children of this 12px-gap row (spacing-lg's
-    // column-gap) - NOT one flat row. Everything inside "Formatting
-    // buttons" then uses its own much tighter 2px gap (spacing-xxs), with
-    // the dividers' own 12px width supplying the visual separation between
-    // sub-groups. Flattening this into one uniform-gap row (an earlier
-    // version of this file did) starves the Paragraph-select/Bold seam of
-    // ~10px of spacing Figma actually has there.
-    <View style={[a.flex_row, a.flex_wrap, a.align_center, {gap: 12}]}>
+  // Every control below is built once per render as a plain element, then
+  // placed into whichever of the three layouts `part` calls for - `'all'`
+  // reassembles the exact same tree this file always rendered (see that
+  // branch's own comment), while `'top'`/`'bottom'` place the same elements
+  // into the two independent bars Figma 58:5153 calls for. Grouping by
+  // element instance rather than duplicating JSX per branch keeps each
+  // control (styles, handlers, popovers) defined exactly once.
+
+  const paragraphStyleSelect = (
+    <Menu.Root>
+      <Menu.Trigger label={_(msg`Paragraph style`)}>
+        {({props}) => (
+          <Pressable
+            {...props}
+            // Keeps focus on the article body throughout - see
+            // `ToolbarButton`'s identical comment for why.
+            {...web({
+              onMouseDown: (e: {preventDefault: () => void}) =>
+                e.preventDefault(),
+            })}
+            style={[
+              // height: 36 pinned explicitly, matching Figma's own
+              // "152 Hug x 36 Hug" - Figma represents this border as a
+              // negative-offset `outline` (inset, doesn't affect box
+              // size), but RN's `borderWidth` always adds to an
+              // auto-derived height. width is already fixed, so the
+              // border already draws inset there for free; height needs
+              // the same explicit pin, or the 1px top+1px bottom border
+              // quietly adds 2px on top of the 8/8 padding + 20px content
+              // math (which alone already lands on exactly 36).
+              //
+              // Desktop (`part !== 'bottom'`): fixed 216 (widened from
+              // Figma's own 152, still under maxWidth: 240) - the longest
+              // paragraph-style label ("Arabic Block Quote") wraps to two
+              // lines below that, a real usability issue this size wasn't
+              // scoped to solve. Mobile's bottom bar (Figma node 58:5193)
+              // sizes this control differently - `flex: 1 0 0`, growing to
+              // fill whatever width the fixed-size icons beside it leave,
+              // capped at the same 240 - not a fixed 216. Reusing the
+              // desktop width there was the actual cause of the bottom bar
+              // wrapping onto two lines: 216px plus five icons doesn't fit
+              // a ~390px phone, where a flexible width would have.
+              part === 'bottom'
+                ? {flex: 1, maxWidth: 240, height: 36}
+                : {width: 216, maxWidth: 240, height: 36},
+              a.flex_row,
+              a.align_center,
+              // The real structure (per this element's own CSS export)
+              // is `justify-content: flex-start` + a fixed 8px gap
+              // between the icon+text group and the chevron - NOT
+              // `justify-content: space-between`. The icon+text group
+              // itself is `flex: 1 1 0` (grows to fill the remaining
+              // space), which is what actually pushes the chevron to the
+              // right edge - visually similar to space-between in most
+              // cases, but not pixel-identical, which is what the
+              // earlier space-between version was off by.
+              {gap: 8, paddingLeft: 12, paddingRight: 10, paddingVertical: 8},
+              a.rounded_sm,
+              a.border,
+              t.atoms.border_contrast_medium,
+              t.atoms.bg,
+              // Not `t.atoms.shadow_xs` - that token's web value is
+              // `0 2px 8px 0 rgba(0,0,0,0.1)` (confirmed in
+              // @bsky.app/alf/src/themes.ts), an 8px-blur/10%-opacity
+              // shadow that reads as a large, obvious drop shadow on this
+              // small trigger - nowhere close to this element's own Figma
+              // spec (node 277:4321, shadow-xs: `0px 1px 2px
+              // rgba(0,0,0,0.05)`). The shared token's "xs" is
+              // miscalibrated relative to what this design system's other
+              // genuinely-subtle shadows actually use elsewhere in this
+              // app - `#0000000D` below is the same ~5% opacity
+              // SegmentedControl.tsx's own shadow-xs override already
+              // uses - written out literally here rather than patching
+              // the shared package.
+              {
+                boxShadow: '0px 1px 2px #0000000D',
+                shadowColor: t.palette.black,
+                shadowOffset: {width: 0, height: 1},
+                shadowRadius: 2,
+                shadowOpacity: 0.05,
+                elevation: 1,
+              },
+            ]}>
+            <View style={[a.flex_1, a.flex_row, a.align_center, {gap: 8}]}>
+              {/* text_contrast_low, not t.atoms.text (black) - confirmed
+              by this element's own CSS export (`StyledIcon`'s outline
+              color). */}
+              <ParagraphIcon style={[t.atoms.text_contrast_low]} width={16} />
+              {/* fontSize 14 (not a.text_sm's 13.1) and lineHeight 20 (not
+              the 16 "leading-normal" pattern used elsewhere) - this
+              specific trigger's text uses the ALF *semantic* text-sm
+              (14px/20px), confirmed independently twice: the original
+              fetched reference code and this element's own CSS export. */}
+              <Text
+                style={[
+                  a.font_medium,
+                  {fontSize: 14, lineHeight: 20},
+                  t.atoms.text,
+                ]}>
+                {activeParagraphStyleLabel}
+              </Text>
+            </View>
+            <ChevronDownIcon style={[t.atoms.text_contrast_low]} width={16} />
+          </Pressable>
+        )}
+      </Menu.Trigger>
+      <ParagraphStyleMenu
+        options={paragraphStyleOptions}
+        activeId={activeParagraphStyle}
+        onSelect={onSelectParagraphStyle}
+        onRequestBodyFocus={onRequestBodyFocus}
+      />
+    </Menu.Root>
+  )
+
+  const marksButtons = (
+    <>
+      <ToolbarButton
+        label={_(msg`Bold`)}
+        icon={BoldIcon}
+        isActive={activeMarks.bold}
+        onPress={() => onToggleMark('bold')}
+      />
+      <ToolbarButton
+        label={_(msg`Italic`)}
+        icon={ItalicIcon}
+        isActive={activeMarks.italic}
+        onPress={() => onToggleMark('italic')}
+      />
+      <ToolbarButton
+        label={_(msg`Underline`)}
+        icon={UnderlineIcon}
+        isActive={activeMarks.underline}
+        onPress={onToggleUnderline}
+      />
+      <ToolbarButton
+        label={_(msg`Strikethrough`)}
+        icon={StrikethroughIcon}
+        isActive={activeMarks.strikethrough}
+        onPress={() => onToggleMark('strikethrough')}
+      />
+    </>
+  )
+
+  const honorificPicker = (
+    <Menu.Root>
+      <Menu.Trigger label={_(msg`Insert honorific`)}>
+        {({props}) => (
+          <Pressable
+            {...props}
+            // Keeps focus on the article body throughout - see
+            // `ToolbarButton`'s identical comment for why.
+            {...web({
+              onMouseDown: (e: {preventDefault: () => void}) =>
+                e.preventDefault(),
+            })}
+            style={({pressed, hovered}) => [
+              {height: 32, paddingLeft: 4, gap: 6},
+              a.flex_row,
+              a.align_center,
+              a.rounded_xs,
+              (pressed || hovered) && t.atoms.bg_contrast_25,
+            ]}>
+            {/* Static exported vector (node 164:320), NOT live
+            Scheherazade New text - confirmed directly by the project
+            owner as scoped only to this trigger, unlike the popover
+            grid below (which stays live text). Wrapped in its own
+            20x20 box so the 18x16 icon centers with the same 1px/2px
+            inset Figma's own "inset-[10%_5%]" specifies. */}
+            <View
+              style={[
+                {width: 20, height: 20},
+                a.align_center,
+                a.justify_center,
+              ]}>
+              <HonorificTriggerIcon
+                width={18}
+                style={[t.atoms.text_contrast_low]}
+              />
+            </View>
+            <ChevronDownIcon style={[t.atoms.text_contrast_low]} width={16} />
+          </Pressable>
+        )}
+      </Menu.Trigger>
+      <InsertHonorificPopover
+        onInsert={onInsertHonorific}
+        onRequestBodyFocus={onRequestBodyFocus}
+      />
+    </Menu.Root>
+  )
+
+  const colorPicker = (
+    <Menu.Root>
+      <Menu.Trigger label={_(msg`Text color`)}>
+        {({props}) => (
+          <Pressable
+            {...props}
+            // Keeps focus on the article body throughout - see
+            // `ToolbarButton`'s identical comment for why.
+            {...web({
+              onMouseDown: (e: {preventDefault: () => void}) =>
+                e.preventDefault(),
+            })}
+            // Figma's `radius-sm` (6px), not ALF's 4px `rounded_xs`.
+            style={[a.p_sm, {borderRadius: 6}]}>
+            {/* Shows the color actually applied at the caret, falling
+                back to the theme's own text color when no color mark is
+                set - which is what unstyled text really renders as, so
+                the swatch stays truthful rather than implying a choice
+                the author never made. `activeColor` is allowlist-checked
+                in `index.tsx` before it ever reaches here. */}
+            <View
+              style={[
+                {
+                  width: 16,
+                  height: 16,
+                  backgroundColor: activeColor ?? t.atoms.text.color,
+                },
+                a.rounded_full,
+                a.border,
+                t.atoms.border_contrast_low,
+              ]}
+            />
+          </Pressable>
+        )}
+      </Menu.Trigger>
+      <Menu.Outer
+        // Same interception as InsertHonorificPopover, and for the same
+        // confirmed-live reason: Radix's default open-time behavior moves
+        // focus into this menu the moment it mounts, which closes the
+        // on-screen keyboard before the user has tapped a swatch.
+        onOpenAutoFocus={e => e.preventDefault()}
+        // Same interception as InsertHonorificPopover/InsertLinkPopover/
+        // ParagraphStyleMenu: Radix pulls focus back to the trigger on
+        // close by default, which would leave the caret out of the article
+        // body right after picking a color.
+        onCloseAutoFocus={e => {
+          e.preventDefault()
+          onRequestBodyFocus()
+        }}>
+        {PRESET_COLORS.map(hex => (
+          <Menu.Item
+            key={hex}
+            label={hex}
+            // Finding 20's allowlist now lives in onSetColor itself (the
+            // actual point of construction, not this call site) - see
+            // index.tsx. PRESET_COLORS is a fixed constant that always
+            // passes it anyway, so nothing changes here, just no
+            // duplicate check to keep in sync.
+            onPress={() => onSetColor(hex)}
+            // Keeps focus on the article body throughout, same as every
+            // other toolbar control - see `ToolbarButton`'s identical
+            // comment for why. `Menu.Item` forwards unrecognized props
+            // straight to its underlying `Pressable`.
+            {...web({
+              onMouseDown: (e: {preventDefault: () => void}) =>
+                e.preventDefault(),
+            })}>
+            <View
+              style={[
+                {width: 14, height: 14, backgroundColor: hex},
+                a.rounded_full,
+                a.mr_xs,
+              ]}
+            />
+            <Menu.ItemText>{hex}</Menu.ItemText>
+            {/* Case-insensitive: `PRESET_COLORS` are uppercase, but the
+                value comes back from the editor's own attribute store
+                and there's no guarantee it preserves case. */}
+            {activeColor?.toLowerCase() === hex.toLowerCase() && (
+              <Menu.ItemIcon icon={MenuItemCheck} />
+            )}
+          </Menu.Item>
+        ))}
+      </Menu.Outer>
+    </Menu.Root>
+  )
+
+  const alignButtons = (
+    <>
+      <ToolbarButton
+        label={_(msg`Align left`)}
+        icon={AlignLeftIcon}
+        isActive={activeTextAlign === 'left'}
+        onPress={() => onSetAlign('left')}
+      />
+      <ToolbarButton
+        label={_(msg`Align center`)}
+        icon={AlignCenterIcon}
+        isActive={activeTextAlign === 'center'}
+        onPress={() => onSetAlign('center')}
+      />
+      <ToolbarButton
+        label={_(msg`Align right`)}
+        icon={AlignRightIcon}
+        isActive={activeTextAlign === 'right'}
+        onPress={() => onSetAlign('right')}
+      />
+    </>
+  )
+
+  const listAndFootnote = (
+    <>
+      <ToolbarButton
+        label={_(msg`Bulleted list`)}
+        icon={BulletListIcon}
+        isActive={isBulletListActive}
+        onPress={onInsertList}
+      />
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={_(msg`Insert footnote`)}
+        accessibilityHint=""
+        onPress={() => {
+          // Phase 2a decision: footnotes are unsupported by the markdown
+          // renderer this pass - the button itself must be a real, working
+          // press handler though, not inert (same treatment as Insert Audio).
+          Toast.show(_(msg`Footnotes will be available in a future version.`), {
+            type: 'info',
+          })
+        }}
+        // Keeps focus on the article body throughout - see
+        // `ToolbarButton`'s identical comment for why.
+        {...web({
+          onMouseDown: (e: {preventDefault: () => void}) => e.preventDefault(),
+        })}
+        style={({pressed, hovered}) => [
+          // Figma's `radius-sm` (6px), not ALF's 4px `rounded_xs`.
+          {padding: 6, borderRadius: 6},
+          a.align_center,
+          a.justify_center,
+          (pressed || hovered) && t.atoms.bg_contrast_25,
+        ]}>
+        <FootnoteA_Filled width={20} style={[t.atoms.text_contrast_low]} />
+      </Pressable>
+    </>
+  )
+
+  const linkAudioImage = (
+    <>
       <Menu.Root>
-        <Menu.Trigger label={_(msg`Paragraph style`)}>
+        <Menu.Trigger label={_(msg`Insert link`)}>
           {({props}) => (
             <Pressable
               {...props}
-              style={[
-                // height: 36 pinned explicitly, matching Figma's own
-                // "152 Hug x 36 Hug" - Figma represents this border as a
-                // negative-offset `outline` (inset, doesn't affect box
-                // size), but RN's `borderWidth` always adds to an
-                // auto-derived height. width is already fixed, so the
-                // border already draws inset there for free; height needs
-                // the same explicit pin, or the 1px top+1px bottom border
-                // quietly adds 2px on top of the 8/8 padding + 20px content
-                // math (which alone already lands on exactly 36). Width
-                // widened from Figma's own 152 to 216 (still under
-                // maxWidth: 240) - the longest paragraph-style label
-                // ("Arabic Block Quote") wraps to two lines below that, a
-                // real usability issue this size wasn't scoped to solve.
-                {width: 216, maxWidth: 240, height: 36},
-                a.flex_row,
-                a.align_center,
-                // The real structure (per this element's own CSS export)
-                // is `justify-content: flex-start` + a fixed 8px gap
-                // between the icon+text group and the chevron - NOT
-                // `justify-content: space-between`. The icon+text group
-                // itself is `flex: 1 1 0` (grows to fill the remaining
-                // space), which is what actually pushes the chevron to the
-                // right edge - visually similar to space-between in most
-                // cases, but not pixel-identical, which is what the
-                // earlier space-between version was off by.
-                {gap: 8, paddingLeft: 12, paddingRight: 10, paddingVertical: 8},
-                a.rounded_sm,
-                a.border,
-                t.atoms.border_contrast_medium,
-                t.atoms.bg,
-                t.atoms.shadow_xs,
+              accessibilityState={{selected: isLinkActive}}
+              // Keeps focus on the article body throughout - see
+              // `ToolbarButton`'s identical comment for why. Applies
+              // whether this opens the popover or just shows the
+              // "select some text first" toast below - neither should
+              // cost the keyboard.
+              {...web({
+                onMouseDown: (e: {preventDefault: () => void}) =>
+                  e.preventDefault(),
+              })}
+              // Deliberately always pressable, never disabled. A disabled
+              // control explains nothing; the project owner asked for the
+              // toast back because being told *what to do* ("select some
+              // text first") is more use than a button that silently
+              // refuses. Matches TipTap's own `useLinkPopover`, whose
+              // `hideWhenUnavailable` defaults to false for the same
+              // reason. The guard itself lives in the press handler.
+              onPress={() => {
+                if (!canSetLink && !isLinkActive) {
+                  onLinkUnavailable()
+                  return
+                }
+                props.onPress?.()
+              }}
+              style={({pressed, hovered}) => [
+                // Figma's `radius-sm` (6px), not ALF's 4px `rounded_xs`.
+                {padding: 6, borderRadius: 6},
+                isLinkActive && {backgroundColor: t.palette.primary_50},
+                (pressed || hovered) && t.atoms.bg_contrast_25,
               ]}>
-              <View style={[a.flex_1, a.flex_row, a.align_center, {gap: 8}]}>
-                {/* text_contrast_low, not t.atoms.text (black) - confirmed
-                by this element's own CSS export (`StyledIcon`'s outline
-                color). */}
-                <ParagraphIcon style={[t.atoms.text_contrast_low]} width={16} />
-                {/* fontSize 14 (not a.text_sm's 13.1) and lineHeight 20 (not
-                the 16 "leading-normal" pattern used elsewhere) - this
-                specific trigger's text uses the ALF *semantic* text-sm
-                (14px/20px), confirmed independently twice: the original
-                fetched reference code and this element's own CSS export. */}
-                <Text
-                  style={[
-                    a.font_medium,
-                    {fontSize: 14, lineHeight: 20},
-                    t.atoms.text,
-                  ]}>
-                  {activeParagraphStyleLabel}
-                </Text>
-              </View>
-              <ChevronDownIcon style={[t.atoms.text_contrast_low]} width={16} />
+              <LinkIcon width={20} style={[t.atoms.text_contrast_low]} />
             </Pressable>
           )}
         </Menu.Trigger>
-        <ParagraphStyleMenu
-          options={paragraphStyleOptions}
-          activeId={activeParagraphStyle}
-          onSelect={onSelectParagraphStyle}
+        <InsertLinkPopover
+          // Remounts the popover per link context, so the field always
+          // opens showing the href actually at the caret rather than
+          // whatever was typed the last time it was opened.
+          key={activeLink ?? ''}
+          initialUrl={activeLink}
+          canRemove={isLinkActive}
+          onSubmit={onSetLink}
+          onRemove={onRemoveLink}
+          onRequestBodyFocus={onRequestBodyFocus}
         />
       </Menu.Root>
+      <ToolbarButton
+        label={_(msg`Insert audio`)}
+        icon={AudioIcon}
+        onPress={() => {
+          // Phase 2a decision: descoped this pass, but the button itself
+          // must be a real, working press handler - not inert.
+          Toast.show(
+            _(msg`Audio insertion will be available in a future version.`),
+            {type: 'info'},
+          )
+        }}
+      />
+      <ToolbarButton
+        label={_(msg`Insert image`)}
+        icon={PhotoIcon}
+        onPress={onInsertImage}
+      />
+    </>
+  )
 
-      <View style={[a.flex_row, a.flex_wrap, a.align_center, a.gap_2xs]}>
-        <ToolbarButton
-          label={_(msg`Bold`)}
-          icon={BoldIcon}
-          isActive={activeMarks.bold}
-          onPress={() => onToggleMark('bold')}
-        />
-        <ToolbarButton
-          label={_(msg`Italic`)}
-          icon={ItalicIcon}
-          isActive={activeMarks.italic}
-          onPress={() => onToggleMark('italic')}
-        />
-        <ToolbarButton
-          label={_(msg`Underline`)}
-          icon={UnderlineIcon}
-          isActive={activeMarks.underline}
-          onPress={onToggleUnderline}
-        />
-        <ToolbarButton
-          label={_(msg`Strikethrough`)}
-          icon={StrikethroughIcon}
-          isActive={activeMarks.strikethrough}
-          onPress={() => onToggleMark('strikethrough')}
-        />
+  // `pointerEvents="none"` blocks every press from reaching any control
+  // inside, rather than threading a disabled check through each of the
+  // dozen individual buttons/menus below - one gate instead of a dozen
+  // places to miss. `opacity: 0.5` matches this same file's own existing
+  // disabled-state convention (`InsertLinkPopover`'s Remove/Open/Apply
+  // buttons above), so a disabled toolbar reads the same way a disabled
+  // toolbar *button* already does elsewhere in this file - visibly
+  // disabled, not a silent no-op. Both the `'top'` and `'bottom'` mobile
+  // instances get their own copy of this wrapper (see index.tsx, which
+  // passes each the same `isDisabled`), so the two bars always disable
+  // together.
+  if (part === 'bottom') {
+    // Figma 58:5191, "Bottom toolbar - paragraph style + formatting" - no
+    // divider between the marks group and the honorific picker here (unlike
+    // the combined desktop layout below), matching that frame exactly.
+    // Deliberately no `a.flex_wrap` on either row here (unlike desktop's
+    // `'all'` layout below, which wants to wrap on a narrow browser window)
+    // - this bar has to stay on one line, and now that the paragraph-style
+    // trigger above sizes itself with `flex: 1` instead of a fixed desktop
+    // width, everything already fits without wrapping; `nowrap` (RN's
+    // View default) just makes that a guarantee instead of a coincidence.
+    return (
+      <View
+        pointerEvents={isDisabled ? 'none' : 'auto'}
+        style={[isDisabled && {opacity: 0.5}]}>
+        <View style={[a.flex_row, a.align_center, {gap: 12}]}>
+          {paragraphStyleSelect}
+          <View style={[a.flex_row, a.align_center, a.gap_2xs]}>
+            {marksButtons}
+            {honorificPicker}
+          </View>
+        </View>
+      </View>
+    )
+  }
 
-        <ToolbarDivider />
-
-        <Menu.Root>
-          <Menu.Trigger label={_(msg`Insert honorific`)}>
-            {({props}) => (
-              <Pressable
-                {...props}
-                style={({pressed, hovered}) => [
-                  {height: 32, paddingLeft: 4, gap: 6},
-                  a.flex_row,
-                  a.align_center,
-                  a.rounded_xs,
-                  (pressed || hovered) && t.atoms.bg_contrast_25,
-                ]}>
-                {/* Static exported vector (node 164:320), NOT live
-                Scheherazade New text - confirmed directly by the project
-                owner as scoped only to this trigger, unlike the popover
-                grid below (which stays live text). Wrapped in its own
-                20x20 box so the 18x16 icon centers with the same 1px/2px
-                inset Figma's own "inset-[10%_5%]" specifies. */}
-                <View
-                  style={[
-                    {width: 20, height: 20},
-                    a.align_center,
-                    a.justify_center,
-                  ]}>
-                  <HonorificTriggerIcon
-                    width={18}
-                    style={[t.atoms.text_contrast_low]}
-                  />
-                </View>
-                <ChevronDownIcon
-                  style={[t.atoms.text_contrast_low]}
-                  width={16}
-                />
-              </Pressable>
-            )}
-          </Menu.Trigger>
-          <InsertHonorificPopover
-            onInsert={onInsertHonorific}
-            onRequestBodyFocus={onRequestBodyFocus}
-          />
-        </Menu.Root>
-
-        <ToolbarDivider />
-
-        <Menu.Root>
-          <Menu.Trigger label={_(msg`Text color`)}>
-            {({props}) => (
-              <Pressable {...props} style={[a.p_sm, a.rounded_xs]}>
-                {/* Shows the color actually applied at the caret, falling
-                    back to the theme's own text color when no color mark is
-                    set - which is what unstyled text really renders as, so
-                    the swatch stays truthful rather than implying a choice
-                    the author never made. `activeColor` is allowlist-checked
-                    in `index.tsx` before it ever reaches here. */}
-                <View
-                  style={[
-                    {
-                      width: 16,
-                      height: 16,
-                      backgroundColor: activeColor ?? t.atoms.text.color,
-                    },
-                    a.rounded_full,
-                    a.border,
-                    t.atoms.border_contrast_low,
-                  ]}
-                />
-              </Pressable>
-            )}
-          </Menu.Trigger>
-          <Menu.Outer>
-            {PRESET_COLORS.map(hex => (
-              <Menu.Item
-                key={hex}
-                label={hex}
-                // Finding 20's allowlist now lives in onSetColor itself (the
-                // actual point of construction, not this call site) - see
-                // index.tsx. PRESET_COLORS is a fixed constant that always
-                // passes it anyway, so nothing changes here, just no
-                // duplicate check to keep in sync.
-                onPress={() => onSetColor(hex)}>
-                <View
-                  style={[
-                    {width: 14, height: 14, backgroundColor: hex},
-                    a.rounded_full,
-                    a.mr_xs,
-                  ]}
-                />
-                <Menu.ItemText>{hex}</Menu.ItemText>
-                {/* Case-insensitive: `PRESET_COLORS` are uppercase, but the
-                    value comes back from the editor's own attribute store
-                    and there's no guarantee it preserves case. */}
-                {activeColor?.toLowerCase() === hex.toLowerCase() && (
-                  <Menu.ItemIcon icon={MenuItemCheck} />
-                )}
-              </Menu.Item>
-            ))}
-          </Menu.Outer>
-        </Menu.Root>
-
-        <ToolbarDivider />
-
-        <ToolbarButton
-          label={_(msg`Align left`)}
-          icon={AlignLeftIcon}
-          isActive={activeTextAlign === 'left'}
-          onPress={() => onSetAlign('left')}
-        />
-        <ToolbarButton
-          label={_(msg`Align center`)}
-          icon={AlignCenterIcon}
-          isActive={activeTextAlign === 'center'}
-          onPress={() => onSetAlign('center')}
-        />
-        <ToolbarButton
-          label={_(msg`Align right`)}
-          icon={AlignRightIcon}
-          isActive={activeTextAlign === 'right'}
-          onPress={() => onSetAlign('right')}
-        />
-
-        <ToolbarDivider />
-
-        <ToolbarButton
-          label={_(msg`Bulleted list`)}
-          icon={BulletListIcon}
-          isActive={isBulletListActive}
-          onPress={onInsertList}
-        />
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={_(msg`Insert footnote`)}
-          accessibilityHint=""
-          onPress={() => {
-            // Phase 2a decision: footnotes are unsupported by the markdown
-            // renderer this pass - the button itself must be a real, working
-            // press handler though, not inert (same treatment as Insert Audio).
-            Toast.show(
-              _(msg`Footnotes will be available in a future version.`),
-              {type: 'info'},
-            )
-          }}
-          style={({pressed, hovered}) => [
-            {padding: 6},
-            a.rounded_xs,
+  if (part === 'top') {
+    // Figma 58:5162, "Text editor toolbar" minus the paragraph-style/marks
+    // group the bottom bar now owns - no leading divider, since the color
+    // picker is the first control here instead of following the honorific
+    // picker the way it does in the combined desktop layout below.
+    //
+    // `justify_center`/`w_full` are deliberate, not carried over from
+    // desktop's own formatting-buttons row below (which has neither,
+    // because there it sits beside the paragraph-style select rather than
+    // owning the whole row) - node 58:5162's own row is centered and
+    // full-width, since standing alone as the entire mobile top bar, an
+    // unbalanced left-flush row would leave visible empty space on the
+    // right that Figma's version doesn't have.
+    return (
+      <View
+        pointerEvents={isDisabled ? 'none' : 'auto'}
+        style={[isDisabled && {opacity: 0.5}]}>
+        <View
+          style={[
+            a.flex_row,
+            a.flex_wrap,
             a.align_center,
             a.justify_center,
-            (pressed || hovered) && t.atoms.bg_contrast_25,
+            a.w_full,
+            a.gap_2xs,
           ]}>
-          <FootnoteA_Filled width={20} style={[t.atoms.text_contrast_low]} />
-        </Pressable>
+          {colorPicker}
+          <ToolbarDivider />
+          {alignButtons}
+          <ToolbarDivider />
+          {listAndFootnote}
+          <ToolbarDivider />
+          {linkAudioImage}
+        </View>
+      </View>
+    )
+  }
 
-        <ToolbarDivider />
-
-        <Menu.Root>
-          <Menu.Trigger label={_(msg`Insert link`)}>
-            {({props}) => (
-              <Pressable
-                {...props}
-                accessibilityState={{selected: isLinkActive}}
-                // Deliberately always pressable, never disabled. A disabled
-                // control explains nothing; the project owner asked for the
-                // toast back because being told *what to do* ("select some
-                // text first") is more use than a button that silently
-                // refuses. Matches TipTap's own `useLinkPopover`, whose
-                // `hideWhenUnavailable` defaults to false for the same
-                // reason. The guard itself lives in the press handler.
-                onPress={() => {
-                  if (!canSetLink && !isLinkActive) {
-                    onLinkUnavailable()
-                    return
-                  }
-                  props.onPress?.()
-                }}
-                style={({pressed, hovered}) => [
-                  {padding: 6},
-                  a.rounded_xs,
-                  isLinkActive && {backgroundColor: t.palette.primary_50},
-                  (pressed || hovered) && t.atoms.bg_contrast_25,
-                ]}>
-                <LinkIcon width={20} style={[t.atoms.text_contrast_low]} />
-              </Pressable>
-            )}
-          </Menu.Trigger>
-          <InsertLinkPopover
-            // Remounts the popover per link context, so the field always
-            // opens showing the href actually at the caret rather than
-            // whatever was typed the last time it was opened.
-            key={activeLink ?? ''}
-            initialUrl={activeLink}
-            canRemove={isLinkActive}
-            onSubmit={onSetLink}
-            onRemove={onRemoveLink}
-            onRequestBodyFocus={onRequestBodyFocus}
-          />
-        </Menu.Root>
-        <ToolbarButton
-          label={_(msg`Insert audio`)}
-          icon={AudioIcon}
-          onPress={() => {
-            // Phase 2a decision: descoped this pass, but the button itself
-            // must be a real, working press handler - not inert.
-            Toast.show(
-              _(msg`Audio insertion will be available in a future version.`),
-              {type: 'info'},
-            )
-          }}
-        />
-        <ToolbarButton
-          label={_(msg`Insert image`)}
-          icon={PhotoIcon}
-          onPress={onInsertImage}
-        />
+  return (
+    <View
+      pointerEvents={isDisabled ? 'none' : 'auto'}
+      style={[isDisabled && {opacity: 0.5}]}>
+      {/* Two real sibling groups, matching Figma's "Text editor toolbar" DOM
+      exactly (node 58:5063): Paragraph-style select and "Formatting
+      buttons" are direct children of this 12px-gap row (spacing-lg's
+      column-gap) - NOT one flat row. Everything inside "Formatting
+      buttons" then uses its own much tighter 2px gap (spacing-xxs), with
+      the dividers' own 12px width supplying the visual separation between
+      sub-groups. Flattening this into one uniform-gap row (an earlier
+      version of this file did) starves the Paragraph-select/Bold seam of
+      ~10px of spacing Figma actually has there. This is the desktop/`'all'`
+      layout - the mobile split above reassembles the same elements into
+      two independent bars instead. */}
+      <View style={[a.flex_row, a.flex_wrap, a.align_center, {gap: 12}]}>
+        {paragraphStyleSelect}
+        <View style={[a.flex_row, a.flex_wrap, a.align_center, a.gap_2xs]}>
+          {marksButtons}
+          <ToolbarDivider />
+          {honorificPicker}
+          <ToolbarDivider />
+          {colorPicker}
+          <ToolbarDivider />
+          {alignButtons}
+          <ToolbarDivider />
+          {listAndFootnote}
+          <ToolbarDivider />
+          {linkAudioImage}
+        </View>
       </View>
     </View>
   )

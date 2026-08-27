@@ -3,7 +3,6 @@ import {describe, expect, it} from '@jest/globals'
 import {
   addFacet,
   deleteRange,
-  detectParagraphStyle,
   type EditorFacet,
   type EditorState,
   facetsToWireFormat,
@@ -204,57 +203,6 @@ describe('insertOrderedListPrefix', () => {
   it('starts at 1 for the very first line of the document', () => {
     const result = insertOrderedListPrefix(state('only line'), 0)
     expect(result.markdown).toBe('1. only line')
-  })
-})
-
-describe('detectParagraphStyle', () => {
-  it('detects a plain line as paragraph', () => {
-    expect(detectParagraphStyle('Just some text.', [], 5)).toBe('paragraph')
-  })
-
-  it('detects title/subheading1/subheading2 from # prefixes', () => {
-    expect(detectParagraphStyle('# A title', [], 3)).toBe('title')
-    expect(detectParagraphStyle('## A subheading', [], 3)).toBe('subheading1')
-    expect(detectParagraphStyle('### A subheading', [], 3)).toBe('subheading2')
-  })
-
-  it('detects bulleted and numbered lists', () => {
-    expect(detectParagraphStyle('- an item', [], 3)).toBe('bulletedList')
-    expect(detectParagraphStyle('12. an item', [], 3)).toBe('numberedList')
-  })
-
-  it('detects a plain block quote', () => {
-    expect(detectParagraphStyle('> a quote', [], 3)).toBe('blockQuote')
-  })
-
-  it('detects Arabic Block Quote from a > prefix plus an arabicQuote facet covering the line', () => {
-    const markdown = '> Arabic paragraph text.'
-    const facets: EditorFacet[] = [
-      {
-        byteStart: 0,
-        byteEnd: utf8Length(markdown),
-        feature: {
-          $type: 'com.sunnahsky.richtext.facets.blocks#typography',
-          value: 'arabicQuote',
-        },
-      },
-    ]
-    expect(detectParagraphStyle(markdown, facets, 3)).toBe('arabicBlockQuote')
-  })
-
-  it('detects Arabic Paragraph from an arabicParagraph facet with no > prefix', () => {
-    const markdown = 'Arabic paragraph text.'
-    const facets: EditorFacet[] = [
-      {
-        byteStart: 0,
-        byteEnd: utf8Length(markdown),
-        feature: {
-          $type: 'com.sunnahsky.richtext.facets.blocks#typography',
-          value: 'arabicParagraph',
-        },
-      },
-    ]
-    expect(detectParagraphStyle(markdown, facets, 3)).toBe('arabicParagraph')
   })
 })
 

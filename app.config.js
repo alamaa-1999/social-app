@@ -335,8 +335,13 @@ module.exports = function (_config) {
               // single-weight instances, not variable fonts (see
               // assets/fonts/<family>/README.md for why).
               './assets/fonts/fraunces/Fraunces-SemiBold.ttf',
+              './assets/fonts/fraunces/Fraunces-Regular.ttf',
               './assets/fonts/archivo/Archivo-SemiBold.ttf',
+              './assets/fonts/archivo/Archivo-SemiBoldItalic.ttf',
               './assets/fonts/vollkorn/Vollkorn-Regular.ttf',
+              './assets/fonts/vollkorn/Vollkorn-Bold.ttf',
+              './assets/fonts/vollkorn/Vollkorn-Italic.ttf',
+              './assets/fonts/vollkorn/Vollkorn-BoldItalic.ttf',
             ],
           },
         ],

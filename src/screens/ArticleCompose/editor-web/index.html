@@ -6,21 +6,115 @@
     <title>Sunnahsky article editor</title>
   </head>
   <style>
+    /*
+     * This document owns its own scroll again - a plain, ordinary page,
+     * exactly like every reading app on the web already is. Three rounds of
+     * an outer RN `ScrollView` trying to stay frame-synced with this
+     * WebView's separately-measured height (a `ResizeObserver` bridge, an
+     * `overflow: hidden` lock, a scroll-position-lock listener - all removed
+     * along with this comment) kept turning up sharp edges specific to
+     * crossing that native/web bridge. Title and Sub-title moving in as
+     * plain `<textarea>`s (below) is what makes going back to this simpler
+     * shape possible: the RN `RichText` component is a plain `flex_1` box
+     * again, spanning the composer's full width, and this file's own CSS
+     * is what centers the 720px reading column inside it - see
+     * `.composer-column` below, which is what actually fixes the original
+     * "scrollbar hugs the text instead of the true edge" complaint, since
+     * the scrollbar now belongs to this full-width page, not a narrower
+     * column inside it.
+     */
     body {
       margin: 0;
       padding: 0;
     }
-    #root > div:nth-of-type(1) {
-      position: absolute;
-      height: 100%;
-      overflow: auto;
-      width: 100%;
-      top: 0;
-      bottom: 0;
+    /*
+     * Centers the 720px reading column and gives it its vertical padding -
+     * the one shared ancestor of both the Title/Sub-title fields and the
+     * body, so both are laid out as one consistent column rather than two
+     * separately-centered pieces.
+     */
+    .composer-column {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 20px 0;
     }
+    /* Mobile (Figma redline) - matches the RN app's own `gtMobile` cutoff
+       (`minWidth: 800` in `src/alf/breakpoints.ts`) so this lines up with
+       where the rest of the composer already splits mobile/desktop. No
+       bottom padding: the body's own content should run flush to this
+       column's bottom edge, not leave a gap before it. */
+    @media (max-width: 799px) {
+      .composer-column {
+        padding: 16px 16px 0;
+      }
+      /* Sub-title's own contribution to the gap before the body (see its
+         base rule below) is 4px wider on mobile than desktop. */
+      #article-subtitle {
+        margin: 0 0 20px;
+      }
+    }
+    /*
+     * `display: flow-root` on both this and `.ProseMirror` below - not
+     * decorative. Every block style in this file carries a real top and/or
+     * bottom margin now (the finalized editor margin system), and without a
+     * block-formatting-context boundary here, a child's margin can collapse
+     * *through* its own parent's edge rather than staying contained within
+     * it - the exact class of surprise this project's own margin work hit
+     * more than once tonight. `flow-root` has no visual side effect beyond
+     * this containment (unlike `overflow: hidden`, which would also clip
+     * anything that visually overflows) - it just makes every margin
+     * calculation in this file resolve to exactly the number written,
+     * nothing collapsing away into an ancestor by accident.
+     */
+    #article-fields {
+      display: flow-root;
+    }
+    #article-fields textarea {
+      display: block;
+      width: 100%;
+      box-sizing: border-box;
+      border: none;
+      background: transparent;
+      resize: none;
+      outline: none;
+      overflow: hidden;
+      padding: 0;
+      color: #000;
+    }
+    #article-fields textarea::placeholder {
+      color: #8798b0;
+    }
+    /* article/title (Figma 279:4334's sibling) - Fraunces SemiBold, 32px/1.15. */
+    #article-title {
+      font-family: 'Fraunces SemiBold';
+      font-size: 32px;
+      line-height: 1.15;
+      margin: 0 0 4px;
+    }
+    /* article/sub-title (Figma 279:4334) - Fraunces Regular, 24px/1.4. The
+       16px bottom margin is this style's own contribution to the gap before
+       the body - previously a separate RN View's own `gap: 16`, now that
+       Title/Sub-title/body are flat siblings in one document there is no
+       separate grouping box left to own that spacing, so Sub-title does. */
+    #article-subtitle {
+      font-family: 'Fraunces Regular';
+      font-size: 24px;
+      line-height: 1.4;
+      margin: 0 0 16px;
+    }
+    /*
+     * A fixed pixel floor, not a percentage: with nothing in this file
+     * carrying an explicit height, a percentage min-height has no definite
+     * containing-block height to resolve against and computes to nothing.
+     * This is what gives a brand-new, empty draft a real writing area
+     * immediately, not just once enough text exists to fill one. Below this
+     * height, clicking past the last line still focuses the editor, the
+     * same as any ordinary page; above it, the page's own natural height
+     * takes over and the page itself scrolls.
+     */
     #root div .ProseMirror {
-      height: 100%;
-      overflow: auto;
+      display: flow-root;
+      min-height: 400px;
     }
     .ProseMirror:focus {
       outline: none;
@@ -30,9 +124,18 @@
        logical inline-start one, so it never flips with an RTL blockquote's
        own dir attribute. Only the inner paragraph's text-align differs
        between the two (see bridges/paragraphStyle.ts's arabicBlockQuote
-       case), not this border. */
+       case), not this border.
+
+       Editor-only spacing, deliberately simpler than the reader: both quote
+       styles get one flat 24px on both sides, not the pair-conditional
+       matrix (quote-ar-verse -> quote-en tighter than a standalone quote,
+       etc.) decided for the eventual article reader - see
+       Sunnahsky_Design_System_Text_Styles.md for that spec. Symmetric and
+       larger than every other block's own margin in this file, so every
+       quote-adjacent boundary collapses cleanly to 24 regardless of what's
+       on the other side - no pair-specific selector needed here. */
     blockquote {
-      margin: 0;
+      margin: 24px 0;
       border-left: 2px solid #006aff;
       padding-left: 20px;
     }
@@ -54,10 +157,242 @@
        leaked into copy-paste and acted as an extra caret stop. `direction:
        rtl` states the truth about the content (these are Arabic glyphs);
        for a lone strong-RTL character the glyph governs its own rendering
-       regardless, so the isolation is what actually matters. */
+       regardless, so the isolation is what actually matters. `font-family`
+       is the fix for a real, separate gap this rule never had: with no font
+       of its own the glyph inherited whatever the surrounding paragraph
+       used (Vollkorn, once the rule below exists), which has no reliable
+       Arabic Presentation Forms-A coverage - article/char/inline-arabic-in-
+       english (Figma 16:22) calls for Scheherazade New specifically here. */
     [data-bidi-isolate] {
       direction: rtl;
       unicode-bidi: isolate;
+      font-family: 'Scheherazade New', serif;
+    }
+    /*
+     * Article body typography (Figma 16:22, "English Article Typography
+     * Specimen" - extracted in full to Sunnahsky_Design_System_Text_Styles.md
+     * at the project root; read that file before changing any rule below).
+     *
+     * This document never had ANY of this - not the fonts, not the sizes -
+     * which is the actual reason body content looked wrong: Title/Sub-title
+     * are plain React Native `TextInput`s living *outside* this WebView, so
+     * they already got their fonts correctly from the app's own web CSS
+     * (`src/style.css`); everything typed *inside* the body - paragraphs,
+     * sub-headings, quotes, lists - lives inside this isolated document,
+     * which had never been given the fonts or the rules to use them, and so
+     * was rendering in whatever generic fallback the browser defaults to.
+     *
+     * Font files are the same static single-weight instances `src/style.css`
+     * already declares for the outer app (see that file's own comment for
+     * why static, not variable) - duplicated here, not shared, because this
+     * is a genuinely separate Vite bundle with no access to the outer app's
+     * stylesheet. `vite-plugin-singlefile` inlines each as a base64 data URI
+     * into the one built HTML file, the same way it already inlines
+     * everything else here - confirmed in the actual built output, not
+     * assumed from source.
+     */
+    @font-face {
+      font-family: 'Fraunces SemiBold';
+      src: url('../../../../assets/fonts/fraunces/Fraunces-SemiBold.ttf')
+        format('truetype');
+      font-weight: 600;
+      font-style: normal;
+      font-display: swap;
+    }
+    /* article/sub-title (Figma 279:4334) - previously only needed in
+       src/style.css/app.config.js, since Title/Sub-title lived outside this
+       WebView as RN TextInputs. Same self-instanced static file, same
+       provenance notes, as assets/fonts/fraunces/README.md. */
+    @font-face {
+      font-family: 'Fraunces Regular';
+      src: url('../../../../assets/fonts/fraunces/Fraunces-Regular.ttf')
+        format('truetype');
+      font-weight: 400;
+      font-style: normal;
+      font-display: swap;
+    }
+    @font-face {
+      font-family: 'Archivo SemiBold';
+      src: url('../../../../assets/fonts/archivo/Archivo-SemiBold.ttf')
+        format('truetype');
+      font-weight: 600;
+      font-style: normal;
+      font-display: swap;
+    }
+    /* Italic sub-heading text (the toolbar's Italic mark is global and can
+       land on a sub-heading run same as body text). Google Fonts ships
+       Archivo's italic as its own separate variable font file, with a real
+       designed slant (post.italicAngle -10, confirmed rather than assumed) -
+       a true italic cut, not a synthetic oblique. Instanced at the same
+       wght=600, wdth=100 as Archivo SemiBold above. */
+    @font-face {
+      font-family: 'Archivo SemiBold';
+      src: url('../../../../assets/fonts/archivo/Archivo-SemiBoldItalic.ttf')
+        format('truetype');
+      font-weight: 600;
+      font-style: italic;
+      font-display: swap;
+    }
+    @font-face {
+      font-family: 'Vollkorn';
+      src: url('../../../../assets/fonts/vollkorn/Vollkorn-Regular.ttf')
+        format('truetype');
+      font-weight: 400;
+      font-style: normal;
+      font-display: swap;
+    }
+    /* Bold body/quote text (the Bold mark applied within a Vollkorn
+       paragraph) - self-instanced at wght=700 from the same upstream
+       variable font as Regular, with --update-name-table used this time to
+       avoid a real bug the plain instancer command leaves behind: it sets
+       OS/2.usWeightClass correctly but leaves the name table's own
+       family/subfamily/PostScript name saying "Regular" even for a
+       wght=700 instance. Same family name as Regular, weight-differentiated
+       only, so `<strong>`/bold-marked text resolves to this face
+       automatically. */
+    @font-face {
+      font-family: 'Vollkorn';
+      src: url('../../../../assets/fonts/vollkorn/Vollkorn-Bold.ttf')
+        format('truetype');
+      font-weight: 700;
+      font-style: normal;
+      font-display: swap;
+    }
+    /* Italic and bold-italic body/quote/list text - Vollkorn's italic is
+       its own separate upstream variable font (real slant, post.italicAngle
+       -11), with named instances at wght=400 and wght=700 mirroring the
+       upright family's Regular/Bold exactly. Both instanced here so a
+       simultaneous bold+italic mark still resolves to a real cut instead of
+       the browser synthesizing bold on top of this italic. */
+    @font-face {
+      font-family: 'Vollkorn';
+      src: url('../../../../assets/fonts/vollkorn/Vollkorn-Italic.ttf')
+        format('truetype');
+      font-weight: 400;
+      font-style: italic;
+      font-display: swap;
+    }
+    @font-face {
+      font-family: 'Vollkorn';
+      src: url('../../../../assets/fonts/vollkorn/Vollkorn-BoldItalic.ttf')
+        format('truetype');
+      font-weight: 700;
+      font-style: italic;
+      font-display: swap;
+    }
+    @font-face {
+      font-family: 'Scheherazade New';
+      src: url('../../../../assets/fonts/scheherazade-new/ScheherazadeNew-Regular.ttf')
+        format('truetype');
+      font-weight: 400;
+      font-style: normal;
+      font-display: swap;
+    }
+    @font-face {
+      font-family: 'Scheherazade New';
+      src: url('../../../../assets/fonts/scheherazade-new/ScheherazadeNew-Bold.ttf')
+        format('truetype');
+      font-weight: 700;
+      font-style: normal;
+      font-display: swap;
+    }
+    /* article/body-en. The default for any paragraph with no typography
+       override - arabicParagraph below is more specific and wins for that
+       case (its own margin included - both sides are re-declared there, not
+       just the font). Two-sided by direct owner decision, not the
+       one-side-only convention this file used before: with every block
+       style now carrying its own top and bottom, a boundary is genuinely
+       max(previous element's bottom, next element's top), not a single
+       number read off one rule - see the h2/h3 comment below for why that
+       stopped mattering here specifically. */
+    .ProseMirror p {
+      font-family: 'Vollkorn', serif;
+      font-size: 18px;
+      line-height: 1.7;
+      color: #000;
+      margin: 12px 0 20px;
+    }
+    /* article/sub-heading-1 and article/sub-heading-2 - the two heading
+       levels the paragraph-style dropdown's "Sub-Heading 1"/"Sub-Heading 2"
+       options actually set (bridges/paragraphStyle.ts). No dedicated "Title"
+       heading style lives here - see that file's own top comment for why.
+
+       0 0 20, matching body-en/body-ar's own bottom margin exactly rather
+       than trying to look larger than it. That's deliberate, not an
+       oversight: every other block in this file has a bottom margin of 20
+       and a top margin no larger than 18 (12 or 18 for paragraphs, 0 for a
+       heading itself), so a heading's own bottom of 20 already dominates
+       every max() it can be party to on its leading edge - there was no
+       longer a "make sure the additional amount survives collapsing"
+       problem to solve here once headings stopped being the only two-sided
+       exception. Compare to blockquote's 24, deliberately larger still, so
+       quote boundaries read as a clearly bigger break than a heading's. */
+    .ProseMirror h2 {
+      font-family: 'Archivo SemiBold', sans-serif;
+      font-weight: 600;
+      font-size: 24px;
+      line-height: 1.2;
+      color: #000;
+      margin: 0 0 20px;
+    }
+    .ProseMirror h3 {
+      font-family: 'Archivo SemiBold', sans-serif;
+      font-weight: 600;
+      font-size: 19px;
+      line-height: 1.25;
+      color: #000;
+      margin: 0 0 20px;
+    }
+    /* article/body-ar. Direction and justification are already handled
+       elsewhere (dirExtension.ts, paragraphStyle.ts's arabicParagraph case,
+       the text-align-last rule above) - this supplies the font and this
+       style's own margin (18 top, not body-en's 12 - the one place these
+       two paragraph styles actually differ from each other). */
+    .ProseMirror p[data-typography='arabicParagraph'] {
+      font-family: 'Scheherazade New', serif;
+      font-size: 20px;
+      line-height: 2;
+      margin: 18px 0 20px;
+    }
+    /* article/quote-en (default) and article/quote-ar-verse (override,
+       keyed off the same data-typography="arabicQuote" the blockquote rule
+       above already checks). The border/padding above is unconditional and
+       shared by both variants - only the inner text differs, and it is
+       genuinely different from plain body text, not a reuse of it: 17px/1.6
+       for the English variant, not body-en's 18px/1.7. Centering for the
+       Arabic variant is already set elsewhere (paragraphStyle.ts targets the
+       inner paragraph's textAlign directly); this only supplies the font. */
+    .ProseMirror blockquote p {
+      font-family: 'Vollkorn', serif;
+      font-size: 17px;
+      line-height: 1.6;
+    }
+    .ProseMirror blockquote[data-typography='arabicQuote'] p {
+      font-family: 'Scheherazade New', serif;
+      font-size: 18px;
+      line-height: 2.1;
+    }
+    /* article/body-ar and article/quote-ar-verse are documented "not italic"
+       (Sunnahsky_Design_System_Text_Styles.md) - Arabic type design doesn't
+       carry an italic convention the way Latin does, and Scheherazade New
+       ships no italic cut to fake one from. The toolbar's Italic mark is
+       global, though, and can still be toggled while the selection sits in
+       an Arabic paragraph or quote - without this, that would fall back to
+       a browser-synthesized oblique of Scheherazade New, exactly the
+       faux-italic this file otherwise avoids. Targets the mark element
+       itself, not the ancestor, since font-style on a matched em/i isn't
+       overridden by a parent rule. */
+    .ProseMirror p[data-typography='arabicParagraph'] em,
+    .ProseMirror blockquote[data-typography='arabicQuote'] p em {
+      font-style: normal;
+    }
+    /* article/list-bulleted and article/list-numbered - same type size as
+       body-en, deliberately tighter line-height (1.55, not 1.7). */
+    .ProseMirror ul li,
+    .ProseMirror ol li {
+      font-family: 'Vollkorn', serif;
+      font-size: 18px;
+      line-height: 1.55;
     }
     /* Body-image block, per Figma "Photo upload" (252:3893 idle, 253:3919
        uploaded, 252:3894 filled). Worn by both the transient placeholder
@@ -177,7 +512,27 @@
     }
   </style>
   <body>
-    <div id="root"></div>
+    <div class="composer-column">
+      <!--
+        Plain textareas, not ProseMirror nodes - Title/Sub-title stay
+        separate, PDS-validated fields (`site.standard.document`'s `title`/
+        `description`), not paragraph styles inside the shared document.
+        `id`s are read directly by `bridges/titleSubtitle.ts`, not through
+        React - these live outside the `#root` React tree entirely, since a
+        `ReactDOM.render`/`createRoot().render()` call into `#root` replaces
+        its contents wholesale and would wipe out any markup placed inside
+        it instead of merging with it. Empty here on purpose: their real
+        initial value, label, and placeholder are set from
+        `window.initialContent` by `titleSubtitle.ts`'s own `onCreate`, the
+        same place that already reads that object for everything else it
+        carries.
+      -->
+      <div id="article-fields">
+        <textarea id="article-title" rows="1"></textarea>
+        <textarea id="article-subtitle" rows="1"></textarea>
+      </div>
+      <div id="root"></div>
+    </div>
     <script type="module" src="/index.tsx"></script>
   </body>
 </html>

@@ -39,6 +39,13 @@ export function setFontFamily(fontFamily: Device['fontFamily']) {
  */
 export function applyFonts(style: TextStyle, fontFamily: 'system' | 'theme') {
   if (fontFamily === 'theme') {
+    // A caller-specified fontFamily (e.g. Scheherazade New for the article
+    // composer's honorific grid) takes precedence over the app's own Inter
+    // theme font. Previously this was overwritten unconditionally below,
+    // silently breaking any attempt to use a non-Inter font anywhere in the
+    // app that renders through the shared Text component.
+    if (style.fontFamily) return
+
     if (IS_ANDROID) {
       style.fontFamily =
         {

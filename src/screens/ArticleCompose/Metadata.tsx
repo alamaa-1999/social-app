@@ -156,7 +156,12 @@ function MenuTrigger({
               a.flex_row,
               a.align_center,
               a.justify_between,
-              {gap: 8, paddingVertical: 8},
+              // Figma 58:5227's field rows (Author/Translator/Category/Tags)
+              // all share this exact 18px/12px padding - the row itself is
+              // the padding source now, not an ancestor container, since the
+              // rows also need to sit flush inside a shared bordered card
+              // with no gaps between them.
+              {gap: 8, paddingHorizontal: 18, paddingVertical: 12},
             ]
           : [a.flex_row, a.align_center, {gap: 8}]
       }>
@@ -547,6 +552,8 @@ export function Metadata({
   coverImagePreviewUri,
   onPressCoverImage,
   onRemoveCoverImage,
+  wordCount,
+  charCount,
 }: {
   value: MetadataValue
   onChange: (next: MetadataValue) => void
@@ -554,6 +561,15 @@ export function Metadata({
   /** Opens the picker. Reached directly when there's no cover image yet. */
   onPressCoverImage: () => void
   onRemoveCoverImage: () => void
+  /**
+   * Figma 58:5227's accordion carries its own word/character-count hint
+   * text, directly below the fields card - shown only in the mobile
+   * (accordion) layout below. Desktop's own word count stays where it's
+   * always been, next to the toolbar in `index.tsx`, since desktop's
+   * `Metadata` render is a plain chip row with no accordion to hold it.
+   */
+  wordCount: number
+  charCount: number
 }) {
   const {_} = useLingui()
   const t = useTheme()
@@ -806,8 +822,7 @@ export function Metadata({
           a.flex_row,
           a.align_center,
           a.justify_between,
-          a.px_lg,
-          a.py_md,
+          {paddingHorizontal: 18, paddingTop: 12, paddingBottom: 12},
         ]}>
         <Text
           style={[
@@ -827,20 +842,49 @@ export function Metadata({
         />
       </Pressable>
       {expanded && (
-        <View style={[a.px_lg, a.pb_lg, a.gap_2xs]}>
-          <View style={[a.border_b, t.atoms.border_contrast_low]}>
-            {authorPicker}
+        <View style={[{paddingHorizontal: 18, paddingBottom: 16, gap: 12}]}>
+          {/* Figma 58:5227: the fields live in one rounded, bordered card,
+          not a flat list with gaps between rows - `overflow_hidden` so the
+          12px radius actually clips the first/last row's square corners.
+          Each row supplies its own 18px/12px padding (see `MenuTrigger`'s
+          `fullWidth` style), so this card carries none of its own. */}
+          <View
+            style={[
+              a.border,
+              t.atoms.border_contrast_low,
+              a.overflow_hidden,
+              {borderRadius: 12},
+            ]}>
+            <View style={[a.border_b, t.atoms.border_contrast_low]}>
+              {authorPicker}
+            </View>
+            <View style={[a.border_b, t.atoms.border_contrast_low]}>
+              {translatorPicker}
+            </View>
+            <View style={[a.border_b, t.atoms.border_contrast_low]}>
+              {categoryPicker}
+            </View>
+            <View style={[a.border_b, t.atoms.border_contrast_low]}>
+              {tagsPicker}
+            </View>
+            {/* No border-bottom - last row in the card. Figma gives this
+            row its own narrower 14px horizontal padding (vs. 18px for the
+            rows above), not the shared `MenuTrigger` padding. */}
+            <View style={[{paddingHorizontal: 14, paddingVertical: 12}]}>
+              {coverImageButton}
+            </View>
           </View>
-          <View style={[a.border_b, t.atoms.border_contrast_low]}>
-            {translatorPicker}
-          </View>
-          <View style={[a.border_b, t.atoms.border_contrast_low]}>
-            {categoryPicker}
-          </View>
-          <View style={[a.border_b, t.atoms.border_contrast_low]}>
-            {tagsPicker}
-          </View>
-          <View style={[a.pt_sm]}>{coverImageButton}</View>
+          {/* Figma node 59:5749 - its own type spec (14px/20px), distinct
+          from the 13.1px `a.text_sm` the field-row labels above use. */}
+          <Text
+            style={[
+              {fontSize: 14, lineHeight: 20, textAlign: 'center'},
+              t.atoms.text_contrast_medium,
+            ]}>
+            <Trans>
+              Word count: {wordCount} • Character count: {charCount}
+            </Trans>
+          </Text>
         </View>
       )}
     </View>

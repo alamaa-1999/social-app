@@ -64,7 +64,6 @@ export interface EditorState {
 }
 
 export type ParagraphStyleId =
-  | 'title'
   | 'subheading1'
   | 'subheading2'
   | 'paragraph'
@@ -225,42 +224,6 @@ export function insertOrderedListPrefix(
   const n = match ? parseInt(match[1], 10) + 1 : 1
   const lineStartByte = utf8Length(decoded.slice(0, lineStartChar))
   return insertText(state, lineStartByte, `${n}. `)
-}
-
-/**
- * Best-effort detection of which of the 9 paragraph styles applies to the
- * line containing `byteIndex`, for the Paragraph-style dropdown's active-item
- * checkmark (Figma shows exactly one option checked at a time). Reflects the
- * line as of the last render, not the live cursor position on every
- * arrow-key move - the caller's cursor position is tracked in a ref, not
- * React state, deliberately (see `index.tsx`'s `selection` ref), so this is
- * an honest approximation, not a fully live indicator.
- */
-export function detectParagraphStyle(
-  markdown: string,
-  facets: EditorFacet[],
-  byteIndex: number,
-): ParagraphStyleId {
-  const line = getLineByteRange(markdown, byteIndex)
-  const lineText = byteSlice(markdown, line.byteStart, line.byteEnd)
-  const hasTypography = (value: 'arabicParagraph' | 'arabicQuote') =>
-    facets.some(
-      f =>
-        f.feature.$type === 'com.sunnahsky.richtext.facets.blocks#typography' &&
-        f.feature.value === value &&
-        f.byteStart <= line.byteStart &&
-        f.byteEnd >= line.byteEnd,
-    )
-  if (lineText.startsWith('> ')) {
-    return hasTypography('arabicQuote') ? 'arabicBlockQuote' : 'blockQuote'
-  }
-  if (hasTypography('arabicParagraph')) return 'arabicParagraph'
-  if (lineText.startsWith('### ')) return 'subheading2'
-  if (lineText.startsWith('## ')) return 'subheading1'
-  if (lineText.startsWith('# ')) return 'title'
-  if (lineText.startsWith('- ')) return 'bulletedList'
-  if (/^\d+\. /.test(lineText)) return 'numberedList'
-  return 'paragraph'
 }
 
 /** Records a custom facet (underline/color/alignment) over an existing byte range - no text is inserted. */

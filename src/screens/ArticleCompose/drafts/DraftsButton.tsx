@@ -22,15 +22,29 @@ export function DraftsButton({
   onSelectDraft,
   onSaveDraft,
   onDiscard,
-  hasContent,
-  isDirty,
+  getFreshHasContentAndIsDirty,
   isEditingDraft,
 }: {
   onSelectDraft: (draft: ArticleDraftSummary) => void
   onSaveDraft: () => Promise<{success: boolean}>
   onDiscard: () => void
-  hasContent: boolean
-  isDirty: boolean
+  /**
+   * Pulls a fresh `{hasContent, isDirty}` read - via `editorBridge.
+   * getTitleAndSubtitle()`, not the live-mirrored `title`/`subtitle` state -
+   * right before `handlePress` decides. Title/Sub-title live in the WebView
+   * now, mirrored to `index.tsx` on a debounced (~100ms) push for display
+   * purposes only; this button is an RN control outside that WebView, with
+   * no reliable way to blur-flush it first, so trusting the mirror directly
+   * here would open the drafts list with no save prompt if pressed inside
+   * that debounce window right after typing or pasting a title. See
+   * `bridges/titleSubtitle.ts`'s own doc comment for the full reasoning -
+   * `onPressCancel` in `index.tsx` has the identical fix, for the identical
+   * reason.
+   */
+  getFreshHasContentAndIsDirty: () => Promise<{
+    hasContent: boolean
+    isDirty: boolean
+  }>
   isEditingDraft: boolean
 }) {
   const {_} = useLingui()
@@ -39,7 +53,8 @@ export function DraftsButton({
   const savePromptControl = Prompt.usePromptControl()
   const {isPending: isSaving} = useSaveArticleDraftMutation()
 
-  const handlePress = () => {
+  const handlePress = async () => {
+    const {hasContent, isDirty} = await getFreshHasContentAndIsDirty()
     if (!hasContent || (isEditingDraft && !isDirty)) {
       draftsDialogControl.open()
     } else {
@@ -66,7 +81,7 @@ export function DraftsButton({
         accessibilityLabel={_(msg`Drafts`)}
         accessibilityHint=""
         disabled={isSaving}
-        onPress={handlePress}>
+        onPress={() => void handlePress()}>
         <Text
           style={[
             {fontSize: 15, fontWeight: '500', color: t.palette.primary_600},

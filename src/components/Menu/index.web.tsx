@@ -184,12 +184,29 @@ export function Outer({
   children,
   style,
   onCloseAutoFocus,
+  onOpenAutoFocus,
 }: React.PropsWithChildren<{
   showCancel?: boolean
   style?: StyleProp<ViewStyle>
   onCloseAutoFocus?: React.ComponentProps<
     typeof DropdownMenu.Content
   >['onCloseAutoFocus']
+  // Opt-in only (undefined preserves Radix's own default: focus the first
+  // item) - a caller sitting next to a persistent on-screen keyboard (a
+  // mobile WebView text editor's own toolbar, for one) needs to prevent
+  // this, since ARIA menu's default open-focus is exactly what closes that
+  // keyboard the moment the menu mounts, before the user has touched
+  // anything inside it. Typed by hand as `(event: Event) => void`, matching
+  // `onCloseAutoFocus`'s own real shape (both are Radix `FocusScopeProps`'
+  // `onMountAutoFocus`/`onUnmountAutoFocus`) - the installed
+  // `@radix-ui/react-dropdown-menu` version's own exported
+  // `DropdownMenuContentProps` type doesn't expose this prop at all despite
+  // `@radix-ui/react-menu`'s own `MenuContentProps` (which it wraps)
+  // genuinely having it, so `React.ComponentProps<>[...]` extraction (as
+  // used for `onCloseAutoFocus` above) can't resolve it - passed through via
+  // a cast below, same as this file's neighbors handle other real-API/
+  // installed-types gaps.
+  onOpenAutoFocus?: (event: Event) => void
 }>) {
   const t = useTheme()
   const {reduceMotionEnabled} = useA11y()
@@ -202,6 +219,7 @@ export function Outer({
         loop
         aria-label="Test"
         onCloseAutoFocus={onCloseAutoFocus}
+        {...({onOpenAutoFocus} as {onOpenAutoFocus?: (event: Event) => void})}
         className="dropdown-menu-transform-origin dropdown-menu-constrain-size">
         <View
           style={[

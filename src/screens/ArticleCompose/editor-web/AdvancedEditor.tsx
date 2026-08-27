@@ -16,6 +16,7 @@ import {ImageUploadBridge} from '../bridges/imageUpload'
 import {LinkBridge} from '../bridges/link'
 import {ParagraphStyleBridge} from '../bridges/paragraphStyle'
 import {TextAlignBridge} from '../bridges/textAlign'
+import {TitleSubtitleBridge} from '../bridges/titleSubtitle'
 import {TypographyBridge} from '../bridges/typography'
 import {UnderlineBridge} from '../bridges/underline'
 import {type EditorFacet} from '../state'
@@ -159,6 +160,7 @@ export function AdvancedEditor() {
       ImageUploadBridge,
       ParagraphStyleBridge,
       ContentBridge,
+      TitleSubtitleBridge,
     ],
   })
 

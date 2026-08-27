@@ -54,6 +54,27 @@
   font-style: normal;
   font-display: swap;
 }
+/*
+ * article/sub-title (Figma node 279:4334) - Fraunces Regular, pairing with
+ * article/title's Fraunces SemiBold above so Title and Sub-title read as one
+ * serif family, differentiated by weight rather than by a family switch.
+ * Self-instanced at wght=400 the same way as SemiBold, but at the STAT
+ * table's registered opsz=9 "9pt" cut rather than a custom in-between value:
+ * that cut's own declared range is [9, 40.5], comfortably covering both
+ * Sub-title's 24px and Title's 32px, and using the exact STAT-registered
+ * value (rather than an arbitrary point within its range) let
+ * --update-name-table generate a fully correct name automatically - no hand
+ * patch needed this time. Confirmed consistent with the shipped SemiBold
+ * file via matching glyph count (698) and near-identical file size, despite
+ * that file's own README claiming a different opsz.
+ */
+@font-face {
+  font-family: 'Fraunces Regular';
+  src: url('../assets/fonts/fraunces/Fraunces-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
 @font-face {
   font-family: 'Archivo SemiBold';
   src: url('../assets/fonts/archivo/Archivo-SemiBold.ttf') format('truetype');
@@ -61,11 +82,73 @@
   font-style: normal;
   font-display: swap;
 }
+/*
+ * Italic sub-heading text (the toolbar's Italic mark is global and can be
+ * toggled on a sub-heading run same as body text). Google Fonts distributes
+ * Archivo's italic as its own separate variable font file
+ * (Archivo-Italic[wdth,wght].ttf) with a real, designed slant - confirmed via
+ * its post.italicAngle (-10) rather than assumed - so this is a true italic
+ * cut, not a synthetic oblique. Instanced at the same wght=600, wdth=100 as
+ * Archivo SemiBold above, via --update-name-table.
+ */
+@font-face {
+  font-family: 'Archivo SemiBold';
+  src: url('../assets/fonts/archivo/Archivo-SemiBoldItalic.ttf')
+    format('truetype');
+  font-weight: 600;
+  font-style: italic;
+  font-display: swap;
+}
 @font-face {
   font-family: 'Vollkorn';
   src: url('../assets/fonts/vollkorn/Vollkorn-Regular.ttf') format('truetype');
   font-weight: 400;
   font-style: normal;
+  font-display: swap;
+}
+/*
+ * Bold body text (article/quote content combining bold/italic/regular runs,
+ * Figma 16:22) previously had no real bold cut to use - Google Fonts only
+ * ever distributed Vollkorn as a variable font, and only Regular had been
+ * instanced out of it. Self-instanced the same way, at wght=700 this time,
+ * using `--update-name-table` (the plain instancer command alone leaves the
+ * name table's family/subfamily/PostScript name untouched at "Regular" even
+ * though OS/2.usWeightClass is correctly set to 700 - a real, silent
+ * mismatch, not a hypothetical one, caught by diffing the output's name
+ * table against this Regular file's before shipping it). Same family name
+ * as Regular, differentiated by font-weight only - matching how a normal
+ * multi-weight family ships, and how CSS/RN both expect to resolve bold text
+ * automatically once both weights are registered under one family name.
+ */
+@font-face {
+  font-family: 'Vollkorn';
+  src: url('../assets/fonts/vollkorn/Vollkorn-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+/*
+ * Italic and bold-italic body text. Google Fonts distributes Vollkorn's
+ * italic as its own separate variable font file (Vollkorn-Italic[wght].ttf)
+ * with a real designed slant (post.italicAngle -11, confirmed rather than
+ * assumed) - not a synthetic oblique of the upright. Its named instances
+ * include both Italic (wght=400) and Bold Italic (wght=700), mirroring the
+ * upright family's Regular/Bold weights exactly, so both are instanced here
+ * to keep the family complete under simultaneous bold+italic marks.
+ */
+@font-face {
+  font-family: 'Vollkorn';
+  src: url('../assets/fonts/vollkorn/Vollkorn-Italic.ttf') format('truetype');
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Vollkorn';
+  src: url('../assets/fonts/vollkorn/Vollkorn-BoldItalic.ttf')
+    format('truetype');
+  font-weight: 700;
+  font-style: italic;
   font-display: swap;
 }
 

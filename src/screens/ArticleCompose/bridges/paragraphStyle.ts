@@ -5,13 +5,22 @@ import {type ParagraphStyleId} from '../state'
 /**
  * Unifies Heading/Blockquote/BulletList/OrderedList/`TypographyBridge` into
  * the single `setParagraphStyle`/`activeParagraphStyle` surface
- * `Toolbar.tsx`'s 9-option dropdown actually needs - replaces `state.ts`'s
- * retired `onSelectParagraphStyle`/`detectParagraphStyle`, same 9 options,
- * same precedence, now driven by live editor state instead of parsing
+ * `Toolbar.tsx`'s 8-option dropdown actually needs - replaces `state.ts`'s
+ * retired `onSelectParagraphStyle`/`detectParagraphStyle` (since deleted
+ * outright, having no other callers left once this bridge existed), same
+ * precedence, now driven by live editor state instead of parsing
  * markdown-prefix conventions by hand. Needs no `tiptapExtension` of its
  * own - it only orchestrates node types Heading/Blockquote/BulletList/
  * OrderedList/`TypographyBridge` already register, all of which must stay
  * present in the same `bridges`/`bridgeExtensions` list as this bridge.
+ *
+ * **No "Title" option.** The dropdown originally offered heading level 1 as
+ * "Title", but the document's actual title is only ever entered in its own
+ * dedicated field above the body (`index.tsx`), never as body content - so
+ * offering a same-named style inside the body was confusing, not a real
+ * second way to set it. Removed at the project owner's direction. `heading`
+ * level 1 is still a real, valid node in the schema (nothing here rejects
+ * it), it is simply no longer reachable from this dropdown.
  *
  * `clearNodes()` (a real, built-in `@tiptap/core` command - confirmed
  * directly in the compiled source, not just inferred from a docs page)
@@ -83,9 +92,6 @@ export const ParagraphStyleBridge = new BridgeExtension<
     if (type !== ParagraphStyleActionType.SetParagraphStyle) return false
     let chain = (editor.chain().focus() as unknown as UntypedChain).clearNodes()
     switch (payload) {
-      case 'title':
-        chain = chain.setHeading({level: 1})
-        break
       case 'subheading1':
         chain = chain.setHeading({level: 2})
         break
@@ -158,10 +164,18 @@ export const ParagraphStyleBridge = new BridgeExtension<
 })
 
 /**
- * Mirrors `state.ts`'s retired `detectParagraphStyle` precedence exactly:
- * blockquote (arabic-quote-qualified) first, then arabic-paragraph
- * typography, then heading levels, then the two list types, default
- * plain paragraph.
+ * Precedence: blockquote (arabic-quote-qualified) first, then
+ * arabic-paragraph typography, then heading levels, then the two list
+ * types, default plain paragraph.
+ *
+ * No case returns for a level-1 heading - there is no dropdown option that
+ * sets one anymore (see this file's top comment), so a level-1 heading is
+ * something this dropdown can never itself have created. It can still exist
+ * in a document loaded from elsewhere (raw Markdown import/paste), and if it
+ * does, it deliberately falls through to the plain `paragraph` default below
+ * rather than getting its own case: the dropdown would otherwise need a
+ * label for a style nothing in this UI can produce, for a situation that
+ * doesn't arise through normal use of this composer.
  */
 function detectActiveParagraphStyle(
   editor: {
@@ -173,7 +187,6 @@ function detectActiveParagraphStyle(
     return typography === 'arabicQuote' ? 'arabicBlockQuote' : 'blockQuote'
   }
   if (typography === 'arabicParagraph') return 'arabicParagraph'
-  if (editor.isActive('heading', {level: 1})) return 'title'
   if (editor.isActive('heading', {level: 2})) return 'subheading1'
   if (editor.isActive('heading', {level: 3})) return 'subheading2'
   if (editor.isActive('bulletList')) return 'bulletedList'
