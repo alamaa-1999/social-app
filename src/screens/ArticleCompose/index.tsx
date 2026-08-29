@@ -41,10 +41,9 @@ import {
   PUBLIC_ARTICLE_RQKEY,
   RQKEY,
   useArticleDocumentQuery,
-  waitForArticleIndexed,
 } from '#/state/queries/articles'
 import {useProfileQuery} from '#/state/queries/profile'
-import {useAppviewClient, usePdsClient, useSession} from '#/state/session'
+import {usePdsClient, useSession} from '#/state/session'
 import {ArticleView} from '#/screens/Article/ArticleView'
 import {atoms as a, useBreakpoints, useTheme, web} from '#/alf'
 import {Button, ButtonText} from '#/components/Button'
@@ -232,7 +231,6 @@ export function ArticleCompose({
   const t = useTheme()
   const {gtMobile} = useBreakpoints()
   const pdsClient = usePdsClient()
-  const appviewClient = useAppviewClient()
   const {currentAccount} = useSession()
   const queryClient = useQueryClient()
   const requireStriker = useRequireStrikerForArticleAuthoring()
@@ -1359,7 +1357,7 @@ export function ArticleCompose({
             postRkey: editingArticle.postRkey,
           }
         : undefined
-      const {postUri, documentUri} = await publishArticle({
+      const {documentUri} = await publishArticle({
         pdsClient,
         draft: {
           title: previewSnapshot.title,
@@ -1412,20 +1410,13 @@ export function ArticleCompose({
             queryKey: PUBLIC_ARTICLE_RQKEY(did, rkey),
           })
         }
+        // `useAuthorArticlesQuery` now reads documents straight off the PDS
+        // (see its own doc comment) - no AppView indexing to wait out, so
+        // both a fresh publish and an edit can invalidate immediately.
+        void queryClient.invalidateQueries({queryKey: RQKEY(did)})
         if (editingArticle) {
-          void queryClient.invalidateQueries({queryKey: RQKEY(did)})
           void queryClient.invalidateQueries({
             queryKey: DOCUMENT_RQKEY(documentUri),
-          })
-        } else {
-          // Best-effort: the AppView needs a moment to index the new
-          // companion post before the Articles tab can resolve it (see
-          // waitForArticleIndexed's doc comment). Not awaited - publish
-          // should close immediately regardless of how long indexing takes.
-          void waitForArticleIndexed(appviewClient, postUri).then(indexed => {
-            if (indexed) {
-              void queryClient.invalidateQueries({queryKey: RQKEY(did)})
-            }
           })
         }
       }

@@ -1,16 +1,19 @@
 import {useCallback, useEffect, useImperativeHandle, useMemo} from 'react'
 import {type ListRenderItemInfo, View} from 'react-native'
-import {moderatePost, type ModerationOpts} from '@bsky/sdk/moderation'
+import {type UriString} from '@atproto/lex'
 import {msg} from '@lingui/core/macro'
 import {useLingui} from '@lingui/react'
 import {Trans} from '@lingui/react/macro'
 import {useNavigation} from '@react-navigation/native'
 
+import {SUNNAHSKY_SERVICE} from '#/lib/constants'
 import {useRequireStrikerForArticleAuthoring} from '#/lib/hooks/useRequireStrikerForArticleAuthoring'
 import {type NavigationProp} from '#/lib/routes/types'
 import {cleanError} from '#/lib/strings/errors'
-import {useAuthorArticlesQuery} from '#/state/queries/articles'
-import {PostFeedItem} from '#/view/com/posts/PostFeedItem'
+import {
+  type AuthorArticle,
+  useAuthorArticlesQuery,
+} from '#/state/queries/articles'
 import {EmptyState} from '#/view/com/util/EmptyState'
 import {ErrorMessage} from '#/view/com/util/error/ErrorMessage'
 import {List, type ListRef} from '#/view/com/util/List'
@@ -19,6 +22,7 @@ import {FeedLoadingPlaceholder} from '#/view/com/util/LoadingPlaceholder'
 import {atoms as a, ios} from '#/alf'
 import {Button, ButtonText} from '#/components/Button'
 import {Newspaper_Stroke2_Corner2_Rounded as NewspaperIcon} from '#/components/icons/Newspaper'
+import {StandardSiteEmbed} from '#/components/Post/Embed/StandardSiteEmbed'
 import {IS_IOS, IS_NATIVE} from '#/env'
 import {type app} from '#/lexicons'
 import {type SectionRef} from './types'
@@ -29,8 +33,8 @@ const ERROR_ITEM = {_reactKey: 'error'} as const
 
 type ArticleRow = {
   _reactKey?: undefined
-  post: app.bsky.feed.defs.PostView
-  moderation: ReturnType<typeof moderatePost>
+  article: AuthorArticle
+  view: app.bsky.embed.external.ViewExternal
 }
 type Row = typeof LOADING | typeof EMPTY | typeof ERROR_ITEM | ArticleRow
 
@@ -38,7 +42,7 @@ interface ArticlesSectionProps {
   ref?: React.Ref<SectionRef>
   did: string
   isMe: boolean
-  moderationOpts: ModerationOpts
+  profile: app.bsky.actor.defs.ProfileViewDetailed
   scrollElRef: ListRef
   headerHeight: number
   isFocused: boolean
@@ -46,20 +50,63 @@ interface ArticlesSectionProps {
 }
 
 /**
- * Lists an author's published articles - not as hand-built cards, but by
- * resolving each `site.standard.document`'s `bskyPostRef` to its real
- * companion post and rendering that through `PostFeedItem`, the same
- * per-row renderer `PostFeed` itself uses. This is what makes the free
- * `StandardSiteEmbed` card show up automatically (see
- * `useAuthorArticlesQuery`) - an earlier draft of this section rendered a
- * custom card directly from document fields, which was a corrected design
- * mistake (`articles client ui plan.md` Phase 3).
+ * Builds the same `ViewExternal` shape the AppView would otherwise hydrate
+ * for this document's companion post, straight from PDS-sourced fields -
+ * see `useAuthorArticlesQuery`'s own doc comment for why this tab no longer
+ * resolves through the AppView at all. `associatedRefs` carries only the
+ * document's own ref (not the publication's) - `StandardSiteEmbed`'s
+ * `isStandardSitePublicationEmbed` check only cares that a
+ * `site.standard.document` ref is present, not that every possible ref is.
+ */
+function articleToViewExternal(
+  article: AuthorArticle,
+  profile: app.bsky.actor.defs.ProfileViewDetailed,
+): app.bsky.embed.external.ViewExternal | undefined {
+  const {doc, uri, cid} = article
+  if (!doc.path) return undefined
+  const coverImage = doc.coverImage
+  const thumb = coverImage
+    ? (`${SUNNAHSKY_SERVICE}/xrpc/com.atproto.sync.getBlob?did=${encodeURIComponent(
+        profile.did,
+      )}&cid=${encodeURIComponent(
+        'ref' in coverImage ? coverImage.ref.toString() : coverImage.cid,
+      )}` as UriString)
+    : undefined
+  return {
+    $type: 'app.bsky.embed.external#viewExternal',
+    uri: `${SUNNAHSKY_SERVICE}${doc.path}`,
+    title: doc.title,
+    description: doc.description ?? '',
+    thumb,
+    createdAt: doc.publishedAt,
+    updatedAt: doc.updatedAt,
+    associatedRefs: [{uri, cid}],
+    associatedProfiles: [
+      {
+        $type: 'app.bsky.actor.defs#profileViewBasic',
+        did: profile.did,
+        handle: profile.handle,
+        displayName: profile.displayName,
+        avatar: profile.avatar,
+      },
+    ],
+  }
+}
+
+/**
+ * Lists an author's published articles, each rendered as a `StandardSiteEmbed`
+ * card built directly from the document's own fields - see
+ * `useAuthorArticlesQuery`'s doc comment for why this no longer resolves
+ * through a real companion post. A document with no usable `path` (a loose
+ * document from a third-party Standard.site client, or one predating this
+ * field) is skipped rather than shown with a broken link - rare in practice,
+ * since this app's own `publishArticle()` always sets it.
  */
 export function ProfileArticlesSection({
   ref,
   did,
   isMe,
-  moderationOpts,
+  profile,
   scrollElRef,
   headerHeight,
   isFocused,
@@ -70,7 +117,7 @@ export function ProfileArticlesSection({
   const requireStriker = useRequireStrikerForArticleAuthoring()
 
   const {
-    data: posts,
+    data: articles,
     isPending,
     isError,
     error,
@@ -98,12 +145,14 @@ export function ProfileArticlesSection({
   const items = useMemo(() => {
     if (isPending) return [LOADING]
     if (isError) return [ERROR_ITEM]
-    const rows = (posts ?? [])
-      .map(post => ({post, moderation: moderatePost(post, moderationOpts)}))
-      .filter(row => !row.moderation.ui('contentList').filter)
+    const rows = (articles ?? []).flatMap(article => {
+      const view = articleToViewExternal(article, profile)
+      if (!view) return []
+      return [{article, view}]
+    })
     if (!rows.length) return [EMPTY]
     return rows
-  }, [posts, isPending, isError, moderationOpts])
+  }, [articles, isPending, isError, profile])
 
   const onPressWriteArticle = requireStriker(() =>
     navigation.navigate('ArticleCompose'),
@@ -157,18 +206,9 @@ export function ProfileArticlesSection({
         )
       }
       return (
-        <PostFeedItem
-          post={item.post}
-          record={item.post.record as app.bsky.feed.post.Main}
-          moderation={item.moderation}
-          parentAuthor={undefined}
-          showReplyTo={false}
-          reason={undefined}
-          feedContext={''}
-          reqId={undefined}
-          rootPost={item.post}
-          hideTopBorder={index === 0}
-        />
+        <View style={[a.px_lg, a.pb_md, index === 0 && a.pt_md]}>
+          <StandardSiteEmbed view={item.view} />
+        </View>
       )
     },
     [_, error, refetch, isMe],
@@ -197,5 +237,5 @@ function keyExtractor(item: Row) {
   ) {
     return item._reactKey
   }
-  return item.post.uri
+  return item.article.uri
 }

@@ -459,7 +459,7 @@ function ProfileScreenLoaded({
                 ref={articlesSectionRef}
                 did={profile.did}
                 isMe={isMe}
-                moderationOpts={moderationOpts}
+                profile={profile}
                 scrollElRef={scrollElRef as ListRef}
                 headerHeight={headerHeight}
                 isFocused={isFocused}

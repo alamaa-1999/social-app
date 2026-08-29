@@ -15,9 +15,8 @@ import {renderHook, waitFor} from '@testing-library/react-native'
 
 import {computeCid} from '#/lib/api/computeCid'
 import {usePdsClient} from '#/state/session'
-import {type app} from '#/lexicons'
-import {useArticleDocumentQuery} from '../articles'
-import {selectGenuineCompanionPosts} from '../articles-companion'
+import {getSunnahskyPublicPdsClient} from '#/state/session/clients'
+import {useArticleDocumentQuery, useAuthorArticlesQuery} from '../articles'
 
 // Lightweight stubs, not `jest.requireActual` - the real module transitively
 // pulls in react-native-reanimated/Worklets, uninitialized in this test
@@ -29,136 +28,86 @@ jest.mock('#/state/session', () => ({
   useSession: jest.fn(),
 }))
 
+// `useAuthorArticlesQuery` calls this module-level factory directly (it's
+// unauthenticated by design - see its own doc comment), not the `usePdsClient`
+// hook above.
+jest.mock('#/state/session/clients', () => ({
+  getSunnahskyPublicPdsClient: jest.fn(),
+}))
+
 const mockUsePdsClient = usePdsClient as jest.Mock
+const mockGetSunnahskyPublicPdsClient = getSunnahskyPublicPdsClient as jest.Mock
 
-const OWNER_DID = 'did:plc:owner' as DidString
-const OTHER_DID = 'did:plc:someoneelse' as DidString
+describe('useAuthorArticlesQuery', () => {
+  const DID = 'did:plc:owner' as DidString
 
-const DOC = {
-  uri: 'at://did:plc:owner/site.standard.document/doc1' as AtUriString,
-  cid: 'bafyreidoc1cid00000000000000000000000000000000000000',
-}
-
-function makeDoc(bskyPostRefUri: AtUriString) {
-  return {
-    ...DOC,
-    doc: {
-      $type: 'site.standard.document' as const,
-      title: 'Test article',
-      publishedAt: '2026-01-01T00:00:00.000Z',
-      site: 'at://did:plc:owner/site.standard.publication/pub1',
-      bskyPostRef: {uri: bskyPostRefUri, cid: 'unused-bskyPostRef-cid'},
-    },
+  function renderWithClient(mockCall: jest.Mock) {
+    mockGetSunnahskyPublicPdsClient.mockReturnValue({call: mockCall})
+    const queryClient = new QueryClient({
+      defaultOptions: {queries: {retry: false}},
+    })
+    const wrapper = ({children}: {children: React.ReactNode}) => (
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    )
+    return renderHook(() => useAuthorArticlesQuery(DID), {wrapper})
   }
-}
 
-function makePost(opts: {
-  uri: AtUriString
-  authorDid: DidString
-  associatedRefs?: {uri: AtUriString; cid: string}[]
-}): app.bsky.feed.defs.PostView {
-  return {
-    uri: opts.uri,
-    cid: 'bafyreipostcid0000000000000000000000000000000000000',
-    author: {
-      did: opts.authorDid,
-      handle: 'test.bsky.social',
-    },
-    indexedAt: '2026-01-01T00:00:00.000Z',
-    record: {
-      $type: 'app.bsky.feed.post',
-      text: 'Test article',
-      createdAt: '2026-01-01T00:00:00.000Z',
-      ...(opts.associatedRefs
-        ? {
-            embed: {
-              $type: 'app.bsky.embed.external',
-              external: {
-                $type: 'app.bsky.embed.external#external',
-                uri: 'https://sunnahsky.com/article/did:plc:owner/doc1',
-                title: 'Test article',
-                description: 'A description',
-                associatedRefs: opts.associatedRefs,
-              },
-            },
-          }
-        : {}),
-    },
-  }
-}
-
-describe('selectGenuineCompanionPosts', () => {
-  it('includes a post that is genuinely the document’s companion (same author, matching associatedRefs)', () => {
-    const postUri: AtUriString = 'at://did:plc:owner/app.bsky.feed.post/post1'
-    const docs = [makeDoc(postUri)]
-    const posts = [
-      makePost({
-        uri: postUri,
-        authorDid: OWNER_DID,
-        associatedRefs: [{uri: DOC.uri, cid: DOC.cid}],
-      }),
-    ]
-
-    const result = selectGenuineCompanionPosts(OWNER_DID, docs, posts)
-
-    expect(result).toHaveLength(1)
-    expect(result[0].uri).toBe(postUri)
+  afterEach(() => {
+    jest.clearAllMocks()
   })
 
-  it('excludes a bskyPostRef pointing at a different account’s post, even with matching associatedRefs', () => {
-    const postUri: AtUriString =
-      'at://did:plc:someoneelse/app.bsky.feed.post/post1'
-    const docs = [makeDoc(postUri)]
-    const posts = [
-      makePost({
-        uri: postUri,
-        authorDid: OTHER_DID,
-        // Even if this attacker-controlled post happened to carry a
-        // matching associatedRefs entry, it isn't the account that
-        // published this document, so it must still be excluded.
-        associatedRefs: [{uri: DOC.uri, cid: DOC.cid}],
-      }),
-    ]
-
-    const result = selectGenuineCompanionPosts(OWNER_DID, docs, posts)
-
-    expect(result).toHaveLength(0)
-  })
-
-  it('excludes a bskyPostRef pointing at the same account’s own post with no matching associatedRefs entry back to that document', () => {
-    const postUri: AtUriString =
-      'at://did:plc:owner/app.bsky.feed.post/some-other-post'
-    const docs = [makeDoc(postUri)]
-    const posts = [
-      makePost({
-        uri: postUri,
-        authorDid: OWNER_DID,
-        // Same account, but this post's associatedRefs point at an
-        // unrelated document/publication - it was never published
-        // together with DOC, regardless of what bskyPostRef claims.
-        associatedRefs: [
-          {
-            uri: 'at://did:plc:owner/site.standard.document/some-other-doc',
-            cid: 'bafyreisomeotherdoccid000000000000000000000000000000',
+  it('lists documents straight off listRecords, skipping unparseable ones', async () => {
+    const mockCall = jest.fn().mockResolvedValue({
+      records: [
+        {
+          uri: 'at://did:plc:owner/site.standard.document/doc1' as AtUriString,
+          cid: 'bafyreidoc1cid00000000000000000000000000000000000000',
+          value: {
+            $type: 'site.standard.document',
+            title: 'A real article',
+            publishedAt: '2026-01-01T00:00:00.000Z',
+            site: 'at://did:plc:owner/site.standard.publication/pub1',
           },
-        ],
-      }),
-    ]
+        },
+        {
+          uri: 'at://did:plc:owner/site.standard.document/doc2' as AtUriString,
+          cid: 'bafyreidoc2cid00000000000000000000000000000000000000',
+          // Missing required fields - not a valid site.standard.document.
+          value: {$type: 'site.standard.document'},
+        },
+      ],
+    })
 
-    const result = selectGenuineCompanionPosts(OWNER_DID, docs, posts)
+    const {result} = renderWithClient(mockCall)
 
-    expect(result).toHaveLength(0)
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(result.current.data).toHaveLength(1)
+    expect(result.current.data?.[0].doc.title).toBe('A real article')
   })
 
-  it('excludes a same-account post with no external embed at all', () => {
-    const postUri: AtUriString =
-      'at://did:plc:owner/app.bsky.feed.post/plain-post'
-    const docs = [makeDoc(postUri)]
-    const posts = [makePost({uri: postUri, authorDid: OWNER_DID})]
+  it('does not require a bskyPostRef to list a document', async () => {
+    // A document published entirely without a Bluesky companion post - via a
+    // different Standard.site client, or before this app tethered one - is
+    // still a real article this account published, and should still show.
+    const mockCall = jest.fn().mockResolvedValue({
+      records: [
+        {
+          uri: 'at://did:plc:owner/site.standard.document/doc1' as AtUriString,
+          cid: 'bafyreidoc1cid00000000000000000000000000000000000000',
+          value: {
+            $type: 'site.standard.document',
+            title: 'No companion post',
+            publishedAt: '2026-01-01T00:00:00.000Z',
+            site: 'https://example.com',
+          },
+        },
+      ],
+    })
 
-    const result = selectGenuineCompanionPosts(OWNER_DID, docs, posts)
+    const {result} = renderWithClient(mockCall)
 
-    expect(result).toHaveLength(0)
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(result.current.data).toHaveLength(1)
   })
 })
 
