@@ -3,6 +3,7 @@ import {type AtIdentifierString, AtUri, type AtUriString} from '@atproto/syntax'
 import {useQuery} from '@tanstack/react-query'
 
 import {LOCAL_DEV_SERVICE, SUNNAHSKY_SERVICE} from '#/lib/constants'
+import {logger} from '#/logger'
 import {STALE} from '#/state/queries'
 import {useAppviewClient, usePdsClient, useSession} from '#/state/session'
 import {
@@ -98,7 +99,25 @@ export function useAuthorArticlesQuery(did: string | undefined) {
         posts.push(...res.posts)
       }
 
-      return selectGenuineCompanionPosts(did!, docs, posts)
+      const genuine = selectGenuineCompanionPosts(did!, docs, posts)
+      if (genuine.length < docs.length) {
+        // Silent drops here are otherwise untraceable - the tab just renders
+        // empty with nothing in the UI pointing back at which article or
+        // why. Logged with the dropped document's own uri, not the reason
+        // (author mismatch vs missing post vs associatedRefs mismatch),
+        // since selectGenuineCompanionPosts is deliberately kept free of
+        // this module's heavier imports - the uri alone is enough to go
+        // inspect the document/post pair directly.
+        const genuineUris = new Set(genuine.map(post => post.uri))
+        const dropped = docs.filter(
+          entry => !genuineUris.has(entry.doc.bskyPostRef!.uri),
+        )
+        logger.warn(
+          'useAuthorArticlesQuery: dropped document(s) whose companion post could not be verified',
+          {dropped: dropped.map(entry => entry.uri)},
+        )
+      }
+      return genuine
     },
   })
 }
