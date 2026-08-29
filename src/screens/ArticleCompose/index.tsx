@@ -347,6 +347,23 @@ export function ArticleCompose({
       titlePlaceholder: _(msg`Article title...`),
       subtitleLabel: _(msg`Sub-title`),
       subtitlePlaceholder: _(msg`Sub-title (optional)...`),
+      // `editor-web/index.html` has no access to ALF (a genuinely separate
+      // Vite bundle) and so cannot call `useTheme()` itself - these are
+      // already-resolved values for whichever of light/dark/dim is
+      // currently active, applied as CSS custom properties once the bundle
+      // mounts (`AdvancedEditor.tsx`). Read once, same as every other field
+      // here - a theme change while the composer is already open won't
+      // re-apply, matching this object's own existing limitation.
+      colors: {
+        bg: t.atoms.bg.backgroundColor,
+        text: t.atoms.text.color,
+        textMuted: t.atoms.text_contrast_low.color,
+        textSecondary: t.atoms.text_contrast_medium.color,
+        textStrong: t.atoms.text_contrast_high.color,
+        border: t.atoms.border_contrast_medium.borderColor,
+        error: t.palette.negative_700,
+        accent: t.palette.primary_500,
+      },
     },
     onChange: () => {
       if (suppressNextBodyChangeRef.current) {

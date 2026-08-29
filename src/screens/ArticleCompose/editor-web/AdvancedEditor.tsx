@@ -105,7 +105,20 @@ ContentBridge.onBridgeMessage = createContentBridgeMessageHandler({
  */
 const initialContentFromNative = (
   window as unknown as {
-    initialContent?: {markdown: string; facets: EditorFacet[]}
+    initialContent?: {
+      markdown: string
+      facets: EditorFacet[]
+      colors?: {
+        bg: string
+        text: string
+        textMuted: string
+        textSecondary: string
+        textStrong: string
+        border: string
+        error: string
+        accent: string
+      }
+    }
   }
 ).initialContent ?? {markdown: '', facets: []}
 const {doc: initialDoc} = applyFacetsToParsedDoc(
@@ -113,6 +126,31 @@ const {doc: initialDoc} = applyFacetsToParsedDoc(
   initialContentFromNative.markdown,
   initialContentFromNative.facets,
 )
+
+/**
+ * `index.html`'s own `<style>` block reads these as `var(--editor-*)`, with
+ * light-mode literals as the fallback default - see that file's own comment
+ * on its `:root` block for why a fallback is needed at all (this bundle is
+ * also loaded standalone by `TipTapSpike.tsx`, which passes no `colors`).
+ * Native already resolved these once via `useTheme()` - genuinely resolved
+ * values, not a theme name, since this bundle has no access to `@bsky.app/alf`
+ * to resolve one itself (the same reason this file's own fonts are
+ * self-instanced rather than shared - see `index.html`'s font comment).
+ * Applied once, at this same module-scope point, matching every other
+ * `window.initialContent` field's own timing.
+ */
+const colorsFromNative = initialContentFromNative.colors
+if (colorsFromNative) {
+  const root = document.documentElement.style
+  root.setProperty('--editor-bg', colorsFromNative.bg)
+  root.setProperty('--editor-text', colorsFromNative.text)
+  root.setProperty('--editor-text-muted', colorsFromNative.textMuted)
+  root.setProperty('--editor-text-secondary', colorsFromNative.textSecondary)
+  root.setProperty('--editor-text-strong', colorsFromNative.textStrong)
+  root.setProperty('--editor-border', colorsFromNative.border)
+  root.setProperty('--editor-error', colorsFromNative.error)
+  root.setProperty('--editor-accent', colorsFromNative.accent)
+}
 
 /**
  * Web side of ArticleCompose's body editor, bundled separately by Vite into
