@@ -731,4 +731,72 @@ describe('publishArticle - body image assets record', () => {
       ['freshCid', 'publishedCid'],
     )
   })
+
+  /*
+   * Regression test: editing an article that predates this feature (or one
+   * that simply never had a body image before) has no assets record at its
+   * rkey yet. Emitting `#update` in that case throws an uncaught
+   * `InternalServerError` server-side, confirmed by reproducing this exact
+   * sequence against a real local PDS - `applyWrites#update` against a
+   * record that has never been created is not a case the PDS handles
+   * gracefully. `#create` is required instead, exactly like the
+   * never-edited-before path a few tests above.
+   */
+  it('creates (not updates) the assets record when editing an article that never had one before', async () => {
+    const EDITING = {
+      documentUri: `at://${DID}/site.standard.document/existingdoc` as const,
+      documentRkey: 'existingdoc',
+      documentCid: 'bafyreioriginaldoccid00000000000000000000000000000',
+      publishedAt: '2024-01-01T00:00:00.000Z' as const,
+      postUri: `at://${DID}/app.bsky.feed.post/existingpost` as const,
+      postRkey: 'existingpost',
+    }
+
+    const {client, writes} = makeMockClient({
+      hasExistingPublication: true,
+      existingPublicationName: 'Unchanged Name',
+      displayName: 'Unchanged Name',
+      existingPost: {
+        $type: 'app.bsky.feed.post',
+        text: 'x',
+        createdAt: '2024-01-01T00:00:00.000Z',
+        embed: {
+          $type: 'app.bsky.embed.external',
+          external: {
+            $type: 'app.bsky.embed.external#external',
+            uri: 'https://sunnahsky.com/article/original',
+            title: 't',
+            description: 'd',
+            associatedRefs: [
+              {uri: EDITING.documentUri, cid: EDITING.documentCid},
+              {
+                uri: `at://${DID}/site.standard.publication/existingpub`,
+                cid: 'bafyreiexistingpubcid000000000000000000000000000000',
+              },
+            ],
+          },
+        },
+      },
+      // Deliberately no `existingAssets` - this article never had one.
+    })
+
+    await publishArticle({
+      pdsClient: client,
+      draft: {
+        title: 'Edited, first image ever',
+        description: 'd',
+        markdown: `Now with an image: ![](${blobUrl('freshCid')})`,
+        flavor: 'gfm',
+        bodyImages: [bodyImage('freshCid')],
+      },
+      editing: EDITING,
+    })
+
+    const assets = assetWrites(writes)[0] as unknown as {
+      $type: string
+      rkey: string
+    }
+    expect(assets.$type).toBe('com.atproto.repo.applyWrites#create')
+    expect(assets.rkey).toBe(EDITING.documentRkey)
+  })
 })

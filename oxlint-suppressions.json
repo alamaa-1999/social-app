@@ -839,6 +839,11 @@
       "count": 1
     }
   },
+  "src/screens/Article/__tests__/renderArticleDoc.test.tsx": {
+    "typescript/no-unsafe-member-access": {
+      "count": 27
+    }
+  },
   "src/screens/Deactivated.tsx": {
     "typescript/no-explicit-any": {
       "count": 1

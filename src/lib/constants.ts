@@ -247,7 +247,26 @@ export const DEV_ENV_APPVIEW_DID = `did:plc:dw4kbjf5mn7nhenabiqpkyh3` // always 
 
 // temp hack for e2e - esb
 export const BLUESKY_PROXY_HEADER = {
-  value: `${BLUESKY_PROXY_DID}#bsky_appview`,
+  /*
+   * `DEV_ENV_APPVIEW_DID` in dev, not `BLUESKY_PROXY_DID` - a real bug fix,
+   * not a defensive guess. `BLUESKY_PROXY_DID` has no local-dev branch and
+   * always resolves to the real production appview (`did:web:api.bsky.app`);
+   * every signed-in appview read (`buildAppviewClient`, `clients.ts`) proxies
+   * through whichever DID sits here, so a purely local `did:plc:` (from
+   * `dev-env`'s own ephemeral PDS/appview stack) got proxied to the *real*
+   * appview, which has obviously never heard of it - a hard, permanent
+   * `AuthRequiredError('identity unknown')` on every profile/notification/
+   * search read against a local dev PDS, confirmed directly against
+   * `bsky/src/auth-verifier.ts`'s `verifyServiceJwt`. `DEV_ENV_APPVIEW_DID`
+   * was already sitting right above this, unused anywhere, evidently
+   * prepared for exactly this and never wired up.
+   *
+   * `.set()` below is untouched and still wins over whichever default this
+   * is - the e2e harness (`TestCtrls.e2e.tsx`) explicitly calls it to point
+   * at its own fixed local appview, and that must keep working exactly as
+   * before.
+   */
+  value: `${IS_DEV ? DEV_ENV_APPVIEW_DID : BLUESKY_PROXY_DID}#bsky_appview`,
   get() {
     return this.value as Service
   },

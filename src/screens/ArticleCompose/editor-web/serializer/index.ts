@@ -492,7 +492,7 @@ export function applyFacetsToParsedDoc(
 
   const blockFacets = facets
     .filter(
-      f =>
+      (f): f is EditorFacet & {feature: BlockFeature} =>
         f.feature.$type === 'com.sunnahsky.richtext.facets.blocks#typography' ||
         f.feature.$type === 'com.sunnahsky.richtext.facets.blocks#textAlign',
     )

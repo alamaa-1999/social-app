@@ -26,3 +26,10 @@ upright's naming.
 **You may redistribute this file.** Nothing in [`ASSETS.md`](../../../ASSETS.md) restricts it —
 it is here because the OFL requires the license text to accompany the font, not because it is
 carved out of our [MIT license](../../../LICENSE).
+
+`Archivo-Regular.ttf` was instanced the same way, at `wght=400, wdth=100`, from the same
+upstream variable font (`google/fonts` repo, `ofl/archivo/Archivo[wdth,wght].ttf`) via
+`fontTools.varLib.instancer --update-name-table`. Confirmed consistent with the shipped
+SemiBold file via matching glyph count (834) and near-identical file size. Registered as its
+own `'Archivo Regular'` family (not a second weight under `'Archivo SemiBold'`), matching how
+Fraunces SemiBold/Regular are split into two families above rather than sharing one.

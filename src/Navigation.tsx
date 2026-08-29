@@ -72,6 +72,7 @@ import {SupportScreen} from '#/view/screens/Support'
 import {TermsOfServiceScreen} from '#/view/screens/TermsOfService'
 import {BottomBar} from '#/view/shell/bottom-bar/BottomBar'
 import {createNativeStackNavigatorWithAuth} from '#/view/shell/createNativeStackNavigatorWithAuth'
+import {ArticleScreen} from '#/screens/Article'
 import {ArticleComposeScreen} from '#/screens/ArticleCompose'
 import {TipTapSpike} from '#/screens/ArticleCompose/TipTapSpike'
 import {BookmarksScreen} from '#/screens/Bookmarks'
@@ -582,6 +583,14 @@ function commonScreens(Stack: typeof Flat, unreadCountLabel?: string) {
           }}
         />
       )}
+      <Stack.Screen
+        name="Article"
+        getComponent={() => ArticleScreen}
+        options={{
+          title: title(msg`Article`),
+          headerShown: false,
+        }}
+      />
       <Stack.Screen
         name="VideoFeed"
         getComponent={() => VideoFeed}

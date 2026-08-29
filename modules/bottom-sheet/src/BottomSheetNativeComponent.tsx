@@ -33,7 +33,14 @@ const NativeModule = requireNativeModule('BottomSheet')
 const IS_IOS15 =
   Platform.OS === 'ios' &&
   // semvar - can be 3 segments, so can't use Number(Platform.Version)
-  Number(Platform.Version.split('.').at(0)) < 16
+  // `Platform.Version` is a real string on an actual device, but the RN
+  // Jest preset's iOS mock leaves it undefined - guarded so importing this
+  // module (e.g. transitively, through any component that renders a Dialog)
+  // doesn't crash at module-load time in a test, before anything is even
+  // rendered. Defaults to "not iOS 15" for that unknown-version case, since
+  // this constant only ever softens layout behavior, never gates anything
+  // safety-critical.
+  Number((Platform.Version ?? '99').split('.').at(0)) < 16
 // older android versions (15 and below) aren't naturally edge-to-edge
 // and behave a little differently
 const IS_NON_E2E_ANDROID =

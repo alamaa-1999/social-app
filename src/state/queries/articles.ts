@@ -2,9 +2,13 @@ import {type Client} from '@atproto/lex'
 import {type AtIdentifierString, AtUri, type AtUriString} from '@atproto/syntax'
 import {useQuery} from '@tanstack/react-query'
 
+import {LOCAL_DEV_SERVICE, SUNNAHSKY_SERVICE} from '#/lib/constants'
 import {STALE} from '#/state/queries'
 import {useAppviewClient, usePdsClient, useSession} from '#/state/session'
-import {getSunnahskyPublicPdsClient} from '#/state/session/clients'
+import {
+  getPublicAppviewClient,
+  getSunnahskyPublicPdsClient,
+} from '#/state/session/clients'
 import {app, com, site} from '#/lexicons'
 import {selectGenuineCompanionPosts} from './articles-companion'
 import {createQueryKey} from './util'
@@ -142,6 +146,174 @@ export function useArticleDocumentQuery(uri: AtUriString | undefined) {
         throw new Error('This article record has no cid')
       }
       return {uri: recordUri, cid, document: result.value}
+    },
+  })
+}
+
+const PUBLIC_ARTICLE_RQKEY_ROOT = 'public-article'
+export const PUBLIC_ARTICLE_RQKEY = (did: string, rkey: string) =>
+  createQueryKey(PUBLIC_ARTICLE_RQKEY_ROOT, {did, rkey})
+
+/**
+ * Matches `getSunnahskyPublicPdsClient()`'s own service selection exactly -
+ * the reader has no session to build a `blobUrl()`-style URL from
+ * `currentAccount.service` the way the composer's edit path does
+ * (`loadedArticle.ts`), so this mirrors that client's own choice directly.
+ */
+const PUBLIC_PDS_SERVICE = __DEV__ ? LOCAL_DEV_SERVICE : SUNNAHSKY_SERVICE
+
+function publicBlobUrl(did: string, blob: {toString: () => string} | string) {
+  const cid = typeof blob === 'string' ? blob : blob.toString()
+  return `${PUBLIC_PDS_SERVICE}/xrpc/com.atproto.sync.getBlob?did=${encodeURIComponent(did)}&cid=${encodeURIComponent(cid)}`
+}
+
+export type PublicArticle = {
+  documentUri: AtUriString
+  documentCid: string
+  document: site.standard.document.Main
+  /** The document owner's own Bluesky handle, e.g. "alice.sunnahsky.com". */
+  handle: string
+  publicationName: string
+  publicationAvatarUri?: string
+  coverImageSrc?: string
+  /**
+   * TypeScript-only extension fields (see `asArray`'s own doc comment) -
+   * not on `document` itself, since `site.standard.document.Main`'s type
+   * only reflects real lexicon schema members.
+   */
+  authors: string[]
+  translators: string[]
+}
+
+/**
+ * Fetches a single, published `site.standard.document` by its owning `did`
+ * and `rkey`, for the **public** reader - unlike {@link useArticleDocumentQuery},
+ * which is explicitly same-account-only and authenticated, this is the
+ * correct tool for viewing *other* accounts' articles, since it goes through
+ * {@link getSunnahskyPublicPdsClient} the same way {@link useAuthorArticlesQuery}
+ * already does.
+ *
+ * `document.site` is a bare string, not guaranteed to be an `at://` URI -
+ * other Standard.site-compatible clients may write a loose `https://`
+ * reference with no publication record behind it at all (architecture
+ * decision 4: any ATproto client can write to a Sunnahsky-hosted repo). That
+ * case falls back to the `did` itself as a display name rather than treating
+ * a missing publication as an error - the article document itself is still
+ * genuinely fetchable and renderable.
+ */
+export function usePublicArticleQuery(
+  did: string | undefined,
+  rkey: string | undefined,
+) {
+  return useQuery({
+    queryKey: PUBLIC_ARTICLE_RQKEY(did || '', rkey || ''),
+    enabled: !!did && !!rkey,
+    staleTime: STALE.MINUTES.FIVE,
+    queryFn: async (): Promise<PublicArticle> => {
+      const pdsClient = getSunnahskyPublicPdsClient()
+      const {
+        uri: documentUri,
+        cid: documentCid,
+        value,
+      } = await pdsClient.call(com.atproto.repo.getRecord, {
+        repo: did! as AtIdentifierString,
+        collection: 'site.standard.document',
+        rkey: rkey!,
+      })
+      const parsed = site.standard.document.$safeParse(value)
+      if (!parsed.success) {
+        throw new Error('Could not parse this article')
+      }
+      if (!documentCid) {
+        throw new Error('This article record has no cid')
+      }
+      const document = parsed.value
+
+      // `authors`/`translators` (and their legacy singular `author`/
+      // `translator` forms) are the same TypeScript-only extension fields
+      // `useOwnArticleMetadataHistoryQuery` above already reads off a
+      // `$safeParse`d value the identical way - not real lexicon schema
+      // members, but preserved unstripped on the actual parsed object at
+      // runtime regardless of what its static type declares.
+      const documentExtras = parsed.value as typeof parsed.value & {
+        author?: unknown
+        authors?: unknown
+        translator?: unknown
+        translators?: unknown
+      }
+      const authors = [
+        ...asArray(documentExtras.author),
+        ...asArray(documentExtras.authors),
+      ]
+      const translators = [
+        ...asArray(documentExtras.translator),
+        ...asArray(documentExtras.translators),
+      ]
+
+      // The account's own handle for the header's "@handle" line - a
+      // separate lookup from the document/publication records above, since
+      // neither carries it. Public appview reads work unauthenticated, so
+      // this needs no session either.
+      let handle = did!
+      try {
+        const appviewClient = getPublicAppviewClient()
+        const profile = await appviewClient.call(app.bsky.actor.getProfile, {
+          actor: did! as AtIdentifierString,
+        })
+        handle = profile.handle
+      } catch {
+        // Falls back to showing the bare did - the article itself is still
+        // genuinely fetchable and renderable without it.
+      }
+
+      let publicationName = did!
+      let publicationAvatarUri: string | undefined
+      if (document.site.startsWith('at://')) {
+        try {
+          const siteUri = new AtUri(document.site)
+          const pub = await pdsClient.call(com.atproto.repo.getRecord, {
+            repo: siteUri.host,
+            collection: 'site.standard.publication',
+            rkey: siteUri.rkey,
+          })
+          const pubParsed = site.standard.publication.$safeParse(pub.value)
+          if (pubParsed.success) {
+            publicationName = pubParsed.value.name
+            if (pubParsed.value.icon) {
+              publicationAvatarUri = publicBlobUrl(
+                siteUri.host,
+                'ref' in pubParsed.value.icon
+                  ? pubParsed.value.icon.ref
+                  : pubParsed.value.icon.cid,
+              )
+            }
+          }
+        } catch {
+          // A publication fetch failure shouldn't block rendering the
+          // article itself - falls back to the `did` as a display name.
+        }
+      }
+
+      const coverImageSrc = document.coverImage
+        ? publicBlobUrl(
+            did!,
+            'ref' in document.coverImage
+              ? document.coverImage.ref
+              : document.coverImage.cid,
+          )
+        : undefined
+
+      return {
+        documentUri,
+        documentCid,
+        document,
+        handle,
+        publicationName,
+        publicationAvatarUri,
+        coverImageSrc,
+        authors,
+        translators,
+      }
     },
   })
 }

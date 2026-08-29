@@ -454,8 +454,24 @@ export async function publishArticle(opts: PublishArticleOpts) {
       value: documentRecord,
     })
     if (bodyImages.length > 0) {
+      /*
+       * `#update` only if an assets record already exists at this rkey -
+       * `#create` otherwise. An article published before this feature
+       * existed (or one that never had a body image until this edit) has
+       * no assets record yet, and `applyWrites#update` against a record
+       * that was never created throws an uncaught `InternalServerError`
+       * rather than a clean 4xx - confirmed directly by reproducing this
+       * exact sequence against a real PDS. Unconditionally using `#update`
+       * here worked by coincidence for every article that already had one
+       * (the common case while testing this feature in one sitting), which
+       * is why this shipped without being caught: the *first* time any
+       * given article ever gets a body image is exactly the case this
+       * missed.
+       */
       writes.push({
-        $type: 'com.atproto.repo.applyWrites#update',
+        $type: existingAssetsRecord
+          ? 'com.atproto.repo.applyWrites#update'
+          : 'com.atproto.repo.applyWrites#create',
         collection: 'com.sunnahsky.article.assets',
         rkey: docRkey,
         value: assetsRecord,

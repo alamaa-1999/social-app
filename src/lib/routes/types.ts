@@ -93,6 +93,7 @@ export type CommonNavigatorParams = {
   ArticleCompose: undefined
   ArticleEdit: {rkey: string}
   TipTapSpike: undefined
+  Article: {did: string; rkey: string}
   VideoFeed: VideoFeedSourceContext
   Bookmarks: undefined
   FindContactsFlow: undefined

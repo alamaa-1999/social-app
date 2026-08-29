@@ -198,6 +198,12 @@ export function Provider({children}: React.PropsWithChildren<{}>) {
             truncateAndInvalidate(queryClient, RQKEY_NOTIFS('mentions'))
           }
           broadcast.postMessage({event: unreadCountStr})
+        } catch {
+          // Silent poll - the next interval retries. A transient failure
+          // here (network blip, unreachable host) has no user-facing path
+          // to surface through, so it must not throw past this function -
+          // unhandled, it becomes an unhandled promise rejection and, in
+          // dev, a blocking full-screen error overlay every 30s.
         } finally {
           isFetchingRef.current = false
         }

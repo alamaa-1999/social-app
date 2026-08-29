@@ -8,6 +8,16 @@ import {startUriToStarterPackUri} from '#/lib/strings/starter-pack'
 import {logger} from '#/logger'
 
 export const BSKY_APP_HOST = 'https://bsky.app'
+/**
+ * The bare apex, not a hypothetical `app.` subdomain - confirmed directly
+ * against `lib/api/articles.ts`'s own `PUBLICATION_URL`, the literal value
+ * every article's canonical web URL is actually built from
+ * (`https://sunnahsky.com/article/:did/:rkey`). Fixed regardless of
+ * `__DEV__`, unlike {@link SUNNAHSKY_SERVICE}'s own PDS-service resolution -
+ * a canonical, shareable article URL should look the same no matter which
+ * environment published it.
+ */
+export const SUNNAHSKY_APP_HOST = 'https://sunnahsky.com'
 export const BSKY_HOSTING_ENDSWITH = '.host.bsky.network'
 const BSKY_TRUSTED_HOSTS = [
   'bsky\\.app',
@@ -134,6 +144,10 @@ export function isBskyAppUrl(url: string): boolean {
   return url.startsWith('https://bsky.app/')
 }
 
+export function isSunnahskyAppUrl(url: string): boolean {
+  return url.startsWith(`${SUNNAHSKY_APP_HOST}/`)
+}
+
 export function isRelativeUrl(url: string): boolean {
   return /^\/[^/]/.test(url)
 }
@@ -162,6 +176,24 @@ export function isBskyPostUrl(url: string): boolean {
       return /profile\/(?<name>[^/]+)\/post\/(?<rkey>[^/]+)/i.test(
         urlp.pathname,
       )
+    } catch {}
+  }
+  return false
+}
+
+/**
+ * Matches `articleUrl()`'s own exact shape (`lib/api/articles.ts`:
+ * `https://sunnahsky.com/article/:did/:rkey`), confirmed directly against
+ * that file rather than assumed - `articleUrl()` never varies this path,
+ * and its own doc comment says why: it must match
+ * `atproto/packages/bsky/src/util/standard-site.ts`'s canonicalization
+ * exactly, not as a prefix.
+ */
+export function isSunnahskyArticleUrl(url: string): boolean {
+  if (isSunnahskyAppUrl(url)) {
+    try {
+      const urlp = new URL(url)
+      return /article\/(?<did>[^/]+)\/(?<rkey>[^/]+)/i.test(urlp.pathname)
     } catch {}
   }
   return false
@@ -256,6 +288,25 @@ export function convertBskyAppUrlIfNeeded(url: string): string {
         return startUriToStarterPackUri(urlp.pathname)
       }
 
+      return urlp.pathname + urlp.search
+    } catch (e) {
+      console.error('Unexpected error in convertBskyAppUrlIfNeeded()', e)
+    }
+  } else if (isSunnahskyAppUrl(url)) {
+    /*
+     * The linchpin for the article reader: `StandardSiteEmbed` (the card
+     * every companion post already renders) navigates via `to={view.uri}` -
+     * the article's own `https://sunnahsky.com/article/:did/:rkey` URL -
+     * through this app's own `Link` component. Once that URL converts to a
+     * relative path here, `isExternalUrl()` (which only ever checks
+     * `startsWith('http')`) naturally treats it as internal too, with no
+     * separate change needed there - exactly the same mechanism
+     * `isBskyAppUrl` already relies on above. Every existing article card
+     * starts opening the in-app reader with zero changes to
+     * `StandardSiteEmbed` itself.
+     */
+    try {
+      const urlp = new URL(url)
       return urlp.pathname + urlp.search
     } catch (e) {
       console.error('Unexpected error in convertBskyAppUrlIfNeeded()', e)

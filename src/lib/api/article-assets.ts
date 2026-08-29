@@ -1,4 +1,17 @@
+import {LOCAL_DEV_SERVICE, SUNNAHSKY_SERVICE} from '#/lib/constants'
 import {type com} from '#/lexicons'
+
+/**
+ * Origins `cidFromSrc` below trusts as genuinely Sunnahsky's own PDS - the
+ * same set {@link getSunnahskyPublicPdsClient} (`state/session/clients.ts`)
+ * actually points at, production or `__DEV__`'s local PDS, so the check
+ * never rejects a URL the reader's own fetch would have accepted.
+ */
+const TRUSTED_ORIGINS = new Set(
+  [SUNNAHSKY_SERVICE, __DEV__ ? LOCAL_DEV_SERVICE : null].filter(
+    (origin): origin is string => origin !== null,
+  ),
+)
 
 /**
  * Builds the `com.sunnahsky.article.assets` record - the companion record whose
@@ -123,6 +136,50 @@ export function resolveBodyImages(
   }
 
   return {images, missing}
+}
+
+/**
+ * The `cid` query parameter of a `getBlob` URL, but only when `src` is
+ * actually hosted at a trusted Sunnahsky origin ({@link TRUSTED_ORIGINS}) -
+ * unlike {@link cidsInMarkdown} above, under-matching here is the safe
+ * direction, not over-matching.
+ *
+ * Moved here from `editor-web/imageNodeView.ts`, where it originally had no
+ * origin check at all - a plain `indexOf('com.atproto.sync.getBlob?')`
+ * substring search. Safe there only because every `src` it was ever fed came
+ * from this app's own same-origin `blobUrl()`, never from untrusted content.
+ * Once the article reader started calling this to decide whether an
+ * *untrusted* document's image gets fetched at all, that same shape-only
+ * check would let `https://tracker.example/xrpc/com.atproto.sync.getBlob?
+ * did=x&cid=y` straight through - it matches the marker string, extracts a
+ * clean CID, and points at an attacker's own host. Fixed at this function
+ * itself, not a second, stricter sibling callers could reach for the wrong
+ * one of - every caller, old and new, gets the origin check by construction.
+ * `imageNodeView.ts`'s own URLs are always same-origin already, so the added
+ * check costs it nothing and changes no existing behavior there.
+ */
+export function cidFromSrc(src: string): string | undefined {
+  let url: URL
+  try {
+    url = new URL(src)
+  } catch {
+    return undefined
+  }
+  if (!TRUSTED_ORIGINS.has(url.origin)) return undefined
+
+  const marker = 'com.atproto.sync.getBlob?'
+  const at = src.indexOf(marker)
+  if (at === -1) return undefined
+  for (const part of src.slice(at + marker.length).split('&')) {
+    const [key, value] = part.split('=')
+    if (key !== 'cid' || !value) continue
+    try {
+      return decodeURIComponent(value)
+    } catch {
+      return undefined
+    }
+  }
+  return undefined
 }
 
 /**

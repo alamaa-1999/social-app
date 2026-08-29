@@ -4,6 +4,7 @@ import {type PasswordSession} from '@atproto/lex-password-session'
 import {
   BLUESKY_PROXY_HEADER,
   CHAT_PROXY_SERVICE,
+  LOCAL_DEV_SERVICE,
   PUBLIC_BSKY_SERVICE,
   SUNNAHSKY_SERVICE,
 } from '#/lib/constants'
@@ -27,6 +28,11 @@ import {networkAwareFetch} from './network'
  *
  * No `fetch` option: a client built over a session uses that session's own
  * fetch, which is `networkAwareFetch` wrapped in the disposal kill switch.
+ *
+ * `BLUESKY_PROXY_HEADER`'s own default value (`constants.ts`) is itself
+ * `IS_DEV`-aware - see its doc comment for why the dev-awareness belongs
+ * there rather than here. `.set()` (used by the e2e test harness,
+ * `TestCtrls.e2e.tsx`) still overrides whatever that default is, unchanged.
  */
 export function buildAppviewClient(agent: Agent): Client {
   return createLexClient(agent, {service: BLUESKY_PROXY_HEADER.get()})
@@ -158,17 +164,25 @@ let sunnahskyPdsClient: Client | undefined
 
 /**
  * The unauthenticated {@link Client} for public reads against Sunnahsky's own
- * PDS, pointed at {@link SUNNAHSKY_SERVICE}.
+ * PDS, pointed at {@link SUNNAHSKY_SERVICE} - or, under `__DEV__`, at
+ * {@link LOCAL_DEV_SERVICE} instead.
  *
- * Same shape as {@link getPublicAppviewClient}, for the same reasons: a single
- * module-level instance, requests through {@link networkAwareFetch}. Used by
- * the login flow's Sunnahsky-domain fast path (`pds-detection.ts`) so
- * resolving a Sunnahsky handle never depends on Bluesky's public
- * infrastructure being reachable.
+ * Without the dev branch, any locally-created test account fails with "Could
+ * not find repo" the moment something calls this - production Sunnahsky has
+ * never heard of it. Mirrors the same `__DEV__`-gated local-host allowance
+ * `BSKY_TRUSTED_HOSTS` (`lib/strings/url-helpers.ts`) already carries for the
+ * analogous first-party-host-trust problem there.
+ *
+ * Same shape as {@link getPublicAppviewClient} otherwise, for the same
+ * reasons: a single module-level instance, requests through
+ * {@link networkAwareFetch}. Used by the login flow's Sunnahsky-domain fast
+ * path (`pds-detection.ts`) so resolving a Sunnahsky handle never depends on
+ * Bluesky's public infrastructure being reachable, and by the article
+ * reader/preview's own public-document fetch.
  */
 export function getSunnahskyPublicPdsClient(): Client {
   return (sunnahskyPdsClient ??= createLexClient({
-    service: SUNNAHSKY_SERVICE,
+    service: __DEV__ ? LOCAL_DEV_SERVICE : SUNNAHSKY_SERVICE,
     fetch: networkAwareFetch,
   }))
 }

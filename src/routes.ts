@@ -86,6 +86,7 @@ export const router = new Router<AllNavigatableRoutes>({
   ArticleCompose: '/article/compose',
   ArticleEdit: '/article/edit/:rkey',
   TipTapSpike: '/article/tiptap-spike',
+  Article: '/article/:did/:rkey',
   VideoFeed: '/video-feed',
   Bookmarks: '/saved',
   FindContactsFlow: '/find-contacts',

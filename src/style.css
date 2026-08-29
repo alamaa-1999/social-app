@@ -99,6 +99,20 @@
   font-style: italic;
   font-display: swap;
 }
+/*
+ * Byline text (article/byline, Figma node 333:5247). Instanced from the
+ * same upstream variable font as Archivo SemiBold above, at wght=400,
+ * wdth=100 via --update-name-table - a distinct family name rather than a
+ * second weight under 'Archivo SemiBold', matching how Fraunces SemiBold/
+ * Regular are split above rather than sharing one family name.
+ */
+@font-face {
+  font-family: 'Archivo Regular';
+  src: url('../assets/fonts/archivo/Archivo-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
 @font-face {
   font-family: 'Vollkorn';
   src: url('../assets/fonts/vollkorn/Vollkorn-Regular.ttf') format('truetype');
@@ -149,6 +163,21 @@
     format('truetype');
   font-weight: 700;
   font-style: italic;
+  font-display: swap;
+}
+/*
+ * Article publish-date text (article/date, Figma node 362:5435) - a real
+ * small-caps letterform design, not synthetic small-caps applied to the
+ * regular cut. Unlike Vollkorn's own upright/italic files above, Google
+ * Fonts distributes Vollkorn SC as a real static file already - no
+ * instancing needed, see assets/fonts/vollkorn-sc/README.md.
+ */
+@font-face {
+  font-family: 'Vollkorn SC';
+  src: url('../assets/fonts/vollkorn-sc/VollkornSC-Regular.ttf')
+    format('truetype');
+  font-weight: 400;
+  font-style: normal;
   font-display: swap;
 }
 
