@@ -23,9 +23,38 @@
      * the scrollbar now belongs to this full-width page, not a narrower
      * column inside it.
      */
+    /*
+     * Light-mode values, exactly matching what every rule below used to
+     * hardcode as a literal - confirmed by cross-referencing each one
+     * against `@bsky.app/alf`'s own light palette (`contrast_400` = the
+     * placeholder/supporting-text `#8798b0`, `contrast_700` = the icon
+     * `#405168`, `contrast_900` = the action-text `#232e3e`, `contrast_200`
+     * = the border `#c0cad8`, `negative_700` = the error `#a71134`,
+     * `primary_500` = the blockquote accent `#006aff`), so this file's own
+     * appearance is unchanged for anyone/anything that never sets these
+     * (the `?? undefined` case in `AdvancedEditor.tsx`, or `TipTapSpike.tsx`,
+     * which loads this same document but passes no `colors`). Real values
+     * are overwritten here (`documentElement.style.setProperty`) from
+     * native's own already-resolved `useTheme()` atoms the moment this
+     * bundle's entry script runs - see `AdvancedEditor.tsx`'s own comment
+     * for why that, not a `prefers-color-scheme` media query, is correct:
+     * this app's light/dark/dim choice is a user setting, not necessarily
+     * the OS's own.
+     */
+    :root {
+      --editor-bg: #fff;
+      --editor-text: #000;
+      --editor-text-muted: #8798b0;
+      --editor-text-secondary: #405168;
+      --editor-text-strong: #232e3e;
+      --editor-border: #c0cad8;
+      --editor-error: #a71134;
+      --editor-accent: #006aff;
+    }
     body {
       margin: 0;
       padding: 0;
+      background: var(--editor-bg);
     }
     /*
      * Centers the 720px reading column and gives it its vertical padding -
@@ -79,10 +108,10 @@
       outline: none;
       overflow: hidden;
       padding: 0;
-      color: #000;
+      color: var(--editor-text);
     }
     #article-fields textarea::placeholder {
-      color: #8798b0;
+      color: var(--editor-text-muted);
     }
     /* article/title (Figma 279:4334's sibling) - Fraunces SemiBold, 32px/1.15. */
     #article-title {
@@ -136,7 +165,7 @@
        on the other side - no pair-specific selector needed here. */
     blockquote {
       margin: 24px 0;
-      border-left: 2px solid #006aff;
+      border-left: 2px solid var(--editor-accent);
       padding-left: 20px;
     }
     /* article/body-ar (Figma node 16:22) is text-align: justify, but CSS's
@@ -324,7 +353,7 @@
       font-family: 'Vollkorn', serif;
       font-size: 18px;
       line-height: 1.7;
-      color: #000;
+      color: var(--editor-text);
       margin: 12px 0 20px;
     }
     /* article/sub-heading-1 and article/sub-heading-2 - the two heading
@@ -347,7 +376,7 @@
       font-weight: 600;
       font-size: 24px;
       line-height: 1.2;
-      color: #000;
+      color: var(--editor-text);
       margin: 0 0 20px;
     }
     .ProseMirror h3 {
@@ -355,7 +384,7 @@
       font-weight: 600;
       font-size: 19px;
       line-height: 1.25;
-      color: #000;
+      color: var(--editor-text);
       margin: 0 0 20px;
     }
     /* article/body-ar. Direction and justification are already handled
@@ -428,9 +457,9 @@
          both error states. Becomes solid once an image is actually attached
          (see [data-has-image] below), which is what distinguishes "nothing
          here yet" from "something here you cannot currently see". */
-      border: 1px dashed #c0cad8;
+      border: 1px dashed var(--editor-border);
       border-radius: 12px;
-      background: #fff;
+      background: var(--editor-bg);
       user-select: none;
     }
     /* Filled state is a row: image on the left, text block beside it. */
@@ -480,10 +509,10 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      border: 1px solid #c0cad8;
+      border: 1px solid var(--editor-border);
       border-radius: 8px;
-      background: #fff;
-      color: #405168;
+      background: var(--editor-bg);
+      color: var(--editor-text-secondary);
       box-shadow:
         0 1px 2px 0 rgba(0, 0, 0, 0.05),
         inset 0 0 0 1px rgba(0, 0, 0, 0.18),
@@ -508,7 +537,7 @@
       font-size: 14px;
       line-height: 20px;
       font-weight: 500;
-      color: #232e3e;
+      color: var(--editor-text-strong);
       text-align: center;
     }
     [data-image-block-supporting] {
@@ -516,7 +545,7 @@
       font-size: 12px;
       line-height: 18px;
       font-weight: 500;
-      color: #8798b0;
+      color: var(--editor-text-muted);
       text-align: center;
       /* A filename is arbitrary text and can be a single very long token, so
          it must be allowed to break rather than widening the block. */
@@ -530,7 +559,7 @@
       font-size: 12px;
       line-height: 18px;
       font-weight: 500;
-      color: #a71134;
+      color: var(--editor-error);
       text-align: center;
       overflow-wrap: anywhere;
       max-width: 100%;
