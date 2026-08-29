@@ -168,11 +168,11 @@ export function ArticleView({
           {maxWidth: CONTENT_MAX_WIDTH, paddingBottom: 78},
         ]}>
         <View style={[a.gap_sm, a.pb_md]}>
-          <Text emoji style={[styles.title, {color: '#232e3e'}]}>
+          <Text emoji style={[styles.title, t.atoms.text]}>
             {title}
           </Text>
           {subtitle ? (
-            <Text emoji style={[styles.subtitle, {color: '#232e3e'}]}>
+            <Text emoji style={[styles.subtitle, t.atoms.text]}>
               {subtitle}
             </Text>
           ) : null}
@@ -255,7 +255,11 @@ export function ArticleView({
             <View style={[a.border_t, t.atoms.border_contrast_medium]} />
           </View>
         </View>
-        {renderArticleDoc(doc, {localImageUris, onPressLink})}
+        {renderArticleDoc(doc, {
+          localImageUris,
+          onPressLink,
+          colors: {text: t.atoms.text.color, link: t.atoms.text_link.color},
+        })}
       </View>
 
       {/*

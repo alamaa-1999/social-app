@@ -19,6 +19,15 @@ import {renderArticleDoc} from '../renderArticleDoc'
 jest.mock('../ArticleImage', () => ({ArticleImage: () => null}))
 
 /**
+ * Stands in for `useTheme()`'s resolved colors, which `ArticleView.tsx`
+ * (the real, sole caller) always provides - `renderArticleDoc` has no way
+ * to call the hook itself, since it's plain functions, not a component.
+ * Distinct light/dark-ish values so a test asserting on `.color` would
+ * actually notice if the wrong one leaked through, though none currently do.
+ */
+const TEST_COLORS = {text: '#111111', link: '#2222ff'}
+
+/**
  * Fixtures mirror the shape `applyFacetsToParsedDoc` actually produces (see
  * `editor-web/serializer/__tests__/index.test.ts` for the same node shapes
  * on the save/load side) - not hand-invented, so a real regression in either
@@ -67,7 +76,9 @@ describe('renderArticleDoc - typography', () => {
         },
       ],
     }
-    const {getByText} = render(<>{renderArticleDoc(doc)}</>)
+    const {getByText} = render(
+      <>{renderArticleDoc(doc, {colors: TEST_COLORS})}</>,
+    )
     const node = getByText('Hello world')
     const flatStyle = Object.assign({}, ...[node.props.style].flat(Infinity))
     expect(flatStyle.writingDirection).toBeUndefined()
@@ -90,7 +101,9 @@ describe('renderArticleDoc - typography', () => {
           },
         ],
       }
-      const {getByText} = render(<>{renderArticleDoc(doc)}</>)
+      const {getByText} = render(
+        <>{renderArticleDoc(doc, {colors: TEST_COLORS})}</>,
+      )
       const node = getByText('مرحبا بالعالم')
       const flatStyle = Object.assign({}, ...[node.props.style].flat(Infinity))
       expect(flatStyle.writingDirection).toBe('rtl')
@@ -125,7 +138,9 @@ describe('renderArticleDoc - typography', () => {
           },
         ],
       }
-      const {getByText} = render(<>{renderArticleDoc(doc)}</>)
+      const {getByText} = render(
+        <>{renderArticleDoc(doc, {colors: TEST_COLORS})}</>,
+      )
       const verse = getByText('بسم الله')
       const verseStyle = Object.assign(
         {},
@@ -179,7 +194,9 @@ describe('renderArticleDoc - typography', () => {
           },
         ],
       }
-      const {getByText, toJSON} = render(<>{renderArticleDoc(doc)}</>)
+      const {getByText, toJSON} = render(
+        <>{renderArticleDoc(doc, {colors: TEST_COLORS})}</>,
+      )
       expect(getByText('first quote')).toBeTruthy()
       expect(getByText('second quote')).toBeTruthy()
 
@@ -219,7 +236,9 @@ describe('renderArticleDoc - typography', () => {
           },
         ],
       }
-      const {getByText} = render(<>{renderArticleDoc(doc)}</>)
+      const {getByText} = render(
+        <>{renderArticleDoc(doc, {colors: TEST_COLORS})}</>,
+      )
       const verse = getByText('بسم الله')
       const verseStyle = Object.assign(
         {},
@@ -260,7 +279,9 @@ describe('renderArticleDoc - typography', () => {
           },
         ],
       }
-      const {getByText} = render(<>{renderArticleDoc(doc)}</>)
+      const {getByText} = render(
+        <>{renderArticleDoc(doc, {colors: TEST_COLORS})}</>,
+      )
       const honorific = getByText('﵀')
       const honorificStyle = Object.assign(
         {},
@@ -298,7 +319,7 @@ describe('renderArticleDoc - typography', () => {
         },
       ],
     }
-    const rendered = render(<>{renderArticleDoc(doc)}</>)
+    const rendered = render(<>{renderArticleDoc(doc, {colors: TEST_COLORS})}</>)
     const safe = rendered.getByText('safe')
     const safeStyle = Object.assign({}, ...[safe.props.style].flat(Infinity))
     expect(safeStyle.color).toBe('#006aff')
@@ -329,7 +350,9 @@ describe('renderArticleDoc - typography', () => {
         },
       ],
     }
-    const {getByText} = render(<>{renderArticleDoc(doc)}</>)
+    const {getByText} = render(
+      <>{renderArticleDoc(doc, {colors: TEST_COLORS})}</>,
+    )
     expect(getByText('still here')).toBeTruthy()
   })
 })

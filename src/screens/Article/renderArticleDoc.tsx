@@ -26,6 +26,18 @@ export type RenderArticleDocOptions = {
   localImageUris?: Record<string, string>
   /** Called when a `link` mark is tapped. No-op if omitted. */
   onPressLink?: (href: string) => void
+  /**
+   * Resolved from the caller's own `useTheme()` - this module is plain
+   * functions, not a component, so it can't call the hook itself. Every
+   * text color below used to be a hardcoded light-mode hex (`#232e3e` etc.),
+   * which is why dark mode never inverted body/heading/quote/list text at
+   * all - only the surrounding chrome (built with ALF atoms directly in
+   * `ArticleView.tsx`) responded to theme changes.
+   */
+  colors: {
+    text: string
+    link: string
+  }
 }
 
 /** Matches `serializer/index.ts`'s own default when no `textAlign` facet applies. */
@@ -234,7 +246,7 @@ function groupConsecutiveBlockquotes(nodes: JSONNode[]): BlockGroup[] {
  */
 export function renderArticleDoc(
   doc: JSONNode,
-  options: RenderArticleDocOptions = {},
+  options: RenderArticleDocOptions,
 ): ReactNode {
   const groups = groupConsecutiveBlockquotes(doc.content ?? [])
   return (
@@ -352,6 +364,7 @@ function renderParagraph(
       style={[
         isArabic ? styles.bodyAr : styles.bodyEn,
         {
+          color: options.colors.text,
           textAlign: textAlignOf(node),
           writingDirection: deriveWritingDirection(typography),
         },
@@ -370,7 +383,11 @@ function renderHeading(
   // rather than guessing at a level this app's own composer never produces.
   const level = node.attrs?.level
   return (
-    <Text style={level === 2 ? styles.subHeading1 : styles.subHeading2}>
+    <Text
+      style={[
+        level === 2 ? styles.subHeading1 : styles.subHeading2,
+        {color: options.colors.text},
+      ]}>
       {renderInline(node.content ?? [], options)}
     </Text>
   )
@@ -432,6 +449,7 @@ function renderBlockquoteContent(
         style={[
           isVerse ? styles.quoteAr : styles.quoteEn,
           {
+            color: options.colors.text,
             textAlign: isVerse ? 'center' : textAlignOf(child),
             writingDirection: isVerse ? 'rtl' : undefined,
           },
@@ -484,14 +502,14 @@ function renderList(
     <View style={styles.list}>
       {items.map((item, i) => (
         <View key={i} style={styles.listItemRow}>
-          <Text style={styles.listMarker}>
+          <Text style={[styles.listMarker, {color: options.colors.text}]}>
             {kind === 'bullet' ? '•' : `${i + 1}.`}
           </Text>
           <View style={styles.listItemContent}>
             {(item.content ?? []).map((child, j) => (
               <Fragment key={j}>
                 {child.type === 'paragraph' ? (
-                  <Text style={styles.listText}>
+                  <Text style={[styles.listText, {color: options.colors.text}]}>
                     {renderInline(child.content ?? [], options)}
                   </Text>
                 ) : (
@@ -578,7 +596,9 @@ function applyMarks(
         const href = mark.attrs?.href
         if (typeof href !== 'string') return child
         return (
-          <Text style={styles.link} onPress={() => options.onPressLink?.(href)}>
+          <Text
+            style={[styles.link, {color: options.colors.link}]}
+            onPress={() => options.onPressLink?.(href)}>
             {child}
           </Text>
         )
@@ -615,30 +635,39 @@ function applyMarks(
   }, text)
 }
 
+/*
+ * No `color` on any text style below - every one of these gets a
+ * theme-resolved color merged in at its own render site
+ * (`options.colors.text`/`.link`, from `ArticleView.tsx`'s `useTheme()`).
+ * These used to hardcode light-mode hex values directly, which is exactly
+ * why dark mode never inverted article body/heading/quote/list text - only
+ * the surrounding chrome (built with ALF atoms directly) responded to theme
+ * changes. `quoteBlock`'s `#a2845e` border is a deliberate exception, left
+ * unchanged: it's a fixed brand accent (Figma has no dark-mode variant for
+ * it), and it already reads clearly on both a light and a dark background
+ * (contrast ratio ~3.6:1 on white, ~5.8:1 on near-black), unlike the near-
+ * black text colors this fixes, which were unreadable on a dark background.
+ */
 const styles = {
   bodyEn: {
     fontFamily: 'Vollkorn',
     fontSize: 18,
     lineHeight: 18 * 1.7,
-    color: '#232e3e',
   } satisfies StyleProp<TextStyle>,
   bodyAr: {
     fontFamily: 'Scheherazade New',
     fontSize: 20,
     lineHeight: 20 * 2,
-    color: '#000000',
   } satisfies StyleProp<TextStyle>,
   subHeading1: {
     fontFamily: 'Archivo SemiBold',
     fontSize: 32,
     lineHeight: 32 * 1.4,
-    color: '#232e3e',
   } satisfies StyleProp<TextStyle>,
   subHeading2: {
     fontFamily: 'Archivo SemiBold',
     fontSize: 24,
     lineHeight: 24 * 1.25,
-    color: '#232e3e',
   } satisfies StyleProp<TextStyle>,
   quoteBlock: {
     borderLeftWidth: 2,
@@ -652,13 +681,11 @@ const styles = {
     fontFamily: 'Scheherazade New',
     fontSize: 18,
     lineHeight: 18 * 2.1,
-    color: '#232e3e',
   } satisfies StyleProp<TextStyle>,
   quoteEn: {
     fontFamily: 'Vollkorn',
     fontSize: 17,
     lineHeight: 17 * 1.6,
-    color: '#232e3e',
   } satisfies StyleProp<TextStyle>,
   list: {
     gap: 4,
@@ -673,7 +700,6 @@ const styles = {
     fontFamily: 'Vollkorn',
     fontSize: 18,
     lineHeight: 18 * 1.55,
-    color: '#232e3e',
     // Logical, RTL-safe spacing to match `ms-[27px]` in the design - a fixed
     // `marginRight` would sit on the wrong side inside a right-to-left list.
     marginEnd: 8,
@@ -685,13 +711,12 @@ const styles = {
     fontFamily: 'Vollkorn',
     fontSize: 18,
     lineHeight: 18 * 1.55,
-    color: '#232e3e',
   } satisfies StyleProp<TextStyle>,
   bold: {fontWeight: 'bold' as const},
   italic: {fontStyle: 'italic' as const},
   strike: {textDecorationLine: 'line-through' as const},
   underline: {textDecorationLine: 'underline' as const},
-  link: {color: '#0059d6', textDecorationLine: 'underline' as const},
+  link: {textDecorationLine: 'underline' as const},
   honorific: {
     fontFamily: 'Scheherazade New',
   } satisfies StyleProp<TextStyle>,
