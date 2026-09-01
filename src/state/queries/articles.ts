@@ -86,11 +86,15 @@ export function useAuthorArticlesQuery(did: string | undefined) {
     staleTime: STALE.MINUTES.FIVE,
     queryFn: async (): Promise<AuthorArticle[]> => {
       const pdsClient = getSunnahskyPublicPdsClient()
+      // No `reverse` - this PDS's default `listRecords` order is already
+      // newest-first (confirmed empirically against production). Passing
+      // `reverse: true` flips it to oldest-first, which is the opposite of
+      // what this list wants: a just-published article at the bottom of six
+      // reads as "missing" to anyone who doesn't scroll all the way down.
       const {records} = await pdsClient.call(com.atproto.repo.listRecords, {
         repo: did! as AtIdentifierString,
         collection: 'site.standard.document',
         limit: LIST_RECORDS_LIMIT,
-        reverse: true,
       })
 
       return records.flatMap(record => {
