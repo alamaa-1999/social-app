@@ -13,12 +13,12 @@ msgstr ""
 "Language-Team: \n"
 "Plural-Forms: \n"
 
-#: src/screens/ArticleCompose/index.tsx:1802
+#: src/screens/ArticleCompose/index.tsx:1822
 msgid " • Unsaved edits."
 msgstr " • Unsaved edits."
 
 #. placeholder {0}: niceDate(i18n, editingArticle.updatedAt, 'medium', 'none')
-#: src/screens/ArticleCompose/index.tsx:1795
+#: src/screens/ArticleCompose/index.tsx:1815
 msgid " Last Modified: {0}."
 msgstr " Last Modified: {0}."
 
@@ -1989,15 +1989,15 @@ msgstr "Article details"
 msgid "Article options"
 msgstr "Article options"
 
-#: src/screens/ArticleCompose/index.tsx:1403
+#: src/screens/ArticleCompose/index.tsx:1413
 msgid "Article published! It may take a few seconds to appear on your profile."
 msgstr "Article published! It may take a few seconds to appear on your profile."
 
-#: src/screens/ArticleCompose/index.tsx:345
+#: src/screens/ArticleCompose/index.tsx:347
 msgid "Article title..."
 msgstr "Article title..."
 
-#: src/screens/ArticleCompose/index.tsx:1401
+#: src/screens/ArticleCompose/index.tsx:1411
 msgid "Article updated!"
 msgstr "Article updated!"
 
@@ -2110,8 +2110,8 @@ msgstr ""
 msgid "Back to Chats"
 msgstr ""
 
-#: src/screens/ArticleCompose/index.tsx:2155
-#: src/screens/ArticleCompose/index.tsx:2166
+#: src/screens/ArticleCompose/index.tsx:2175
+#: src/screens/ArticleCompose/index.tsx:2186
 msgid "Back to edit"
 msgstr "Back to edit"
 
@@ -2539,7 +2539,7 @@ msgstr "Camera access needed"
 #: src/features/liveNow/components/GoLiveDialog.tsx:254
 #: src/features/liveNow/components/GoLiveDialog.tsx:260
 #: src/lib/media/picker.tsx:38
-#: src/screens/ArticleCompose/index.tsx:2406
+#: src/screens/ArticleCompose/index.tsx:2499
 #: src/screens/Deactivated.tsx:155
 #: src/screens/Messages/components/InviteLinkDialog.tsx:497
 #: src/screens/Messages/components/InviteLinkDialog.tsx:501
@@ -3041,7 +3041,7 @@ msgstr ""
 #: src/features/gifPicker/components/GifPickerErrorBoundary.tsx:45
 #: src/features/liveNow/components/EditLiveDialog.tsx:212
 #: src/features/liveNow/components/EditLiveDialog.tsx:218
-#: src/screens/ArticleCompose/index.tsx:1512
+#: src/screens/ArticleCompose/index.tsx:1532
 #: src/screens/Messages/components/InviteLinkDialog.tsx:521
 #: src/screens/Messages/components/InviteLinkDialog.tsx:526
 #: src/screens/Settings/components/ChangePasswordDialog.tsx:292
@@ -3607,11 +3607,11 @@ msgstr ""
 msgid "Couldn’t load GIFs"
 msgstr "Couldn’t load GIFs"
 
-#: src/screens/ArticleCompose/index.tsx:2520
+#: src/screens/ArticleCompose/index.tsx:2613
 msgid "Couldn't load this article."
 msgstr "Couldn't load this article."
 
-#: src/screens/ArticleCompose/index.tsx:1174
+#: src/screens/ArticleCompose/index.tsx:1186
 msgid "Couldn't save draft. Please try again."
 msgstr "Couldn't save draft. Please try again."
 
@@ -3878,8 +3878,8 @@ msgstr ""
 msgid "Delete article"
 msgstr "Delete article"
 
-#: src/screens/ArticleCompose/index.tsx:2313
-#: src/screens/ArticleCompose/index.tsx:2317
+#: src/screens/ArticleCompose/index.tsx:2401
+#: src/screens/ArticleCompose/index.tsx:2408
 msgid "Delete block"
 msgstr "Delete block"
 
@@ -4084,8 +4084,8 @@ msgstr ""
 #: src/components/dialogs/lists/CreateOrEditListDialog.tsx:102
 #: src/screens/ArticleCompose/drafts/ArticleDraftItem.tsx:164
 #: src/screens/ArticleCompose/drafts/DraftsButton.tsx:128
-#: src/screens/ArticleCompose/index.tsx:1878
-#: src/screens/ArticleCompose/index.tsx:1893
+#: src/screens/ArticleCompose/index.tsx:1898
+#: src/screens/ArticleCompose/index.tsx:1913
 #: src/screens/Profile/Header/EditProfileDialog.tsx:79
 #: src/view/com/composer/Composer.tsx:1551
 #: src/view/com/composer/Composer.tsx:1595
@@ -4096,7 +4096,7 @@ msgid "Discard"
 msgstr ""
 
 #: src/components/dialogs/lists/CreateOrEditListDialog.tsx:99
-#: src/screens/ArticleCompose/index.tsx:1888
+#: src/screens/ArticleCompose/index.tsx:1908
 #: src/screens/Profile/Header/EditProfileDialog.tsx:76
 msgid "Discard changes?"
 msgstr ""
@@ -4299,7 +4299,7 @@ msgid "Doxxing"
 msgstr ""
 
 #. placeholder {0}: niceDate( i18n, draftUpdatedAt ?? new Date().toISOString(), 'medium', 'none', )
-#: src/screens/ArticleCompose/index.tsx:1806
+#: src/screens/ArticleCompose/index.tsx:1826
 msgid "Draft saved {0}."
 msgstr "Draft saved {0}."
 
@@ -4403,7 +4403,7 @@ msgstr "Edit cover image"
 msgid "Edit group name"
 msgstr "Edit group name"
 
-#: src/screens/ArticleCompose/index.tsx:2248
+#: src/screens/ArticleCompose/index.tsx:2333
 #: src/view/com/composer/photos/EditImageDialog.web.tsx:86
 #: src/view/com/composer/photos/EditImageDialog.web.tsx:90
 #: src/view/com/composer/photos/Gallery.tsx:218
@@ -6471,7 +6471,7 @@ msgstr "Image is unavailable."
 #: src/components/Lightbox/chrome/ImageMenu.tsx:72
 #: src/components/Lightbox/Lightbox.web.tsx:265
 #: src/components/Lightbox/Lightbox.web.tsx:273
-#: src/screens/ArticleCompose/index.tsx:2249
+#: src/screens/ArticleCompose/index.tsx:2334
 msgid "Image options"
 msgstr "Image options"
 
@@ -6843,8 +6843,8 @@ msgid "Journalism"
 msgstr ""
 
 #: src/screens/ArticleCompose/drafts/DraftsButton.tsx:132
-#: src/screens/ArticleCompose/index.tsx:1882
-#: src/screens/ArticleCompose/index.tsx:1895
+#: src/screens/ArticleCompose/index.tsx:1902
+#: src/screens/ArticleCompose/index.tsx:1915
 #: src/view/com/composer/Composer.tsx:1599
 #: src/view/com/composer/Composer.tsx:1609
 #: src/view/com/composer/drafts/DraftsButton.tsx:135
@@ -8406,6 +8406,10 @@ msgstr "Not followed by anyone you’re following"
 msgid "Not Found"
 msgstr ""
 
+#: src/screens/ArticleCompose/index.tsx:2259
+msgid "Not now"
+msgstr "Not now"
+
 #: src/components/dialogs/nuxs/DraftsAnnouncement.tsx:131
 msgid "Not ready to hit post? Keep your best ideas in Drafts until the timing is just right."
 msgstr ""
@@ -9207,7 +9211,7 @@ msgstr ""
 msgid "Plays the video"
 msgstr ""
 
-#: src/screens/ArticleCompose/index.tsx:1326
+#: src/screens/ArticleCompose/index.tsx:1338
 msgid "Please add a title before publishing."
 msgstr "Please add a title before publishing."
 
@@ -9549,8 +9553,8 @@ msgid "Press to view followers of this account that you also follow"
 msgstr ""
 
 #: src/features/liveEvents/components/LiveEventFeedCardWide.tsx:121
-#: src/screens/ArticleCompose/index.tsx:1827
-#: src/screens/ArticleCompose/index.tsx:1839
+#: src/screens/ArticleCompose/index.tsx:1847
+#: src/screens/ArticleCompose/index.tsx:1859
 msgid "Preview"
 msgstr ""
 
@@ -9650,8 +9654,8 @@ msgstr ""
 msgid "Public, sharable lists of users to mute or block in bulk."
 msgstr ""
 
-#: src/screens/ArticleCompose/index.tsx:2170
-#: src/screens/ArticleCompose/index.tsx:2186
+#: src/screens/ArticleCompose/index.tsx:2190
+#: src/screens/ArticleCompose/index.tsx:2206
 msgid "Publish"
 msgstr "Publish"
 
@@ -9676,11 +9680,11 @@ msgid "Publish reply"
 msgstr ""
 
 #. placeholder {0}: niceDate(i18n, editingArticle.publishedAt, 'medium', 'none')
-#: src/screens/ArticleCompose/index.tsx:1789
+#: src/screens/ArticleCompose/index.tsx:1809
 msgid "Published on {0}."
 msgstr "Published on {0}."
 
-#: src/screens/ArticleCompose/index.tsx:2181
+#: src/screens/ArticleCompose/index.tsx:2201
 msgid "Publishing..."
 msgstr "Publishing..."
 
@@ -10008,8 +10012,8 @@ msgstr ""
 msgid "Remove from your feeds?"
 msgstr ""
 
-#: src/screens/ArticleCompose/index.tsx:2271
-#: src/screens/ArticleCompose/index.tsx:2275
+#: src/screens/ArticleCompose/index.tsx:2356
+#: src/screens/ArticleCompose/index.tsx:2363
 #: src/view/com/composer/photos/Gallery.tsx:227
 msgid "Remove image"
 msgstr ""
@@ -10119,8 +10123,8 @@ msgstr ""
 msgid "Renew mute word"
 msgstr ""
 
-#: src/screens/ArticleCompose/index.tsx:2279
-#: src/screens/ArticleCompose/index.tsx:2288
+#: src/screens/ArticleCompose/index.tsx:2367
+#: src/screens/ArticleCompose/index.tsx:2376
 msgid "Replace image"
 msgstr "Replace image"
 
@@ -10518,8 +10522,8 @@ msgstr ""
 #: src/components/Post/Embed/VideoEmbed/VideoEmbedInner/VideoFallback.tsx:56
 #: src/components/Post/Embed/VideoEmbed/VideoEmbedInner/VideoFallback.tsx:59
 #: src/components/StarterPack/ProfileStarterPacks.tsx:380
-#: src/screens/ArticleCompose/index.tsx:2523
-#: src/screens/ArticleCompose/index.tsx:2529
+#: src/screens/ArticleCompose/index.tsx:2616
+#: src/screens/ArticleCompose/index.tsx:2622
 #: src/screens/Login/LoginForm.tsx:532
 #: src/screens/Login/LoginForm.tsx:538
 #: src/screens/Messages/ChatList.tsx:429
@@ -10599,7 +10603,7 @@ msgstr "Sad GIFs"
 msgid "Save"
 msgstr ""
 
-#: src/screens/ArticleCompose/index.tsx:1512
+#: src/screens/ArticleCompose/index.tsx:1532
 msgid "Save and close"
 msgstr "Save and close"
 
@@ -10610,7 +10614,7 @@ msgstr ""
 #: src/components/activity-notifications/SubscribeProfileDialog.tsx:195
 #: src/components/activity-notifications/SubscribeProfileDialog.tsx:204
 #: src/screens/ArticleCompose/drafts/DraftsButton.tsx:123
-#: src/screens/ArticleCompose/index.tsx:1869
+#: src/screens/ArticleCompose/index.tsx:1889
 #: src/screens/SavedFeeds.tsx:124
 #: src/screens/SavedFeeds.tsx:128
 #: src/screens/SavedFeeds.tsx:297
@@ -10621,21 +10625,21 @@ msgid "Save changes"
 msgstr ""
 
 #: src/screens/ArticleCompose/drafts/DraftsButton.tsx:102
-#: src/screens/ArticleCompose/index.tsx:1849
+#: src/screens/ArticleCompose/index.tsx:1869
 #: src/view/com/composer/Composer.tsx:1561
 #: src/view/com/composer/drafts/DraftsButton.tsx:93
 msgid "Save changes?"
 msgstr ""
 
 #: src/screens/ArticleCompose/drafts/DraftsButton.tsx:123
-#: src/screens/ArticleCompose/index.tsx:1869
+#: src/screens/ArticleCompose/index.tsx:1889
 #: src/view/com/composer/Composer.tsx:1589
 #: src/view/com/composer/drafts/DraftsButton.tsx:125
 msgid "Save draft"
 msgstr ""
 
 #: src/screens/ArticleCompose/drafts/DraftsButton.tsx:104
-#: src/screens/ArticleCompose/index.tsx:1851
+#: src/screens/ArticleCompose/index.tsx:1871
 #: src/view/com/composer/Composer.tsx:1563
 #: src/view/com/composer/drafts/DraftsButton.tsx:95
 msgid "Save draft?"
@@ -10995,8 +10999,8 @@ msgstr "Select group chat members"
 msgid "Select how long to mute this word for."
 msgstr ""
 
-#: src/screens/ArticleCompose/index.tsx:2302
-#: src/screens/ArticleCompose/index.tsx:2309
+#: src/screens/ArticleCompose/index.tsx:2390
+#: src/screens/ArticleCompose/index.tsx:2397
 msgid "Select image"
 msgstr "Select image"
 
@@ -11026,7 +11030,7 @@ msgstr ""
 msgid "Select primary language"
 msgstr ""
 
-#: src/screens/ArticleCompose/index.tsx:707
+#: src/screens/ArticleCompose/index.tsx:719
 msgid "Select some text first, then apply the link."
 msgstr "Select some text first, then apply the link."
 
@@ -11270,6 +11274,7 @@ msgstr ""
 #: src/components/MediaPreview.tsx:243
 #: src/components/Post/Embed/ImageContextMenu.tsx:74
 #: src/components/StarterPack/QrCodeDialog.tsx:193
+#: src/screens/ArticleCompose/index.tsx:2258
 #: src/screens/Hashtag.tsx:132
 #: src/screens/Messages/components/InviteLinkDialog.tsx:412
 #: src/screens/Messages/components/InviteLinkDialog.tsx:423
@@ -11930,11 +11935,11 @@ msgstr "Sub-Heading 1"
 msgid "Sub-Heading 2"
 msgstr "Sub-Heading 2"
 
-#: src/screens/ArticleCompose/index.tsx:346
+#: src/screens/ArticleCompose/index.tsx:348
 msgid "Sub-title"
 msgstr "Sub-title"
 
-#: src/screens/ArticleCompose/index.tsx:347
+#: src/screens/ArticleCompose/index.tsx:349
 msgid "Sub-title (optional)..."
 msgstr "Sub-title (optional)..."
 
@@ -12782,7 +12787,7 @@ msgid "This image could not be used. Try a different format like .jpg or .png."
 msgstr "This image could not be used. Try a different format like .jpg or .png."
 
 #. placeholder {0}: (bytes / 1_000_000).toFixed(1)
-#: src/screens/ArticleCompose/index.tsx:1088
+#: src/screens/ArticleCompose/index.tsx:1100
 msgid "This image is too large ({0} MB). Please choose a smaller one."
 msgstr "This image is too large ({0} MB). Please choose a smaller one."
 
@@ -13039,7 +13044,7 @@ msgid "Time remaining: {0, plural, one {# second} other {# seconds}}"
 msgstr ""
 
 #: src/components/SendErrorReportDialog.tsx:68
-#: src/screens/ArticleCompose/index.tsx:344
+#: src/screens/ArticleCompose/index.tsx:346
 msgid "Title"
 msgstr "Title"
 
@@ -13484,7 +13489,7 @@ msgstr ""
 msgid "Unpinned list"
 msgstr ""
 
-#: src/screens/ArticleCompose/index.tsx:1819
+#: src/screens/ArticleCompose/index.tsx:1839
 msgid "Unsaved draft."
 msgstr "Unsaved draft."
 
@@ -13527,8 +13532,8 @@ msgstr "Until"
 msgid "Up to 50 people"
 msgstr "Up to 50 people"
 
-#: src/screens/ArticleCompose/index.tsx:2170
-#: src/screens/ArticleCompose/index.tsx:2184
+#: src/screens/ArticleCompose/index.tsx:2190
+#: src/screens/ArticleCompose/index.tsx:2204
 #: src/screens/Settings/components/OTAInfo.tsx:66
 #: src/screens/Settings/components/OTAInfo.tsx:82
 msgid "Update"
@@ -13582,7 +13587,7 @@ msgctxt "toast"
 msgid "Updating reply visibility failed"
 msgstr ""
 
-#: src/screens/ArticleCompose/index.tsx:2179
+#: src/screens/ArticleCompose/index.tsx:2199
 msgid "Updating..."
 msgstr "Updating..."
 
@@ -14459,7 +14464,7 @@ msgstr ""
 msgid "Why should this user be reviewed?"
 msgstr ""
 
-#: src/screens/ArticleCompose/index.tsx:2077
+#: src/screens/ArticleCompose/index.tsx:2097
 #: src/screens/ArticleCompose/Metadata.tsx:884
 msgid "Word count: {wordCount} • Character count: {charCount}"
 msgstr "Word count: {wordCount} • Character count: {charCount}"
@@ -14477,10 +14482,14 @@ msgstr "Would you like to block this user and/or leave this conversation?"
 msgid "Would you like to save this as a draft before viewing your drafts?"
 msgstr ""
 
-#: src/screens/ArticleCompose/index.tsx:1861
+#: src/screens/ArticleCompose/index.tsx:1881
 #: src/view/com/composer/Composer.tsx:1577
 msgid "Would you like to save this as a draft to edit later?"
 msgstr ""
+
+#: src/screens/ArticleCompose/index.tsx:2245
+msgid "Would you like to share it to your timeline?"
+msgstr "Would you like to share it to your timeline?"
 
 #: src/view/screens/Profile.tsx:443
 #: src/view/screens/Profile.tsx:444
@@ -14632,7 +14641,7 @@ msgstr ""
 msgid "You are verified. You will lose your verification status if you change your handle. <0>Learn more.</0>"
 msgstr ""
 
-#: src/screens/ArticleCompose/index.tsx:765
+#: src/screens/ArticleCompose/index.tsx:777
 msgid "You can add up to 30 images to an article. Remove one before adding another."
 msgstr "You can add up to 30 images to an article. Remove one before adding another."
 
@@ -14825,7 +14834,7 @@ msgstr ""
 msgid "You have temporarily reached the limit for video uploads. Please try again later."
 msgstr ""
 
-#: src/screens/ArticleCompose/index.tsx:1856
+#: src/screens/ArticleCompose/index.tsx:1876
 #: src/view/com/composer/Composer.tsx:1572
 msgid "You have unsaved changes to this draft, would you like to save them?"
 msgstr ""
@@ -14835,7 +14844,7 @@ msgstr ""
 msgid "You have unsaved changes. Would you like to save them before viewing your drafts?"
 msgstr ""
 
-#: src/screens/ArticleCompose/index.tsx:1890
+#: src/screens/ArticleCompose/index.tsx:1910
 msgid "You have unsaved edits to this article. If you close now, they will be lost."
 msgstr "You have unsaved edits to this article. If you close now, they will be lost."
 
@@ -15130,6 +15139,10 @@ msgstr ""
 #: src/screens/Takendown.tsx:148
 msgid "Your appeal has been submitted. If your appeal succeeds, you will receive an email."
 msgstr ""
+
+#: src/screens/ArticleCompose/index.tsx:2244
+msgid "Your article has been published successfully!"
+msgstr "Your article has been published successfully!"
 
 #: src/screens/Signup/StepInfo/index.tsx:287
 msgid "Your birth date"
