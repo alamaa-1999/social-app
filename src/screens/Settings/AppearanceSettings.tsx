@@ -113,7 +113,7 @@ export function AppearanceSettingsScreen({}: Props) {
                       name: 'dark',
                     },
                   ]}
-                  value={darkTheme ?? 'dim'}
+                  value={darkTheme ?? 'dark'}
                   onChange={onChangeDarkTheme}
                 />
               </Animated.View>

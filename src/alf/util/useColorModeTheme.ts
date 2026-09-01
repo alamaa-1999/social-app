@@ -34,7 +34,7 @@ function getThemeName(
   ) {
     return 'light'
   } else {
-    return darkTheme ?? 'dim'
+    return darkTheme ?? 'dark'
   }
 }
 
