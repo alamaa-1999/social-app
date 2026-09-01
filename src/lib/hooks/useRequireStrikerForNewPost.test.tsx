@@ -23,6 +23,13 @@ const wrapper = ({children}: {children: React.ReactNode}) => (
   <I18nProvider i18n={i18n}>{children}</I18nProvider>
 )
 
+const replyTo = {
+  uri: 'at://did:plc:x/app.bsky.feed.post/y',
+  cid: 'cid',
+  text: '',
+  author: {} as unknown as app.bsky.actor.defs.ProfileViewBasic,
+}
+
 describe('useRequireStrikerForNewPost', () => {
   afterEach(() => {
     jest.clearAllMocks()
@@ -31,60 +38,32 @@ describe('useRequireStrikerForNewPost', () => {
   it('blocks a Catcher opening the composer for a new top-level post', () => {
     mockUseIsCatcher.mockReturnValue(true)
     const {result} = renderHook(() => useRequireStrikerForNewPost(), {wrapper})
-    const cb = jest.fn()
 
-    result.current(cb)({})
-
-    expect(cb).not.toHaveBeenCalled()
+    expect(result.current({})).toBe(true)
     expect(mockToastShow).toHaveBeenCalled()
   })
 
   it('allows a Catcher opening the composer for a reply', () => {
     mockUseIsCatcher.mockReturnValue(true)
     const {result} = renderHook(() => useRequireStrikerForNewPost(), {wrapper})
-    const cb = jest.fn()
-    const opts = {
-      replyTo: {
-        uri: 'at://did:plc:x/app.bsky.feed.post/y',
-        cid: 'cid',
-        text: '',
-        author: {} as unknown as app.bsky.actor.defs.ProfileViewBasic,
-      },
-    }
 
-    result.current(cb)(opts)
-
-    expect(cb).toHaveBeenCalledWith(opts)
+    expect(result.current({replyTo})).toBe(false)
     expect(mockToastShow).not.toHaveBeenCalled()
   })
 
   it('allows a Striker to open the composer for a new top-level post', () => {
     mockUseIsCatcher.mockReturnValue(false)
     const {result} = renderHook(() => useRequireStrikerForNewPost(), {wrapper})
-    const cb = jest.fn()
 
-    result.current(cb)({})
-
-    expect(cb).toHaveBeenCalledWith({})
+    expect(result.current({})).toBe(false)
     expect(mockToastShow).not.toHaveBeenCalled()
   })
 
   it('allows a Striker to open the composer for a reply', () => {
     mockUseIsCatcher.mockReturnValue(false)
     const {result} = renderHook(() => useRequireStrikerForNewPost(), {wrapper})
-    const cb = jest.fn()
-    const opts = {
-      replyTo: {
-        uri: 'at://did:plc:x/app.bsky.feed.post/y',
-        cid: 'cid',
-        text: '',
-        author: {} as unknown as app.bsky.actor.defs.ProfileViewBasic,
-      },
-    }
 
-    result.current(cb)(opts)
-
-    expect(cb).toHaveBeenCalledWith(opts)
+    expect(result.current({replyTo})).toBe(false)
     expect(mockToastShow).not.toHaveBeenCalled()
   })
 })

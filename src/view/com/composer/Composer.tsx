@@ -257,6 +257,7 @@ export const ComposePost = ({
   onPost,
   onPostSuccess,
   quote: initQuote,
+  presetExternalLink: initPresetExternalLink,
   mention: initMention,
   text: initText,
   imageUris: initImageUris,
@@ -372,6 +373,7 @@ export const ComposePost = ({
     {
       initImageUris,
       initQuoteUri: initQuote?.uri,
+      initPresetExternalLinkUri: initPresetExternalLink?.uri,
       initText,
       initMention,
       initInteractionSettings: preferences?.postInteractionSettings,

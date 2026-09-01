@@ -1,18 +1,23 @@
 import {useCallback, useEffect, useImperativeHandle, useMemo} from 'react'
 import {type ListRenderItemInfo, View} from 'react-native'
 import {type UriString} from '@atproto/lex'
+import {AtUri} from '@atproto/syntax'
 import {msg} from '@lingui/core/macro'
 import {useLingui} from '@lingui/react'
 import {Trans} from '@lingui/react/macro'
 import {useNavigation} from '@react-navigation/native'
 
+import {resolveArticleShareLink} from '#/lib/api/article-share'
 import {SUNNAHSKY_SERVICE} from '#/lib/constants'
+import {useOpenComposer} from '#/lib/hooks/useOpenComposer'
 import {useRequireStrikerForArticleAuthoring} from '#/lib/hooks/useRequireStrikerForArticleAuthoring'
 import {type NavigationProp} from '#/lib/routes/types'
 import {cleanError} from '#/lib/strings/errors'
+import {logger} from '#/logger'
 import {
   type AuthorArticle,
   useAuthorArticlesQuery,
+  useDeleteArticleMutation,
 } from '#/state/queries/articles'
 import {EmptyState} from '#/view/com/util/EmptyState'
 import {ErrorMessage} from '#/view/com/util/error/ErrorMessage'
@@ -20,9 +25,16 @@ import {List, type ListRef} from '#/view/com/util/List'
 import {findListNativeTag} from '#/view/com/util/listNativeTag'
 import {FeedLoadingPlaceholder} from '#/view/com/util/LoadingPlaceholder'
 import {atoms as a, ios} from '#/alf'
-import {Button, ButtonText} from '#/components/Button'
+import {Button, ButtonIcon, ButtonText} from '#/components/Button'
+import {ArrowOutOfBoxModified_Stroke2_Corner2_Rounded as ShareIcon} from '#/components/icons/ArrowOutOfBox'
+import {DotGrid3x1_Stroke2_Corner0_Rounded as DotGridIcon} from '#/components/icons/DotGrid'
 import {Newspaper_Stroke2_Corner2_Rounded as NewspaperIcon} from '#/components/icons/Newspaper'
+import {PencilLine_Stroke2_Corner0_Rounded as PencilLineIcon} from '#/components/icons/Pencil'
+import {Trash_Stroke2_Corner0_Rounded as TrashIcon} from '#/components/icons/Trash'
+import * as Menu from '#/components/Menu'
 import {StandardSiteEmbed} from '#/components/Post/Embed/StandardSiteEmbed'
+import * as Prompt from '#/components/Prompt'
+import * as Toast from '#/components/Toast'
 import {IS_IOS, IS_NATIVE} from '#/env'
 import {type app} from '#/lexicons'
 import {type SectionRef} from './types'
@@ -91,6 +103,122 @@ function articleToViewExternal(
       },
     ],
   }
+}
+
+/**
+ * Overflow menu for a single article row. Rendered as a sibling overlay on
+ * top of `StandardSiteEmbed` (never inside it - that component is shared
+ * everywhere articles render and must not gain this logic, and it already
+ * wraps its whole card in its own tap-to-navigate `Link`, so this needs to
+ * sit visually above that rather than nest inside it).
+ *
+ * Share is available for every article, own or another account's - it must
+ * never be gated on `isMe`, since cross-author sharing is the whole point.
+ * Edit and Delete stay own-articles-only.
+ */
+function ArticleRowMenu({
+  article,
+  isMe,
+}: {
+  article: AuthorArticle
+  isMe: boolean
+}) {
+  const {_} = useLingui()
+  const navigation = useNavigation<NavigationProp>()
+  const requireStriker = useRequireStrikerForArticleAuthoring()
+  const {openComposer} = useOpenComposer()
+  const {mutateAsync: deleteArticleMutate} = useDeleteArticleMutation()
+  const deletePromptControl = Prompt.usePromptControl()
+
+  const documentRkey = new AtUri(article.uri).rkey
+
+  const onPressEdit = requireStriker(() =>
+    navigation.navigate('ArticleEdit', {rkey: documentRkey}),
+  )
+
+  const onPressShare = () => {
+    openComposer(
+      async () => ({
+        presetExternalLink: await resolveArticleShareLink(article.uri),
+        text: article.doc.title,
+        logContext: 'ArticleShare',
+      }),
+      {},
+    )
+  }
+
+  const onConfirmDelete = async () => {
+    try {
+      await deleteArticleMutate({documentUri: article.uri, documentRkey})
+      Toast.show(_(msg({message: 'Article deleted', context: 'toast'})))
+    } catch (e) {
+      logger.error('Failed to delete article', {message: e})
+      Toast.show(_(msg`Failed to delete article, please try again`), {
+        type: 'error',
+      })
+    }
+  }
+
+  return (
+    <>
+      <Menu.Root>
+        <Menu.Trigger label={_(msg`Article options`)}>
+          {({props}) => (
+            <Button
+              label={props.accessibilityLabel}
+              testID="articleOptionsBtn"
+              size="small"
+              color="secondary"
+              shape="round"
+              {...props}>
+              <ButtonIcon icon={DotGridIcon} />
+            </Button>
+          )}
+        </Menu.Trigger>
+        <Menu.Outer showCancel>
+          <Menu.Group>
+            <Menu.Item label={_(msg`Share`)} onPress={onPressShare}>
+              <Menu.ItemText>
+                <Trans>Share</Trans>
+              </Menu.ItemText>
+              <Menu.ItemIcon position="right" icon={ShareIcon} />
+            </Menu.Item>
+          </Menu.Group>
+          {isMe && (
+            <>
+              <Menu.Divider />
+              <Menu.Group>
+                <Menu.Item label={_(msg`Edit article`)} onPress={onPressEdit}>
+                  <Menu.ItemText>
+                    <Trans>Edit article</Trans>
+                  </Menu.ItemText>
+                  <Menu.ItemIcon position="right" icon={PencilLineIcon} />
+                </Menu.Item>
+                <Menu.Item
+                  label={_(msg`Delete article`)}
+                  onPress={() => deletePromptControl.open()}>
+                  <Menu.ItemText>
+                    <Trans>Delete article</Trans>
+                  </Menu.ItemText>
+                  <Menu.ItemIcon position="right" icon={TrashIcon} />
+                </Menu.Item>
+              </Menu.Group>
+            </>
+          )}
+        </Menu.Outer>
+      </Menu.Root>
+      <Prompt.Basic
+        control={deletePromptControl}
+        title={_(msg`Delete this article?`)}
+        description={_(
+          msg`If you delete this article, you won't be able to recover it.`,
+        )}
+        onConfirm={() => void onConfirmDelete()}
+        confirmButtonCta={_(msg`Delete`)}
+        confirmButtonColor="negative"
+      />
+    </>
+  )
 }
 
 /**
@@ -207,7 +335,17 @@ export function ProfileArticlesSection({
       }
       return (
         <View style={[a.px_lg, a.pb_md, index === 0 && a.pt_md]}>
-          <StandardSiteEmbed view={item.view} />
+          <View style={[a.relative]}>
+            <StandardSiteEmbed view={item.view} />
+            <View
+              style={[
+                a.absolute,
+                a.z_10,
+                {top: a.p_sm.padding, right: a.p_sm.padding},
+              ]}>
+              <ArticleRowMenu article={item.article} isMe={isMe} />
+            </View>
+          </View>
         </View>
       )
     },

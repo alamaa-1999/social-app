@@ -276,7 +276,13 @@ export type Events = {
   }
   'composer:open': {
     logContext:
-      'Fab' | 'PostReply' | 'QuotePost' | 'ProfileFeed' | 'Deeplink' | 'Other'
+      | 'Fab'
+      | 'PostReply'
+      | 'QuotePost'
+      | 'ProfileFeed'
+      | 'Deeplink'
+      | 'ArticleShare'
+      | 'Other'
     isReply: boolean
     hasQuote: boolean
     hasDraft: boolean

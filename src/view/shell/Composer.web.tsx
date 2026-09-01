@@ -66,6 +66,7 @@ function Inner({state}: {state: ComposerOpts}) {
             cancelRef={ref}
             replyTo={state.replyTo}
             quote={state.quote}
+            presetExternalLink={state.presetExternalLink}
             onPost={state.onPost}
             onPostSuccess={state.onPostSuccess}
             mention={state.mention}

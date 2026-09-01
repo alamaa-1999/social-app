@@ -2,13 +2,16 @@ import {useMemo} from 'react'
 import {ScrollView, View} from 'react-native'
 import {useSafeAreaInsets} from 'react-native-safe-area-context'
 import {Trans} from '@lingui/react/macro'
+import {useNavigation} from '@react-navigation/native'
 
 import {useOpenLink} from '#/lib/hooks/useOpenLink'
 import {
   type CommonNavigatorParams,
   type NativeStackScreenProps,
+  type NavigationProp,
 } from '#/lib/routes/types'
 import {usePublicArticleQuery} from '#/state/queries/articles'
+import {useSession} from '#/state/session'
 import {draftFacetsToEditorFacets} from '#/screens/ArticleCompose/drafts/state/api'
 import {manager} from '#/screens/ArticleCompose/editor-web/manager'
 import {applyFacetsToParsedDoc} from '#/screens/ArticleCompose/editor-web/serializer'
@@ -62,7 +65,18 @@ export function ArticleScreen({route}: Props) {
   const t = useTheme()
   const {top} = useSafeAreaInsets()
   const openLink = useOpenLink()
+  const navigation = useNavigation<NavigationProp>()
+  const {currentAccount} = useSession()
   const {data, isPending, isError} = usePublicArticleQuery(did, rkey)
+
+  /*
+   * `did` here is the route param the reader already loads by, never a
+   * value read off any post/ref - same identity discipline `ArticleEdit`
+   * itself already applies (see `PostMenuItems.tsx`'s former equivalent
+   * comment, before that entry point was removed in favor of this one and
+   * the Articles-tab menu).
+   */
+  const isOwnArticle = !!currentAccount && currentAccount.did === did
 
   const doc = useMemo(() => {
     if (!data) return undefined
@@ -134,6 +148,8 @@ export function ArticleScreen({route}: Props) {
               contentContainerStyle={[a.align_center]}>
               <ArticleView
                 variant="reader"
+                isOwnArticle={isOwnArticle}
+                onPressEdit={() => navigation.navigate('ArticleEdit', {rkey})}
                 publicationName={data.publicationName}
                 publicationAvatar={data.publicationAvatarUri}
                 handle={data.handle}

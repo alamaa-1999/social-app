@@ -337,6 +337,7 @@ export function composerReducer(
         initMention: undefined,
         initImageUris: [],
         initQuoteUri: undefined,
+        initPresetExternalLinkUri: undefined,
         initInteractionSettings: action.initInteractionSettings,
       })
     }
@@ -624,12 +625,14 @@ export function createComposerState({
   initMention,
   initImageUris,
   initQuoteUri,
+  initPresetExternalLinkUri,
   initInteractionSettings,
 }: {
   initText: string | undefined
   initMention: string | undefined
   initImageUris: ComposerOpts['imageUris']
   initQuoteUri: string | undefined
+  initPresetExternalLinkUri: string | undefined
   initInteractionSettings:
     app.bsky.actor.defs.PostInteractionSettingsPref | undefined
 }): ComposerState {
@@ -663,15 +666,16 @@ export function createComposerState({
   let link: Link | undefined
 
   /**
-   * `initText` atm is only used for compose intents, meaning share links from
-   * external sources. If `initText` is defined, we want to extract links/posts
-   * from `initText` and suggest them as embeds.
-   *
-   * This checks for posts separately from other types of links so that posts
-   * can become quotes. The util `suggestLinkCardUri` is then applied to ensure
-   * we suggest at most 1 of each.
+   * The "Share" flow already knows exactly which link it wants embedded (an
+   * already-resolved, precached article) - so it sets `link` directly rather
+   * than going through the detection below, which exists to guess intent out
+   * of free-form pasted/shared text and would otherwise re-derive the same
+   * link from scratch (or miss it, if `initText`'s wording doesn't happen to
+   * repeat the URL verbatim).
    */
-  if (initText) {
+  if (initPresetExternalLinkUri) {
+    link = {type: 'link', uri: initPresetExternalLinkUri as UriString}
+  } else if (initText) {
     initRichText.detectFacetsWithoutResolution()
     const detectedExtUris = new Map<string, LinkFacetMatch>()
     const detectedPostUris = new Map<string, LinkFacetMatch>()

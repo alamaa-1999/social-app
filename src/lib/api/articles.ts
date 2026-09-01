@@ -29,9 +29,9 @@ import {computeCid} from './computeCid'
  * `joinPath`/`canonicalizeHttpUrl` logic) before landing this.
  */
 const PUBLICATION_URL = 'https://sunnahsky.com'
-const articlePath = (did: string, docRkey: string) =>
+export const articlePath = (did: string, docRkey: string) =>
   `/article/${did}/${docRkey}`
-const articleUrl = (did: string, docRkey: string) =>
+export const articleUrl = (did: string, docRkey: string) =>
   `${PUBLICATION_URL}${articlePath(did, docRkey)}`
 
 export interface ArticleDraft {
@@ -515,4 +515,61 @@ export async function publishArticle(opts: PublishArticleOpts) {
   })
 
   return {documentUri: docUri, postUri, publicationUri: pubUri}
+}
+
+interface DeleteArticleOpts {
+  documentRkey: string
+}
+
+/**
+ * Deletes an already-published article: the `site.standard.document` record
+ * always, and its `com.sunnahsky.article.assets` record too, if one exists.
+ * An article with no body images never had an assets record at all - fetch
+ * and check first, the same defensive pattern `publishArticle`'s own
+ * `existingAssetsRecord` fetch already uses, rather than assuming one exists
+ * and hitting the same uncaught `applyWrites#delete`-on-a-missing-record
+ * failure that pattern exists to avoid.
+ *
+ * Deletes either record via the PDS's own generic, URI-keyed
+ * `deleteDereferencedBlobs` - nothing here names the cover image or body
+ * images explicitly, since deletion is what dereferences their blobs.
+ *
+ * Deliberately does not touch the article's announcement post, if it has
+ * one - an old post with an outdated link is normal, expected
+ * chronological-feed behavior, not something this needs to clean up.
+ */
+export async function deleteArticle(
+  pdsClient: Client,
+  opts: DeleteArticleOpts,
+) {
+  const did = pdsClient.assertDid
+
+  const existingAssetsRecord = await pdsClient
+    .call(com.atproto.repo.getRecord, {
+      repo: did,
+      collection: 'com.sunnahsky.article.assets',
+      rkey: opts.documentRkey,
+    })
+    .catch(() => undefined)
+
+  const writes: com.atproto.repo.applyWrites.$InputBody['writes'] = [
+    {
+      $type: 'com.atproto.repo.applyWrites#delete',
+      collection: 'site.standard.document',
+      rkey: opts.documentRkey,
+    },
+  ]
+  if (existingAssetsRecord) {
+    writes.push({
+      $type: 'com.atproto.repo.applyWrites#delete',
+      collection: 'com.sunnahsky.article.assets',
+      rkey: opts.documentRkey,
+    })
+  }
+
+  await pdsClient.call(com.atproto.repo.applyWrites, {
+    repo: did,
+    writes,
+    validate: true,
+  })
 }

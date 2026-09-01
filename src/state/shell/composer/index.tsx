@@ -4,6 +4,7 @@ import {msg} from '@lingui/core/macro'
 import {useLingui} from '@lingui/react'
 import {useQueryClient} from '@tanstack/react-query'
 
+import {type ResolvedExternalLink} from '#/lib/api/resolve'
 import {useNonReactiveCallback} from '#/lib/hooks/useNonReactiveCallback'
 import {postUriToRelativePath, toBskyAppUrl} from '#/lib/strings/url-helpers'
 import {purgeTemporaryImageFiles} from '#/state/gallery'
@@ -33,13 +34,26 @@ export type OnPostSuccessData =
   | undefined
 
 export type ComposerLogContext =
-  'Fab' | 'PostReply' | 'QuotePost' | 'ProfileFeed' | 'Deeplink' | 'Other'
+  | 'Fab'
+  | 'PostReply'
+  | 'QuotePost'
+  | 'ProfileFeed'
+  | 'Deeplink'
+  | 'ArticleShare'
+  | 'Other'
 
 export interface ComposerOpts {
   replyTo?: ComposerOptsPostRef
   onPost?: (postUri: string | undefined) => void
   onPostSuccess?: (data: OnPostSuccessData) => void
   quote?: app.bsky.feed.defs.PostView
+  /**
+   * Pre-fills the composer's link embed with an already-resolved external
+   * link, precached below the same way `quote` is - for the "Share" flow,
+   * where the link (an article) is resolved directly from the PDS rather
+   * than crawled the way a pasted URL normally would be.
+   */
+  presetExternalLink?: ResolvedExternalLink
   mention?: string // handle of user to mention
   text?: string
   imageUris?: {uri: string; width: number; height: number; altText?: string}[]
@@ -70,6 +84,13 @@ export function Provider({children}: React.PropsWithChildren<{}>) {
   const queryClient = useQueryClient()
 
   const openComposer = useNonReactiveCallback((opts: ComposerOpts) => {
+    if (opts.presetExternalLink) {
+      precacheResolveLinkQuery(
+        queryClient,
+        opts.presetExternalLink.uri,
+        opts.presetExternalLink,
+      )
+    }
     if (opts.quote) {
       const path = postUriToRelativePath(opts.quote.uri)
       if (path) {

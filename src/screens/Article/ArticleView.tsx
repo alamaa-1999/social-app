@@ -5,8 +5,9 @@ import {sanitizeDisplayName} from '#/lib/strings/display-names'
 import {sanitizeHandle} from '#/lib/strings/handles'
 import {UserAvatar} from '#/view/com/util/UserAvatar'
 import {atoms as a, useTheme} from '#/alf'
-import {Button, ButtonText} from '#/components/Button'
+import {Button, ButtonIcon, ButtonText} from '#/components/Button'
 import {ArrowShareRight_Stroke2_Corner2_Rounded as ShareIcon} from '#/components/icons/ArrowShareRight'
+import {PencilLine_Stroke2_Corner0_Rounded as PencilLineIcon} from '#/components/icons/Pencil'
 import * as Header from '#/components/Layout/Header'
 import {Text} from '#/components/Typography'
 import {ArticleImage} from './ArticleImage'
@@ -53,10 +54,18 @@ function formatArticleDate(date: Date) {
  * (node 340:5307) - the back button and Follow button only belong to the
  * reader (previewing your own unpublished draft has no "back to the reader"
  * or "follow yourself" action), so `variant` picks which of those two render.
- * The "..." menu is present in both.
+ *
+ * For the article's own author, viewing it signed in, the trailing button
+ * is Edit rather than Follow - "follow yourself" makes no more sense than
+ * the reverse, and this is the natural place an author who's already
+ * looking at their own published article and spots something to fix would
+ * reach for it (the Articles-tab menu stays the primary listing-and-
+ * management surface; this is a second, independent way to reach edit).
  */
 export function ArticleView({
   variant,
+  isOwnArticle,
+  onPressEdit,
   publicationName,
   publicationAvatar,
   handle,
@@ -71,6 +80,13 @@ export function ArticleView({
   onPressLink,
 }: {
   variant: 'reader' | 'preview'
+  /**
+   * Whether the currently signed-in session's own DID matches this
+   * article's - `reader`-only, irrelevant to `preview` (previewing your own
+   * unpublished draft is always "your own article").
+   */
+  isOwnArticle?: boolean
+  onPressEdit?: () => void
   publicationName: string
   publicationAvatar?: string
   handle: string
@@ -150,11 +166,24 @@ export function ArticleView({
             </View>
           </View>
           {variant === 'reader' ? (
-            <Button label={l`Follow`} color="primary" size="medium">
-              <ButtonText>
-                <Trans>Follow</Trans>
-              </ButtonText>
-            </Button>
+            isOwnArticle ? (
+              <Button
+                label={l`Edit article`}
+                color="secondary"
+                size="medium"
+                onPress={onPressEdit}>
+                <ButtonIcon icon={PencilLineIcon} />
+                <ButtonText>
+                  <Trans>Edit</Trans>
+                </ButtonText>
+              </Button>
+            ) : (
+              <Button label={l`Follow`} color="primary" size="medium">
+                <ButtonText>
+                  <Trans>Follow</Trans>
+                </ButtonText>
+              </Button>
+            )
           ) : null}
         </View>
       </View>

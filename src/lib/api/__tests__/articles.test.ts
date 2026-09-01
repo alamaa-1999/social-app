@@ -401,7 +401,13 @@ describe('publishArticle - editing an already-published article', () => {
     const realDocCid = await computeCid(docWrite.value)
     const embed = (
       postWrite.value as {
-        embed: {external: {associatedRefs: {uri: string; cid: string}[]}}
+        embed: {
+          external: {
+            title: string
+            description: string
+            associatedRefs: {uri: string; cid: string}[]
+          }
+        }
       }
     ).embed
     const docRef = embed.external.associatedRefs.find(r =>

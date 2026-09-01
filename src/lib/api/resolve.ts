@@ -27,7 +27,7 @@ import {type Gif} from '#/features/gifPicker/types'
 import {app, chat, com} from '#/lexicons'
 import {createGIFDescription} from '../gif-alt-text'
 
-type ResolvedExternalLink = {
+export type ResolvedExternalLink = {
   type: 'external'
   uri: string
   title: string

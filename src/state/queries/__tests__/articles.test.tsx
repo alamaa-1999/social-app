@@ -154,7 +154,7 @@ describe('useArticleDocumentQuery', () => {
     expect(result.current.error?.message).toBe('Could not parse this article')
   })
 
-  it('errors when the document has no companion post to edit against', async () => {
+  it('succeeds for a valid document with no companion post - deleting the post must not break editing', async () => {
     const mockCall = jest.fn().mockResolvedValue({
       uri: DOC_URI,
       cid: recordCid,
@@ -168,9 +168,9 @@ describe('useArticleDocumentQuery', () => {
 
     const {result} = renderWithClient(mockCall)
 
-    await waitFor(() => expect(result.current.isError).toBe(true))
-    expect(result.current.error?.message).toBe(
-      'This article has no companion post to edit against',
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(result.current.data?.document.title).toBe(
+      'A valid document, missing bskyPostRef',
     )
   })
 

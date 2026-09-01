@@ -1,6 +1,7 @@
 import {type AtIdentifierString, AtUri, type AtUriString} from '@atproto/syntax'
-import {useQuery} from '@tanstack/react-query'
+import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query'
 
+import {deleteArticle} from '#/lib/api/articles'
 import {LOCAL_DEV_SERVICE, SUNNAHSKY_SERVICE} from '#/lib/constants'
 import {STALE} from '#/state/queries'
 import {usePdsClient, useSession} from '#/state/session'
@@ -137,13 +138,46 @@ export function useArticleDocumentQuery(uri: AtUriString | undefined) {
       if (!result.success) {
         throw new Error('Could not parse this article')
       }
-      if (!result.value.bskyPostRef?.uri) {
-        throw new Error('This article has no companion post to edit against')
-      }
       if (!cid) {
         throw new Error('This article record has no cid')
       }
       return {uri: recordUri, cid, document: result.value}
+    },
+  })
+}
+
+/**
+ * Deletes the signed-in Striker's own already-published article. Always
+ * same-account, same as {@link useArticleDocumentQuery} above - `did` and
+ * `rkey` are only used here to invalidate this account's own cached article
+ * lists/documents afterward, the same three keys `doConfirmPublish` already
+ * touches after a publish/edit.
+ */
+export function useDeleteArticleMutation() {
+  const pdsClient = usePdsClient()
+  const {currentAccount} = useSession()
+  const queryClient = useQueryClient()
+  const did = currentAccount?.did
+
+  return useMutation({
+    mutationFn: async ({
+      documentUri,
+      documentRkey,
+    }: {
+      documentUri: AtUriString
+      documentRkey: string
+    }) => {
+      await deleteArticle(pdsClient, {documentRkey})
+      return {documentUri, documentRkey}
+    },
+    onSuccess: ({documentUri, documentRkey}) => {
+      void queryClient.invalidateQueries({queryKey: RQKEY(did || '')})
+      void queryClient.invalidateQueries({
+        queryKey: DOCUMENT_RQKEY(documentUri),
+      })
+      void queryClient.invalidateQueries({
+        queryKey: PUBLIC_ARTICLE_RQKEY(did || '', documentRkey),
+      })
     },
   })
 }
