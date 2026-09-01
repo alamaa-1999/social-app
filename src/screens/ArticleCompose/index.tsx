@@ -2218,10 +2218,14 @@ export function ArticleCompose({
    * rather than rendering through its `{previewSnapshot ? previewContent :
    * content}` desktop-modal branch. Still `Portal`-based, for the same
    * reason `ComposerOverlay` itself is: it needs to paint above the base
-   * screen behind it regardless of that screen's own stacking context. The
-   * image-block menu is intentionally left out here - it's only ever opened
-   * from inside the editor's own WebView, which is unmounted while
-   * `previewSnapshot` is set.
+   * screen behind it regardless of that screen's own stacking context.
+   * Rendered as a sibling overlay on top of `content` below, not as an
+   * early return replacing it - `content` (and the real editor inside it)
+   * stays mounted underneath the whole time; see the doc comment on the
+   * final `return` for why that matters. The image-block menu is
+   * intentionally left out here - it's only ever opened from inside the
+   * editor's own WebView, which this overlay covers and blocks input to,
+   * not something that needs its own preview-mode handling.
    */
   /*
    * Rendered identically (same position, same component) in both return
@@ -2261,40 +2265,26 @@ export function ArticleCompose({
     />
   )
 
-  if (previewSnapshot && previewDoc) {
-    return (
-      <>
-        <Portal>
-          <View style={[a.fixed, a.inset_0, t.atoms.bg]}>{previewContent}</View>
-        </Portal>
-        {shareArticlePrompt}
-      </>
-    )
-  }
-
   /*
-   * A fresh publish has already succeeded and its own screen's job is done
-   * - nothing the editor shows here matters or should be visible while the
-   * share prompt is up. Deliberately not rendering `content` (the real
-   * editor) for this window: the branch swap above remounts it fresh with
-   * no way to reseed the just-published title/body, and separately, this
-   * project has an already-known, already-deprioritized bug where a fresh
-   * mount can briefly show "Save and close"/"Unsaved draft" with nothing
-   * typed (see the "Save-and-close label bug" note in HANDOFF.md). Rather
-   * than re-opening that investigation, or making the editor lie about
-   * having the just-published content, this just doesn't show it at all.
+   * `content` (and the real editor inside it) is rendered unconditionally
+   * below, with preview as an overlay on top of it rather than a branch
+   * swap that replaces it. This restores the contract `previewSnapshot`'s
+   * own doc comment already states - "not persisted anywhere... not a
+   * second source of truth", i.e. it assumes the editor is still there,
+   * untouched, to return to. An earlier version of this returned early for
+   * preview (and separately for a fresh publish), which unmounted `content`
+   * outright: `useEditorBridge`'s `initialContent` is only ever read once,
+   * at construction (see its own doc comment above), so a fresh remount
+   * always came back seeded from `initial` - blank, for a new article -
+   * silently discarding everything typed since. Reported directly by the
+   * project owner: "click preview, click back to edit, the composer is
+   * empty." Not a Release 2 regression - this early-return structure
+   * predates it - but it's exactly what the fresh-publish branch's own
+   * blank backdrop was quietly working around too, so that branch is
+   * removed here as well: the editor now correctly still shows the
+   * just-published content underneath the share prompt, rather than
+   * needing to hide it.
    */
-  if (justPublished) {
-    return (
-      <>
-        <Portal>
-          <View style={[a.fixed, a.inset_0, t.atoms.bg]} />
-        </Portal>
-        {shareArticlePrompt}
-      </>
-    )
-  }
-
   return (
     <>
       <ComposerOverlay>
@@ -2415,6 +2405,11 @@ export function ArticleCompose({
           </View>
         ) : null}
       </ComposerOverlay>
+      {previewSnapshot && previewDoc && (
+        <Portal>
+          <View style={[a.fixed, a.inset_0, t.atoms.bg]}>{previewContent}</View>
+        </Portal>
+      )}
       {shareArticlePrompt}
     </>
   )
