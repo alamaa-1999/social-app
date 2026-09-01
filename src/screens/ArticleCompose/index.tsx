@@ -564,10 +564,10 @@ export function ArticleCompose({
   const shareArticlePromptControl = Prompt.usePromptControl()
   const {openComposer} = useOpenComposer()
   // Set only on a fresh publish (never an edit - see the share-prompt
-  // decision in `encapsulated-squishing-thacker.md`), right before the share
-  // prompt opens. `previewSnapshot` is cleared by then, so this is the only
-  // place the just-published article's identity/title survive to feed the
-  // prompt's own `openComposer` call.
+  // decision in `encapsulated-squishing-thacker.md`). Also carries the
+  // just-published article's identity/title forward for the prompt's own
+  // `openComposer` call, since `previewSnapshot` is cleared by the time it
+  // fires.
   const [justPublished, setJustPublished] = useState<
     {documentUri: AtUriString; title: string} | undefined
   >()
@@ -1915,29 +1915,6 @@ export function ArticleCompose({
           cancelButtonCta={_(msg`Keep editing`)}
         />
 
-        <Prompt.Basic
-          control={shareArticlePromptControl}
-          title={_(msg`Share this article?`)}
-          description={_(
-            msg`Publishing doesn't post to your profile automatically. Share it now so people can see it.`,
-          )}
-          onConfirm={() => {
-            if (!justPublished) return
-            const {documentUri, title} = justPublished
-            openComposer(
-              async () => ({
-                presetExternalLink: await resolveArticleShareLink(documentUri),
-                text: title,
-                logContext: 'ArticleShare',
-              }),
-              {},
-            )
-          }}
-          confirmButtonCta={_(msg`Share`)}
-          cancelButtonCta={_(msg`Not now`)}
-          onClose={onClose}
-        />
-
         <Metadata
           value={metadata}
           onChange={setMetadata}
@@ -2246,127 +2223,200 @@ export function ArticleCompose({
    * from inside the editor's own WebView, which is unmounted while
    * `previewSnapshot` is set.
    */
+  /*
+   * Rendered identically (same position, same component) in both return
+   * branches below, rather than only inside `content` - `doConfirmPublish`
+   * fires from the preview branch and calls `.open()` on this control
+   * right after clearing `previewSnapshot`, which swaps which branch
+   * renders in the very same commit. If this prompt only existed in the
+   * "normal" branch, that swap would be a fresh mount for it, and `.open()`
+   * would race against `Portal`'s own effect-driven, two-commit mount (it
+   * renders null and only pushes children into a shared Outlet via
+   * `useEffect`+`setOutlet` - not synchronous, confirmed by reading
+   * `components/Portal.tsx`). Kept mounted continuously across the swap
+   * instead: React reconciles same-type siblings at the same position
+   * without unmounting them, so this stays attached the whole time and
+   * `.open()` never has to race anything.
+   */
+  const shareArticlePrompt = (
+    <Prompt.Basic
+      control={shareArticlePromptControl}
+      title={_(msg`Your article has been published successfully!`)}
+      description={_(msg`Would you like to share it to your timeline?`)}
+      onConfirm={() => {
+        if (!justPublished) return
+        const {documentUri, title} = justPublished
+        openComposer(
+          async () => ({
+            presetExternalLink: await resolveArticleShareLink(documentUri),
+            text: title,
+            logContext: 'ArticleShare',
+          }),
+          {},
+        )
+      }}
+      confirmButtonCta={_(msg`Share`)}
+      cancelButtonCta={_(msg`Not now`)}
+      onClose={onClose}
+    />
+  )
+
   if (previewSnapshot && previewDoc) {
     return (
-      <Portal>
-        <View style={[a.fixed, a.inset_0, t.atoms.bg]}>{previewContent}</View>
-      </Portal>
+      <>
+        <Portal>
+          <View style={[a.fixed, a.inset_0, t.atoms.bg]}>{previewContent}</View>
+        </Portal>
+        {shareArticlePrompt}
+      </>
+    )
+  }
+
+  /*
+   * A fresh publish has already succeeded and its own screen's job is done
+   * - nothing the editor shows here matters or should be visible while the
+   * share prompt is up. Deliberately not rendering `content` (the real
+   * editor) for this window: the branch swap above remounts it fresh with
+   * no way to reseed the just-published title/body, and separately, this
+   * project has an already-known, already-deprioritized bug where a fresh
+   * mount can briefly show "Save and close"/"Unsaved draft" with nothing
+   * typed (see the "Save-and-close label bug" note in HANDOFF.md). Rather
+   * than re-opening that investigation, or making the editor lie about
+   * having the just-published content, this just doesn't show it at all.
+   */
+  if (justPublished) {
+    return (
+      <>
+        <Portal>
+          <View style={[a.fixed, a.inset_0, t.atoms.bg]} />
+        </Portal>
+        {shareArticlePrompt}
+      </>
     )
   }
 
   return (
-    <ComposerOverlay>
-      {content}
-      {imageMenuTarget ? (
-        /*
-         * Anchored over the block the author clicked - an image (Remove/
-         * Replace) or a placeholder (Select image/Delete block), branching on
-         * `imageMenuTarget.kind`. One mechanism serves both, since both
-         * report the same shape of rect. The rect arrives from inside the
-         * WebView, so it is in *that* document's viewport coordinates;
-         * `onImageBlockMenuRef` above already converts it into page
-         * coordinates via `editorSurfaceRef.measureInWindow` before it gets
-         * here - confirmed live on web after an earlier version anchored near
-         * the top-left of the screen instead of on the block.
-         */
-        <View
-          style={[
-            a.absolute,
-            {
-              left: imageMenuTarget.rect.x,
-              top: imageMenuTarget.rect.y,
-              width: imageMenuTarget.rect.width,
-              height: imageMenuTarget.rect.height,
-            },
-          ]}
-          pointerEvents="box-none">
-          <Menu.Root control={imageMenuControl}>
-            {/* Zero-affordance trigger: the real affordance is the block
+    <>
+      <ComposerOverlay>
+        {content}
+        {imageMenuTarget ? (
+          /*
+           * Anchored over the block the author clicked - an image (Remove/
+           * Replace) or a placeholder (Select image/Delete block), branching on
+           * `imageMenuTarget.kind`. One mechanism serves both, since both
+           * report the same shape of rect. The rect arrives from inside the
+           * WebView, so it is in *that* document's viewport coordinates;
+           * `onImageBlockMenuRef` above already converts it into page
+           * coordinates via `editorSurfaceRef.measureInWindow` before it gets
+           * here - confirmed live on web after an earlier version anchored near
+           * the top-left of the screen instead of on the block.
+           */
+          <View
+            style={[
+              a.absolute,
+              {
+                left: imageMenuTarget.rect.x,
+                top: imageMenuTarget.rect.y,
+                width: imageMenuTarget.rect.width,
+                height: imageMenuTarget.rect.height,
+              },
+            ]}
+            pointerEvents="box-none">
+            <Menu.Root control={imageMenuControl}>
+              {/* Zero-affordance trigger: the real affordance is the block
                 itself, inside the editor. This exists only to give the
                 dropdown something to anchor to and the control something to
                 open. */}
-            <Menu.Trigger
-              label={
-                imageMenuTarget.kind === 'image'
-                  ? _(msg`Edit image`)
-                  : _(msg`Image options`)
-              }>
-              {({props}) => (
-                /*
-                 * The explicit `{null}` child is load-bearing. On web the
-                 * trigger's `props` include Radix's own `children`, which is a
-                 * *function* - spreading them onto an element with no children
-                 * of its own hands React that function as a child and it
-                 * throws "Functions are not valid as a React child". The
-                 * cover-image menu in `Metadata.tsx` never hits this only
-                 * because its trigger renders real content, which shadows the
-                 * spread value.
-                 */
-                <View {...props} style={[a.w_full, a.h_full]}>
-                  {null}
-                </View>
-              )}
-            </Menu.Trigger>
-            <Menu.Outer>
-              {imageMenuTarget.kind === 'image' ? (
-                <>
-                  <Menu.Item
-                    label={_(msg`Remove image`)}
-                    onPress={onRemoveBodyImage}>
-                    <Menu.ItemIcon icon={TrashIcon} fill={imageMenuIconFill} />
-                    <Menu.ItemText>
-                      <Trans>Remove image</Trans>
-                    </Menu.ItemText>
-                  </Menu.Item>
-                  <Menu.Item
-                    label={_(msg`Replace image`)}
-                    onPress={() => {
-                      void onReplaceBodyImage()
-                    }}>
-                    <Menu.ItemIcon
-                      icon={AttachmentIcon}
-                      fill={imageMenuIconFill}
-                    />
-                    <Menu.ItemText>
-                      <Trans>Replace image</Trans>
-                    </Menu.ItemText>
-                  </Menu.Item>
-                </>
-              ) : (
-                <>
-                  {/*
-                   * "Select image" covers both a retry after an error and
-                   * picking for a block that is simply still idle - see
-                   * `onSelectImageForPlaceholder`. "Delete block" removes the
-                   * block outright, with no attempt to rejoin a paragraph its
-                   * insert may have split; see `onDeleteImageBlock`.
-                   */}
-                  <Menu.Item
-                    label={_(msg`Select image`)}
-                    onPress={onSelectImageForPlaceholder}>
-                    <Menu.ItemIcon
-                      icon={AttachmentIcon}
-                      fill={imageMenuIconFill}
-                    />
-                    <Menu.ItemText>
-                      <Trans>Select image</Trans>
-                    </Menu.ItemText>
-                  </Menu.Item>
-                  <Menu.Item
-                    label={_(msg`Delete block`)}
-                    onPress={onDeleteImageBlock}>
-                    <Menu.ItemIcon icon={TrashIcon} fill={imageMenuIconFill} />
-                    <Menu.ItemText>
-                      <Trans>Delete block</Trans>
-                    </Menu.ItemText>
-                  </Menu.Item>
-                </>
-              )}
-            </Menu.Outer>
-          </Menu.Root>
-        </View>
-      ) : null}
-    </ComposerOverlay>
+              <Menu.Trigger
+                label={
+                  imageMenuTarget.kind === 'image'
+                    ? _(msg`Edit image`)
+                    : _(msg`Image options`)
+                }>
+                {({props}) => (
+                  /*
+                   * The explicit `{null}` child is load-bearing. On web the
+                   * trigger's `props` include Radix's own `children`, which is a
+                   * *function* - spreading them onto an element with no children
+                   * of its own hands React that function as a child and it
+                   * throws "Functions are not valid as a React child". The
+                   * cover-image menu in `Metadata.tsx` never hits this only
+                   * because its trigger renders real content, which shadows the
+                   * spread value.
+                   */
+                  <View {...props} style={[a.w_full, a.h_full]}>
+                    {null}
+                  </View>
+                )}
+              </Menu.Trigger>
+              <Menu.Outer>
+                {imageMenuTarget.kind === 'image' ? (
+                  <>
+                    <Menu.Item
+                      label={_(msg`Remove image`)}
+                      onPress={onRemoveBodyImage}>
+                      <Menu.ItemIcon
+                        icon={TrashIcon}
+                        fill={imageMenuIconFill}
+                      />
+                      <Menu.ItemText>
+                        <Trans>Remove image</Trans>
+                      </Menu.ItemText>
+                    </Menu.Item>
+                    <Menu.Item
+                      label={_(msg`Replace image`)}
+                      onPress={() => {
+                        void onReplaceBodyImage()
+                      }}>
+                      <Menu.ItemIcon
+                        icon={AttachmentIcon}
+                        fill={imageMenuIconFill}
+                      />
+                      <Menu.ItemText>
+                        <Trans>Replace image</Trans>
+                      </Menu.ItemText>
+                    </Menu.Item>
+                  </>
+                ) : (
+                  <>
+                    {/*
+                     * "Select image" covers both a retry after an error and
+                     * picking for a block that is simply still idle - see
+                     * `onSelectImageForPlaceholder`. "Delete block" removes the
+                     * block outright, with no attempt to rejoin a paragraph its
+                     * insert may have split; see `onDeleteImageBlock`.
+                     */}
+                    <Menu.Item
+                      label={_(msg`Select image`)}
+                      onPress={onSelectImageForPlaceholder}>
+                      <Menu.ItemIcon
+                        icon={AttachmentIcon}
+                        fill={imageMenuIconFill}
+                      />
+                      <Menu.ItemText>
+                        <Trans>Select image</Trans>
+                      </Menu.ItemText>
+                    </Menu.Item>
+                    <Menu.Item
+                      label={_(msg`Delete block`)}
+                      onPress={onDeleteImageBlock}>
+                      <Menu.ItemIcon
+                        icon={TrashIcon}
+                        fill={imageMenuIconFill}
+                      />
+                      <Menu.ItemText>
+                        <Trans>Delete block</Trans>
+                      </Menu.ItemText>
+                    </Menu.Item>
+                  </>
+                )}
+              </Menu.Outer>
+            </Menu.Root>
+          </View>
+        ) : null}
+      </ComposerOverlay>
+      {shareArticlePrompt}
+    </>
   )
 }
 
