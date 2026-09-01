@@ -117,11 +117,9 @@ describe('useArticleDocumentQuery', () => {
   // validates CID format, so a hand-copied placeholder string fails to
   // parse for reasons unrelated to whatever the test is actually checking.
   let recordCid: string
-  let bskyPostRefCid: string
 
   beforeAll(async () => {
     recordCid = await computeCid({a: 'record cid'})
-    bskyPostRefCid = await computeCid({a: 'bskyPostRef cid'})
   })
 
   function renderWithClient(mockCall: jest.Mock) {
@@ -183,10 +181,6 @@ describe('useArticleDocumentQuery', () => {
         title: 'A valid document',
         publishedAt: '2026-01-01T00:00:00.000Z',
         site: 'at://did:plc:owner/site.standard.publication/pub1',
-        bskyPostRef: {
-          uri: 'at://did:plc:owner/app.bsky.feed.post/post1',
-          cid: bskyPostRefCid,
-        },
       },
     })
 
@@ -196,7 +190,7 @@ describe('useArticleDocumentQuery', () => {
     expect(result.current.error?.message).toBe('This article record has no cid')
   })
 
-  it('succeeds for a valid document with a companion post', async () => {
+  it('succeeds for a valid document with just the required fields', async () => {
     const mockCall = jest.fn().mockResolvedValue({
       uri: DOC_URI,
       cid: recordCid,
@@ -205,10 +199,6 @@ describe('useArticleDocumentQuery', () => {
         title: 'A valid document',
         publishedAt: '2026-01-01T00:00:00.000Z',
         site: 'at://did:plc:owner/site.standard.publication/pub1',
-        bskyPostRef: {
-          uri: 'at://did:plc:owner/app.bsky.feed.post/post1',
-          cid: bskyPostRefCid,
-        },
       },
     })
 

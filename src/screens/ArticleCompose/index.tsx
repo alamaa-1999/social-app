@@ -21,8 +21,10 @@ import {
   MAX_BODY_IMAGE_BYTES,
   MAX_BODY_IMAGES,
 } from '#/lib/api/article-assets'
+import {resolveArticleShareLink} from '#/lib/api/article-share'
 import {type ArticleEditRef, publishArticle} from '#/lib/api/articles'
 import {uploadBlob} from '#/lib/api/upload-blob'
+import {useOpenComposer} from '#/lib/hooks/useOpenComposer'
 import {useOpenLink} from '#/lib/hooks/useOpenLink'
 import {useRequireStrikerForArticleAuthoring} from '#/lib/hooks/useRequireStrikerForArticleAuthoring'
 import {openPicker} from '#/lib/media/picker'
@@ -559,6 +561,16 @@ export function ArticleCompose({
     useCleanupPublishedArticleDraftMutation()
   const discardPromptControl = Prompt.usePromptControl()
   const discardEditPromptControl = Prompt.usePromptControl()
+  const shareArticlePromptControl = Prompt.usePromptControl()
+  const {openComposer} = useOpenComposer()
+  // Set only on a fresh publish (never an edit - see the share-prompt
+  // decision in `encapsulated-squishing-thacker.md`), right before the share
+  // prompt opens. `previewSnapshot` is cleared by then, so this is the only
+  // place the just-published article's identity/title survive to feed the
+  // prompt's own `openComposer` call.
+  const [justPublished, setJustPublished] = useState<
+    {documentUri: AtUriString; title: string} | undefined
+  >()
 
   /*
    * Closes a real gap, web only: this screen's Cancel button already gates
@@ -1370,8 +1382,6 @@ export function ArticleCompose({
             documentRkey: editingArticle.rkey,
             documentCid: editingArticle.cid,
             publishedAt: editingArticle.publishedAt,
-            postUri: editingArticle.postUri,
-            postRkey: editingArticle.postRkey,
           }
         : undefined
       const {documentUri} = await publishArticle({
@@ -1446,8 +1456,18 @@ export function ArticleCompose({
       if (draftId) {
         cleanupPublishedDraft({draftId})
       }
-      setPreviewSnapshot(undefined)
-      onClose()
+      // Only a fresh publish gets the share prompt - editing never does
+      // (and never will): most edits are typo fixes, and prompting on each
+      // one either trains people to dismiss it or produces feed spam.
+      // Reshare stays available, author-initiated, from the Articles tab.
+      if (editingArticle) {
+        setPreviewSnapshot(undefined)
+        onClose()
+      } else {
+        setJustPublished({documentUri, title: previewSnapshot.title})
+        setPreviewSnapshot(undefined)
+        shareArticlePromptControl.open()
+      }
     } catch (err) {
       // Unlike `doPreview`'s own validation checks (caught before any
       // network round-trip, so the cause is always known in advance), a
@@ -1893,6 +1913,29 @@ export function ArticleCompose({
           confirmButtonCta={_(msg`Discard`)}
           confirmButtonColor="negative"
           cancelButtonCta={_(msg`Keep editing`)}
+        />
+
+        <Prompt.Basic
+          control={shareArticlePromptControl}
+          title={_(msg`Share this article?`)}
+          description={_(
+            msg`Publishing doesn't post to your profile automatically. Share it now so people can see it.`,
+          )}
+          onConfirm={() => {
+            if (!justPublished) return
+            const {documentUri, title} = justPublished
+            openComposer(
+              async () => ({
+                presetExternalLink: await resolveArticleShareLink(documentUri),
+                text: title,
+                logContext: 'ArticleShare',
+              }),
+              {},
+            )
+          }}
+          confirmButtonCta={_(msg`Share`)}
+          cancelButtonCta={_(msg`Not now`)}
+          onClose={onClose}
         />
 
         <Metadata

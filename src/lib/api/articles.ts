@@ -16,7 +16,6 @@ import {
 import {app, com, type site} from '#/lexicons'
 import * as bsky from '#/types/bsky'
 import {resolveBodyImages} from './article-assets'
-import {computeCid} from './computeCid'
 
 /**
  * Fixed convention this whole write path depends on: `publication.url` never
@@ -63,14 +62,12 @@ export interface ArticleDraft {
   bodyImages?: com.sunnahsky.article.draft.defs.BodyImage[]
 }
 
-/** Identifies the existing published article/companion post being edited, so `publishArticle` can update in place instead of creating fresh records. */
+/** Identifies the existing published article being edited, so `publishArticle` can update its document in place instead of creating a fresh one. */
 export interface ArticleEditRef {
   documentUri: AtUriString
   documentRkey: string
   documentCid: string
   publishedAt: DatetimeString
-  postUri: AtUriString
-  postRkey: string
 }
 
 interface PublishArticleOpts {
@@ -79,8 +76,18 @@ interface PublishArticleOpts {
   editing?: ArticleEditRef
 }
 
-/** Same shape/purpose as `articles-companion.ts`'s `isGenuineCompanionPost`, but checked against a record already in hand (no extra fetch) - narrows the concurrent-edit race window (same account, two tabs/sessions) between loading an article for editing and publishing the update; doesn't close it, since this check and the write below aren't atomic with each other. */
-function isGenuineCompanionPostRecord(
+/**
+ * Whether `record` is a genuine companion/announcement post for `document` -
+ * i.e. its `associatedRefs` actually point back at this exact document.
+ * No longer called anywhere in this file: Release 2 stopped verifying the
+ * edit path against a companion post, since publishing no longer creates
+ * one and there's no `bskyPostRef` left to identify which post to check.
+ * Kept as the future primitive for identifying "has this article been
+ * shared" once that query surface gets built - see the Discoverability
+ * section of `encapsulated-squishing-thacker.md` for why that's a real,
+ * deliberately unbuilt follow-on rather than dead code to delete outright.
+ */
+export function isGenuineCompanionPostRecord(
   record: app.bsky.feed.post.Main,
   document: {uri: string; cid: string},
 ): boolean {
@@ -92,48 +99,20 @@ function isGenuineCompanionPostRecord(
 
 /**
  * Publishes an article: creates the account's `site.standard.publication`
- * if it doesn't exist yet, then writes the companion `app.bsky.feed.post`
- * and the `site.standard.document`, all as one atomic `applyWrites` call.
- *
- * Pre-computed-ref pattern generalized from `post()`'s reply-chain handling
- * (`src/lib/api/index.ts`), but with a real complication `post()` never
- * has: a reply-chain's refs are strictly one-directional (post[i] only ever
- * references post[i-1]), while a document and its companion post reference
- * *each other* (`document.bskyPostRef` -> post, `post.associatedRefs` ->
- * document). Two CIDs that are each a function of the other has no
- * solution in general - so this only works because the two directions
- * don't actually need the same level of exactness:
- *
- * - `post.embed.external.associatedRefs` MUST be exact. It's fed straight
- *   into the AppView's version-pinned lookup (confirmed by reading
- *   `atproto/packages/bsky/src/hydration/hydrator.ts`'s
- *   `externalAssociatedRefs()` and `.../hydration/external.ts`'s
- *   `getSiteStandardRecordsByRef`/`siteStandardRecordKey`, keyed by the
- *   literal `${uri}@${cid}` the post supplied) - a CID that doesn't match
- *   the document's real on-chain bytes simply won't resolve, silently
- *   falling back to a plain link card (the exact failure mode finding 15
- *   already flagged, just from an unaccounted-for cause).
- * - `document.bskyPostRef` does NOT need to be exact. Confirmed by
- *   grepping the entire `atproto`/`bsky` server codebase: `bskyPostRef`
- *   appears only in generated lexicon type files, never read or validated
- *   by any actual route or hydration logic. It's a passive, informational
- *   back-reference only.
- *
- * So the cycle is broken by computing `bskyPostRef` from a *provisional*
- * post (before `associatedRefs` is added) - close enough to be useful,
- * never verified by anyone, and never submitted as-is. The document is
- * then finalized (bskyPostRef included, never mutated again) and its real
- * CID is computed. Only then is the real post built, with `associatedRefs`
- * pointing at that exact, final document CID.
+ * if it doesn't exist yet, then writes the `site.standard.document` (and its
+ * `com.sunnahsky.article.assets` record, if the body has images) as one
+ * atomic `applyWrites` call. Does not create or touch any
+ * `app.bsky.feed.post` - announcing an article is a separate, repeatable
+ * action an author can take any number of times (see `article-share.ts`'s
+ * `resolveArticleShareLink` and the composer's `presetExternalLink`), not
+ * something publishing does on their behalf.
  *
  * With `opts.editing` set, this same function updates an already-published
- * article in place instead: `applyWrites#update` at the existing document
- * and post rkeys (not fresh ones), `publishedAt` preserved, `updatedAt`
- * newly set, and the companion post's `associatedRefs`/link-preview fields
- * re-pinned to the edited document's new CID - all in the same atomic
- * batch, with the same CID-exactness discipline as the create path. The
- * post's own `text` is never touched either way; only its embed metadata
- * changes.
+ * document in place instead: `applyWrites#update` at the existing document
+ * rkey (not a fresh one), `publishedAt` preserved, `updatedAt` newly set.
+ * Any companion post - from before this split, or from a later reshare - is
+ * left completely alone either way; editing an article never touches a
+ * post, and there is no `bskyPostRef` linking the two anymore.
  */
 export async function publishArticle(opts: PublishArticleOpts) {
   const {draft, pdsClient} = opts
@@ -156,75 +135,50 @@ export async function publishArticle(opts: PublishArticleOpts) {
     )
   }
 
-  const [
-    existingPubs,
-    profileRecord,
-    repoDesc,
-    existingPostRecord,
-    existingAssetsRecord,
-  ] = await Promise.all([
-    pdsClient.call(com.atproto.repo.listRecords, {
-      repo: did,
-      collection: 'site.standard.publication',
-      limit: 1,
-    }),
-    // Best-effort: a missing/unreadable profile just falls back to the
-    // handle below, not worth failing the whole publish over.
-    pdsClient
-      .call(com.atproto.repo.getRecord, {
+  const [existingPubs, profileRecord, repoDesc, existingAssetsRecord] =
+    await Promise.all([
+      pdsClient.call(com.atproto.repo.listRecords, {
         repo: did,
-        collection: 'app.bsky.actor.profile',
-        rkey: 'self',
-      })
-      .catch(() => undefined),
-    pdsClient.call(com.atproto.repo.describeRepo, {repo: did}),
-    opts.editing
-      ? pdsClient.call(com.atproto.repo.getRecord, {
+        collection: 'site.standard.publication',
+        limit: 1,
+      }),
+      // Best-effort: a missing/unreadable profile just falls back to the
+      // handle below, not worth failing the whole publish over.
+      pdsClient
+        .call(com.atproto.repo.getRecord, {
           repo: did,
-          collection: 'app.bsky.feed.post',
-          rkey: opts.editing.postRkey,
+          collection: 'app.bsky.actor.profile',
+          rkey: 'self',
         })
-      : Promise.resolve(undefined),
-    /*
-     * The existing assets record, on the edit path only.
-     *
-     * This is load-bearing rather than an optimisation. For an image the
-     * author did not re-upload during this editing session, the app holds
-     * only the CID parsed out of the markdown URL - not the `BlobRef` the
-     * record needs. Those refs exist nowhere else, so omitting this fetch
-     * would silently drop every previously-published image from the record,
-     * and `deleteDereferencedBlobs` would then delete the bytes from the
-     * blobstore permanently.
-     *
-     * Absent is a normal outcome, not an error: an article published before
-     * this feature existed, or one that simply has no body images, has no
-     * assets record at all.
-     */
-    opts.editing
-      ? pdsClient
-          .call(com.atproto.repo.getRecord, {
-            repo: did,
-            collection: 'com.sunnahsky.article.assets',
-            rkey: opts.editing.documentRkey,
-          })
-          .catch(() => undefined)
-      : Promise.resolve(undefined),
-  ])
+        .catch(() => undefined),
+      pdsClient.call(com.atproto.repo.describeRepo, {repo: did}),
+      /*
+       * The existing assets record, on the edit path only.
+       *
+       * This is load-bearing rather than an optimisation. For an image the
+       * author did not re-upload during this editing session, the app holds
+       * only the CID parsed out of the markdown URL - not the `BlobRef` the
+       * record needs. Those refs exist nowhere else, so omitting this fetch
+       * would silently drop every previously-published image from the record,
+       * and `deleteDereferencedBlobs` would then delete the bytes from the
+       * blobstore permanently.
+       *
+       * Absent is a normal outcome, not an error: an article published before
+       * this feature existed, or one that simply has no body images, has no
+       * assets record at all.
+       */
+      opts.editing
+        ? pdsClient
+            .call(com.atproto.repo.getRecord, {
+              repo: did,
+              collection: 'com.sunnahsky.article.assets',
+              rkey: opts.editing.documentRkey,
+            })
+            .catch(() => undefined)
+        : Promise.resolve(undefined),
+    ])
   const hasPublication = existingPubs.records.length > 0
   const existingPub = hasPublication ? existingPubs.records[0] : undefined
-
-  if (opts.editing && existingPostRecord) {
-    const existingPostValue =
-      existingPostRecord.value as app.bsky.feed.post.Main
-    if (
-      !isGenuineCompanionPostRecord(existingPostValue, {
-        uri: opts.editing.documentUri,
-        cid: opts.editing.documentCid,
-      })
-    ) {
-      throw new Error("This article's companion post could not be verified")
-    }
-  }
 
   // Sunnahsky is infrastructure, not an editorial voice - each Striker's
   // publication is named after them, not the platform, so every account's
@@ -256,70 +210,13 @@ export async function publishArticle(opts: PublishArticleOpts) {
   const pubUri = hasPublication
     ? existingPub!.uri
     : (`at://${did}/site.standard.publication/${pubRkey}` as AtUriString)
-  // Must be recomputed when renaming: the publication's on-chain CID
-  // changes the instant the update write lands, and this value feeds the
-  // companion post's `associatedRefs` below - same exactness requirement
-  // as `documentRecord`'s own CID, per this function's doc comment.
-  const pubCid =
-    hasPublication && !publicationNeedsRename
-      ? existingPub!.cid
-      : await computeCid(publicationRecord)
 
-  let docRkey: string
-  let postRkey: string
-  if (opts.editing) {
-    docRkey = opts.editing.documentRkey
-    postRkey = opts.editing.postRkey
-  } else {
-    let tid = TID.next()
-    docRkey = tid.toString()
-    tid = TID.next(tid)
-    postRkey = tid.toString()
-  }
+  const docRkey: string = opts.editing?.documentRkey ?? TID.nextStr()
   const docUri: AtUriString =
     opts.editing?.documentUri ?? `at://${did}/site.standard.document/${docRkey}`
-  const postUri: AtUriString =
-    opts.editing?.postUri ?? `at://${did}/app.bsky.feed.post/${postRkey}`
 
   const path = articlePath(did, docRkey)
-  const uri = articleUrl(did, docRkey)
   const now = toDatetimeString(new Date())
-
-  // Provisional post - no `associatedRefs` yet, never submitted, only used
-  // to seed `bskyPostRef` (see doc comment above for why this is fine).
-  // When editing, this starts from the *existing* post record instead of a
-  // blank one, so its own text/createdAt/reply/etc. carry through untouched
-  // below - only the embed's link-preview fields get overridden.
-  const provisionalPost = opts.editing
-    ? {
-        ...(existingPostRecord!.value as app.bsky.feed.post.Main),
-        embed: {
-          $type: 'app.bsky.embed.external' as const,
-          external: {
-            $type: 'app.bsky.embed.external#external' as const,
-            uri,
-            title: draft.title,
-            description: draft.description,
-            thumb: draft.coverImage,
-          },
-        },
-      }
-    : {
-        $type: 'app.bsky.feed.post',
-        text: draft.title,
-        createdAt: now,
-        embed: {
-          $type: 'app.bsky.embed.external',
-          external: {
-            $type: 'app.bsky.embed.external#external',
-            uri,
-            title: draft.title,
-            description: draft.description,
-            thumb: draft.coverImage,
-          },
-        },
-      }
-  const provisionalPostCid = await computeCid(provisionalPost)
 
   const documentRecord: site.standard.document.Main & {
     authors?: string[]
@@ -354,15 +251,10 @@ export async function publishArticle(opts: PublishArticleOpts) {
         facets: facetsToWireFormat(validFacets),
       },
     } as unknown as site.standard.document.Main['content'],
-    bskyPostRef: {uri: postUri, cid: provisionalPostCid},
   }
   if (draft.authors?.length) documentRecord.authors = draft.authors
   if (draft.translators?.length) documentRecord.translators = draft.translators
   if (draft.categories?.length) documentRecord.categories = draft.categories
-
-  // Document is now final (never mutated after this point) - its real CID
-  // is what `associatedRefs` below must pin exactly.
-  const docCid = await computeCid(documentRecord)
 
   /*
    * Body-image blobs.
@@ -410,20 +302,6 @@ export async function publishArticle(opts: PublishArticleOpts) {
     images: bodyImages,
   }
 
-  const postRecord = {
-    ...provisionalPost,
-    embed: {
-      ...provisionalPost.embed,
-      external: {
-        ...provisionalPost.embed.external,
-        associatedRefs: [
-          {uri: docUri, cid: docCid},
-          {uri: pubUri, cid: pubCid},
-        ],
-      },
-    },
-  }
-
   const writes: com.atproto.repo.applyWrites.$InputBody['writes'] = []
   if (!hasPublication) {
     writes.push({
@@ -441,12 +319,6 @@ export async function publishArticle(opts: PublishArticleOpts) {
     })
   }
   if (opts.editing) {
-    writes.push({
-      $type: 'com.atproto.repo.applyWrites#update',
-      collection: 'app.bsky.feed.post',
-      rkey: postRkey,
-      value: postRecord,
-    })
     writes.push({
       $type: 'com.atproto.repo.applyWrites#update',
       collection: 'site.standard.document',
@@ -488,12 +360,6 @@ export async function publishArticle(opts: PublishArticleOpts) {
   } else {
     writes.push({
       $type: 'com.atproto.repo.applyWrites#create',
-      collection: 'app.bsky.feed.post',
-      rkey: postRkey,
-      value: postRecord,
-    })
-    writes.push({
-      $type: 'com.atproto.repo.applyWrites#create',
       collection: 'site.standard.document',
       rkey: docRkey,
       value: documentRecord,
@@ -514,7 +380,7 @@ export async function publishArticle(opts: PublishArticleOpts) {
     validate: true,
   })
 
-  return {documentUri: docUri, postUri, publicationUri: pubUri}
+  return {documentUri: docUri, publicationUri: pubUri}
 }
 
 interface DeleteArticleOpts {

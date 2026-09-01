@@ -13,8 +13,6 @@ export type EditingArticleState = {
   cid: string
   publishedAt: DatetimeString
   updatedAt?: DatetimeString
-  postUri: AtUriString
-  postRkey: string
 }
 
 /**
@@ -90,11 +88,7 @@ export function articleDocumentToComposeState(
     coverImagePreviewUri = `${SUNNAHSKY_SERVICE}/xrpc/com.atproto.sync.getBlob?did=${encodeURIComponent(opts.did)}&cid=${encodeURIComponent(cid)}`
   }
 
-  // Guaranteed present - `useArticleDocumentQuery` already throws if this
-  // article has no companion post to edit against.
-  const postUri = document.bskyPostRef!.uri
   const docParsed = new AtUri(loaded.uri)
-  const postParsed = new AtUri(postUri)
 
   return {
     title: document.title,
@@ -135,8 +129,6 @@ export function articleDocumentToComposeState(
       cid: loaded.cid,
       publishedAt: document.publishedAt,
       updatedAt: document.updatedAt,
-      postUri,
-      postRkey: postParsed.rkey,
     },
   }
 }
