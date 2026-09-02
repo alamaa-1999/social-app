@@ -40,6 +40,7 @@ import {
   HomeHeaderModeProvider,
   useHomeHeaderMode,
 } from '#/view/com/util/MainScrollProvider'
+import {LoggedOutHome} from '#/screens/Home/LoggedOutHome'
 import {NoFeedsPinned} from '#/screens/Home/NoFeedsPinned'
 import * as Layout from '#/components/Layout'
 import {useAnalytics} from '#/analytics'
@@ -334,20 +335,7 @@ function HomeScreenReady({
       )}
     </Pager>
   ) : (
-    <Pager
-      testID="homeScreen"
-      onPageSelected={onPageSelected}
-      onPageScrollStateChanged={onPageScrollStateChanged}
-      renderTabBar={renderTabBar}>
-      <FeedPage
-        testID="customFeedPage"
-        isPageFocused
-        isPageAdjacent={false}
-        feed={`feedgen|${PROD_DEFAULT_FEED('whats-hot')}`}
-        renderEmptyState={renderCustomFeedEmptyState}
-        feedInfo={pinnedFeedInfos[0]}
-      />
-    </Pager>
+    <LoggedOutHome />
   )
 }
 

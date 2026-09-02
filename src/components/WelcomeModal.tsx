@@ -9,7 +9,6 @@ import {Logo} from '#/view/icons/Logo'
 import {atoms as a, flatten, useBreakpoints, web} from '#/alf'
 import {Button, ButtonText} from '#/components/Button'
 import {type WelcomeModalControl} from '#/components/hooks/useWelcomeModal.shared'
-import {TimesLarge_Stroke2_Corner0_Rounded as XIcon} from '#/components/icons/Times'
 import {Text} from '#/components/Typography'
 import {useAnalytics} from '#/analytics'
 
@@ -24,16 +23,7 @@ export function WelcomeModal({control}: WelcomeModalProps) {
   const ax = useAnalytics()
   const {requestSwitchToAccount} = useLoggedOutViewControls()
   const {gtMobile} = useBreakpoints()
-  const [isExiting, setIsExiting] = useState(false)
   const [signInLinkHovered, setSignInLinkHovered] = useState(false)
-
-  const fadeOutAndClose = (callback?: () => void) => {
-    setIsExiting(true)
-    setTimeout(() => {
-      control.close()
-      if (callback) callback()
-    }, 150)
-  }
 
   useEffect(() => {
     if (control.isOpen) {
@@ -46,11 +36,6 @@ export function WelcomeModal({control}: WelcomeModalProps) {
     ax.metric('welcomeModal:signupClicked', {})
     control.close()
     requestSwitchToAccount({requestedAccount: 'new'})
-  }
-
-  const onPressExplore = () => {
-    ax.metric('welcomeModal:exploreClicked', {})
-    fadeOutAndClose()
   }
 
   const onPressSignIn = () => {
@@ -72,7 +57,7 @@ export function WelcomeModal({control}: WelcomeModalProps) {
         a.align_center,
         {zIndex: 9999, backgroundColor: 'rgba(0,0,0,0.2)'},
         web({backdropFilter: 'blur(15px)'}),
-        isExiting ? a.fade_out : a.fade_in,
+        a.fade_in,
       ]}>
       <FocusScope.FocusScope asChild loop trapped>
         <View
@@ -165,21 +150,6 @@ export function WelcomeModal({control}: WelcomeModalProps) {
                       <Trans>Create account</Trans>
                     </ButtonText>
                   </Button>
-                  <Button
-                    onPress={onPressExplore}
-                    label={l`Explore the app`}
-                    size="large"
-                    color="primary"
-                    variant="ghost"
-                    style={[a.bg_transparent, {width: 200}]}
-                    hoverStyle={[a.bg_transparent]}>
-                    {({hovered}) => (
-                      <ButtonText
-                        style={[hovered && [a.underline], {color: '#006AFF'}]}>
-                        <Trans>Explore the app</Trans>
-                      </ButtonText>
-                    )}
-                  </Button>
                 </View>
                 <View style={[a.align_center, {minWidth: 200}]}>
                   <Text
@@ -212,35 +182,6 @@ export function WelcomeModal({control}: WelcomeModalProps) {
                 </View>
               </View>
             </View>
-            <Button
-              label={l`Close welcome modal`}
-              style={[
-                a.absolute,
-                {
-                  top: 8,
-                  right: 8,
-                },
-                a.bg_transparent,
-              ]}
-              hoverStyle={[a.bg_transparent]}
-              onPress={() => {
-                ax.metric('welcomeModal:dismissed', {})
-                fadeOutAndClose()
-              }}
-              color="secondary"
-              size="small"
-              variant="ghost"
-              shape="round">
-              {({hovered, pressed, focused}) => (
-                <XIcon
-                  size="md"
-                  style={{
-                    color: '#354358',
-                    opacity: hovered || pressed || focused ? 1 : 0.7,
-                  }}
-                />
-              )}
-            </Button>
           </ImageBackground>
         </View>
       </FocusScope.FocusScope>
