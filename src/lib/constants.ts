@@ -248,30 +248,25 @@ export const DEV_ENV_APPVIEW_DID = `did:plc:dw4kbjf5mn7nhenabiqpkyh3` // always 
 // temp hack for e2e - esb
 export const BLUESKY_PROXY_HEADER = {
   /*
-   * Always `BLUESKY_PROXY_DID`, dev or not - a prior version of this
-   * defaulted to `DEV_ENV_APPVIEW_DID` under `IS_DEV`, reasoning that a
-   * local dev-env's ephemeral DIDs need a matching local appview target.
-   * True only for the full `@atproto/dev-env` e2e stack - and that harness
-   * doesn't need this default anyway: `TestCtrls.e2e.tsx` explicitly calls
-   * `.set()` with its own instance's real proxy DID before any sign-in is
-   * even possible (its sign-in buttons stay hidden until that happens), so
-   * this default was never load-bearing for it.
+   * `DEV_ENV_APPVIEW_DID` in dev, not `BLUESKY_PROXY_DID` - a real bug fix,
+   * not a defensive guess. `BLUESKY_PROXY_DID` has no local-dev branch and
+   * always resolves to the real production appview (`did:web:api.bsky.app`);
+   * every signed-in appview read (`buildAppviewClient`, `clients.ts`) proxies
+   * through whichever DID sits here, so a purely local `did:plc:` (from
+   * `dev-env`'s own ephemeral PDS/appview stack) got proxied to the *real*
+   * appview, which has obviously never heard of it - a hard, permanent
+   * `AuthRequiredError('identity unknown')` on every profile/notification/
+   * search read against a local dev PDS, confirmed directly against
+   * `bsky/src/auth-verifier.ts`'s `verifyServiceJwt`. `DEV_ENV_APPVIEW_DID`
+   * was already sitting right above this, unused anywhere, evidently
+   * prepared for exactly this and never wired up.
    *
-   * For everything else - a real local Sunnahsky PDS, which is what this
-   * project's own local dev actually runs - `DEV_ENV_APPVIEW_DID`
-   * (`did:plc:dw4kbjf5mn7nhenabiqpkyh3`) is a dead end: confirmed directly
-   * against the real PLC directory, it 404s ("DID not registered"), since
-   * it only ever exists inside an isolated dev-env stack's own mock PLC.
-   * Proxying a real local PDS's appview reads there is a permanent,
-   * unauthenticatable target, breaking profile/notification/search/feed
-   * reads (`buildAppviewClient`, `clients.ts`) for every signed-in local
-   * session. The real production appview (`did:web:api.bsky.app`) is
-   * what local Sunnahsky dev actually needs here, the same as production -
-   * local test accounts are real, network-published DIDs, not ephemeral
-   * dev-env ones, so they resolve there exactly as any production account
-   * would.
+   * `.set()` below is untouched and still wins over whichever default this
+   * is - the e2e harness (`TestCtrls.e2e.tsx`) explicitly calls it to point
+   * at its own fixed local appview, and that must keep working exactly as
+   * before.
    */
-  value: `${BLUESKY_PROXY_DID}#bsky_appview`,
+  value: `${IS_DEV ? DEV_ENV_APPVIEW_DID : BLUESKY_PROXY_DID}#bsky_appview`,
   get() {
     return this.value as Service
   },
